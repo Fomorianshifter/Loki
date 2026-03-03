@@ -12,15 +12,15 @@
 #include <signal.h>
 #include <string.h>
 
-#include "core/system.h"
-#include "drivers/tft/tft_driver.h"
-#include "drivers/sdcard/sdcard_driver.h"
-#include "drivers/flash/flash_driver.h"
-#include "drivers/eeprom/eeprom_driver.h"
-#include "drivers/flipper_uart/flipper_uart.h"
-#include "utils/log.h"
-#include "utils/memory.h"
-#include "utils/retry.h"
+#include "system.h"
+#include "../drivers/tft/tft_driver.h"
+#include "../drivers/sdcard/sdcard_driver.h"
+#include "../drivers/flash/flash_driver.h"
+#include "../drivers/eeprom/eeprom_driver.h"
+#include "../drivers/flipper_uart/flipper_uart.h"
+#include "../utils/log.h"
+#include "../utils/memory.h"
+#include "../utils/retry.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
