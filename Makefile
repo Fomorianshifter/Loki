@@ -37,7 +37,7 @@ DEPS := $(OBJECTS:.o=.d)
 TARGET := loki_app
 
 ## Linker Settings
-LDFLAGS := -lm -lpthread
+LDFLAGS := -lm -lpthread -lcurl
 
 ## Build Rules
 all: $(BUILD_DIR)/$(TARGET)

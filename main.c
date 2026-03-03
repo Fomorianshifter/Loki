@@ -18,6 +18,7 @@
 #include "drivers/flash/flash_driver.h"
 #include "drivers/eeprom/eeprom_driver.h"
 #include "drivers/flipper_uart/flipper_uart.h"
+#include "drivers/ai_client/ai_client.h"
 #include "utils/log.h"
 #include "utils/memory.h"
 #include "utils/retry.h"
@@ -146,6 +147,33 @@ static void test_flipper_communication(void)
     }
 }
 
+/* ===== EXAMPLE: AI API TEST ===== */
+/**
+ * @brief Test AI client connectivity.
+ *
+ * Sends a simple prompt to the configured AI API and logs the response.
+ * Enable by setting AI_ENABLED 1 and AI_API_KEY in board_config.h.
+ */
+static void test_ai_query(void)
+{
+#if AI_ENABLED
+    LOG_INFO("Running AI Client Test...");
+
+    char response[AI_MAX_RESPONSE_LEN];
+    hal_status_t status = ai_query("Reply with exactly: 'Loki AI ready'", response, sizeof(response));
+
+    if (status == HAL_OK) {
+        LOG_INFO("✓ AI response: %s", response);
+    } else if (status == HAL_TIMEOUT) {
+        LOG_WARN("AI request timed out");
+    } else {
+        LOG_ERROR("AI query failed (is AI_API_KEY set in board_config.h?)");
+    }
+#else
+    LOG_INFO("AI client disabled (set AI_ENABLED=1 in board_config.h to enable)");
+#endif
+}
+
 /* ===== MAIN APPLICATION ===== */
 /**
  * @brief Main application entry point
@@ -200,6 +228,9 @@ int main(int argc, char *argv[])
     sleep(1);
 
     test_flipper_communication();
+    sleep(1);
+
+    test_ai_query();
     sleep(1);
 
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

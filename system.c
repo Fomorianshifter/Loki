@@ -23,6 +23,7 @@
 #include "../drivers/flash/flash_driver.h"
 #include "../drivers/eeprom/eeprom_driver.h"
 #include "../drivers/flipper_uart/flipper_uart.h"
+#include "../drivers/ai_client/ai_client.h"
 
 /* ===== SYSTEM STATE ===== */
 typedef struct {
@@ -33,6 +34,7 @@ typedef struct {
     uint8_t flash_ready;
     uint8_t eeprom_ready;
     uint8_t flipper_ready;
+    uint8_t ai_ready;
 } system_state_t;
 
 static system_state_t system_state = {0};
@@ -108,6 +110,17 @@ hal_status_t system_init(void)
         LOG_INFO("Flipper UART initialized");
     }
 
+    /* Initialize AI client (optional – configure in board_config.h) */
+#if AI_ENABLED
+    LOG_INFO("Initializing AI client (model: %s)...", AI_MODEL);
+    if (ai_client_init(NULL) != HAL_OK) {
+        LOG_WARN("AI client initialization failed (continuing without AI)");
+    } else {
+        system_state.ai_ready = 1;
+        LOG_INFO("AI client initialized");
+    }
+#endif
+
     system_state.initialized = 1;
     LOG_INFO("System initialization complete");
     system_print_status();
@@ -127,6 +140,8 @@ void system_print_status(void)
     LOG_INFO("║ Flash Memory:        %s", system_state.flash_ready ? "✓ OK" : "✗ FAILED");
     LOG_INFO("║ EEPROM:              %s", system_state.eeprom_ready ? "✓ OK" : "✗ FAILED");
     LOG_INFO("║ Flipper UART:        %s", system_state.flipper_ready ? "✓ OK" : "✗ FAILED");
+    LOG_INFO("║ AI Client:           %s",
+             system_state.ai_ready ? "✓ OK" : (AI_ENABLED ? "✗ FAILED" : "- DISABLED"));
     
 #ifdef DEBUG
     LOG_INFO("║ Memory Usage:        %zu bytes", memory_get_usage());
@@ -145,6 +160,13 @@ hal_status_t system_shutdown(void)
         flipper_uart_deinit();
         system_state.flipper_ready = 0;
     }
+
+#if AI_ENABLED
+    if (system_state.ai_ready) {
+        ai_client_deinit();
+        system_state.ai_ready = 0;
+    }
+#endif
 
     if (system_state.eeprom_ready) {
         eeprom_deinit();
