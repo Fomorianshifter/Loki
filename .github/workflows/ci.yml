@@ -8,6 +8,8 @@ jobs:
   build:
     name: ARM Cross-Compile (Debug + Release)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
