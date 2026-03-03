@@ -6,7 +6,7 @@
  * Orange Pi Zero 2W Loki Board
  */
 
-#include "../includes/types.h"
+#include "types.h"
 
 /* ===== SYSTEM LIFECYCLE ===== */
 

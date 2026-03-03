@@ -5,24 +5,24 @@
  */
 
 #include "system.h"
-#include "../config/pinout.h"
-#include "../config/board_config.h"
-#include "../utils/log.h"
-#include "../utils/memory.h"
+#include "pinout.h"
+#include "board_config.h"
+#include "log.h"
+#include "memory.h"
 
 /* Import HAL drivers */
-#include "../hal/gpio/gpio.h"
-#include "../hal/spi/spi.h"
-#include "../hal/i2c/i2c.h"
-#include "../hal/uart/uart.h"
-#include "../hal/pwm/pwm.h"
+#include "gpio.h"
+#include "spi.h"
+#include "i2c.h"
+#include "uart.h"
+#include "pwm.h"
 
 /* Import device drivers */
-#include "../drivers/tft/tft_driver.h"
-#include "../drivers/sdcard/sdcard_driver.h"
-#include "../drivers/flash/flash_driver.h"
-#include "../drivers/eeprom/eeprom_driver.h"
-#include "../drivers/flipper_uart/flipper_uart.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
 
 /* ===== SYSTEM STATE ===== */
 typedef struct {

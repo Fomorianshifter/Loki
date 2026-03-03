@@ -9,7 +9,7 @@
 
 ## Compiler Settings
 CC := arm-linux-gnueabihf-gcc
-CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
+CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
 CFLAGS += -I. -I./includes -I./config -I./utils
 
 ## Debug/Release Build Modes
@@ -30,7 +30,7 @@ CROSS_HOST ?= orange-pi.local
 CROSS_PATH ?= /tmp
 
 ## Project Structure
-SOURCES := $(wildcard hal/**/*.c drivers/**/*.c core/*.c utils/*.c)
+SOURCES := $(wildcard *.c)
 HEADERS := $(wildcard includes/*.h config/*.h hal/**/*.h drivers/**/*.h core/*.h utils/*.h)
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(SOURCES:.c=.o))
 DEPS := $(OBJECTS:.o=.d)

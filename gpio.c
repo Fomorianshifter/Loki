@@ -5,7 +5,7 @@
  */
 
 #include "gpio.h"
-#include "../../utils/log.h"
+#include "log.h"
 
 /* Import system resources from /sys/class/gpio (Linux sysfs) */
 static const char *GPIO_SYSFS_PATH = "/sys/class/gpio";

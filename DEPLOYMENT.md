@@ -603,6 +603,80 @@ Once deployment is successful:
 
 ---
 
+## Web UI
+
+Loki runs a built-in HTTP server on port **8080** so you can monitor the system
+from any browser on the local network.
+
+### Accessing the Web UI
+
+| URL | Description |
+|-----|-------------|
+| `http://<device-ip>:8080/` | HTML dashboard |
+| `http://<device-ip>:8080/api/status` | JSON status |
+| `http://loki.local:8080/` | Friendly URL (requires mDNS — see below) |
+
+#### Startup log
+
+When Loki starts you will see:
+
+```
+Web UI started on port 8080
+  Local network : http://<device-ip>:8080/
+  Friendly URL  : http://loki.local:8080/  (requires mDNS)
+  API status    : http://loki.local:8080/api/status
+```
+
+### Setting up the friendly `loki.local` address
+
+#### Step 1 — Set the device hostname
+
+```bash
+# On the Orange Pi
+sudo hostnamectl set-hostname loki
+# Or edit directly:
+echo "loki" | sudo tee /etc/hostname
+sudo sed -i 's/orange-pi/loki/g' /etc/hosts
+sudo reboot
+```
+
+#### Step 2 — Install and enable Avahi (mDNS)
+
+```bash
+# On the Orange Pi
+sudo apt-get update
+sudo apt-get install -y avahi-daemon
+sudo systemctl enable avahi-daemon
+sudo systemctl start avahi-daemon
+```
+
+After this step, `loki.local` resolves on any machine on the same LAN that
+supports mDNS (Linux with avahi-daemon, macOS, Windows 10+).
+
+#### Step 3 — Open the UI
+
+```
+http://loki.local:8080/
+```
+
+### Configuration
+
+The Web UI is controlled by macros in `webui.h` (override via `CFLAGS`):
+
+| Macro | Default | Description |
+|-------|---------|-------------|
+| `WEBUI_ENABLED` | `1` | Set to `0` to compile out the server |
+| `WEBUI_PORT` | `8080` | TCP port (no root required for ≥1024) |
+| `WEBUI_BIND_ADDR` | `"0.0.0.0"` | Bind address |
+
+Example — change port at build time:
+
+```bash
+make DEBUG=0 CFLAGS+="-DWEBUI_PORT=9090"
+```
+
+---
+
 ## Support Resources
 
 - **Build Errors**: See [BUILD.md](BUILD.md) troubleshooting section
