@@ -253,12 +253,12 @@ Most common options are listed first:
 | LCD/TFT | 2.4" ILI9341/ST7789 | 320 × 240 | SPI | Common compact panel |
 | LCD/TFT | 5.0" class | 800 × 480 | SPI | Larger HMI panel |
 | LCD/TFT | 7.0" class | 1024 × 600 | SPI | Dashboard/kiosk style |
-| ePaper | 2.13" class | 250 × 122 | SPI | Most common low-power size |
+| ePaper | 2.13" class | 250 × 122 (model-dependent) | SPI | Most common low-power size |
 | ePaper | 2.9" class | 296 × 128 | SPI | Popular badge/label size |
 | ePaper | 4.2" class | 400 × 300 | SPI | Common medium ePaper |
 | ePaper | 7.5" class | 800 × 480 | SPI | Common large ePaper |
 
-For non-standard sizes, keep the same SPI + control-pin wiring and update panel-specific width/height/controller settings in your board configuration.
+For non-standard sizes, keep the same SPI + control-pin wiring and update panel-specific width/height/controller settings in your board configuration (see [Configuration](#configuration)).
 
 #### TFT Display (ILI9488)
 - **Resolution**: 480 × 320 pixels
