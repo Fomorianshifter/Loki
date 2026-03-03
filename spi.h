@@ -6,7 +6,7 @@
  * Supports SPI0 (TFT), SPI1 (SD Card), and SPI2 (Flash)
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== SPI BUS DEFINITIONS ===== */
 typedef enum {

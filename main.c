@@ -12,15 +12,16 @@
 #include <signal.h>
 #include <string.h>
 
-#include "core/system.h"
-#include "drivers/tft/tft_driver.h"
-#include "drivers/sdcard/sdcard_driver.h"
-#include "drivers/flash/flash_driver.h"
-#include "drivers/eeprom/eeprom_driver.h"
-#include "drivers/flipper_uart/flipper_uart.h"
-#include "utils/log.h"
-#include "utils/memory.h"
-#include "utils/retry.h"
+#include "system.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
+#include "log.h"
+#include "memory.h"
+#include "retry.h"
+#include "webui.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
@@ -204,6 +205,13 @@ int main(int argc, char *argv[])
 
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
+    /* Start Web UI server */
+#if WEBUI_ENABLED
+    if (webui_start() != 0) {
+        LOG_WARN("Web UI server failed to start (non-fatal)");
+    }
+#endif
+
     /* Main loop */
     LOG_INFO("Entering main loop. Press Ctrl+C to exit.");
     LOG_INFO("Waiting for Flipper commands...\n");
@@ -234,6 +242,11 @@ int main(int argc, char *argv[])
 
         sleep(1);  /* CPU-friendly polling */
     }
+
+    /* Stop Web UI server */
+#if WEBUI_ENABLED
+    webui_stop();
+#endif
 
     /* Shutdown */
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

@@ -61,11 +61,13 @@
 - ✅ **Modular Architecture** - Clean separation of HAL, drivers, and application
 - ✅ **Hardware Abstraction Layer** - GPIO, SPI (3 buses), I2C, UART, PWM
 - ✅ **Device Drivers** - TFT display, SD card, Flash memory, EEPROM, Flipper UART
+- ✅ **Web UI Dashboard** - Built-in HTTP server; open `http://loki.local:8080/` in any browser
 - ✅ **Professional Logging** - 5 severity levels, auto source tracking, color output
 - ✅ **Memory Safety** - Safe allocation/free with leak detection in DEBUG mode
 - ✅ **Error Recovery** - Automatic retry with exponential backoff for transient errors
 - ✅ **Cross-Compilation** - Build on Windows, Mac, or Linux for any target
 - ✅ **Windows Support** - Native PowerShell and CMD build scripts
+- ✅ **CI/CD** - GitHub Actions workflow builds debug and release for every push/PR
 - ✅ **Production Ready** - Systemd integration, comprehensive error handling
 - ✅ **Full Documentation** - API docs, build guides, deployment procedures
 
@@ -1562,6 +1564,75 @@ Contributions welcome! Please:
 - **Device Drivers**: 5
 - **HAL Modules**: 5
 - **Build Targets**: 12
+
+---
+
+## 🌐 Web UI
+
+Loki includes a lightweight HTTP server that lets you monitor the device from
+any browser on the local network — no extra software needed.
+
+### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | HTML dashboard — board info, hardware summary, API links |
+| `GET /api/status` | JSON — app name, version, board, uptime, build type, mood/state |
+
+### Quick access
+
+```
+http://<device-ip>:8080/         # by IP address (always works)
+http://loki.local:8080/          # friendly name (requires mDNS — see below)
+```
+
+### JSON status example
+
+```json
+{
+  "app": "Loki",
+  "version": "1.0",
+  "board": "Orange Pi Zero 2W Loki",
+  "model": "OPI_ZERO_2W",
+  "uptime_seconds": 142,
+  "build": "release",
+  "mood": "calm",
+  "state": "running"
+}
+```
+
+### Setting up `loki.local`
+
+1. **Set the device hostname** on the Orange Pi:
+   ```bash
+   sudo hostnamectl set-hostname loki
+   sudo reboot
+   ```
+
+2. **Install Avahi** (mDNS daemon) so `loki.local` resolves on the LAN:
+   ```bash
+   sudo apt-get install -y avahi-daemon
+   sudo systemctl enable --now avahi-daemon
+   ```
+
+3. Open **`http://loki.local:8080/`** in a browser on any machine on the same LAN.
+
+> **Note**: macOS and Windows 10+ resolve `.local` names automatically via Bonjour/mDNS.
+> Linux clients need `avahi-daemon` installed as well (`sudo apt-get install avahi-daemon`).
+
+### Configuration
+
+Override defaults at build time via `-D` flags:
+
+```bash
+# Disable Web UI entirely
+make DEBUG=0 CFLAGS+="-DWEBUI_ENABLED=0"
+
+# Use a different port
+make DEBUG=0 CFLAGS+="-DWEBUI_PORT=9090"
+```
+
+See [`DEPLOYMENT.md`](DEPLOYMENT.md#web-ui) for full deployment details.
 
 ---
 
