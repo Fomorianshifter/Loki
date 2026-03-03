@@ -242,6 +242,24 @@ Loki/
 
 ### Device Specifications
 
+#### Display Setup Profiles (SPI, 40-pin RPi Header)
+
+The wiring model supports SPI displays over the Raspberry Pi-compatible 40-pin header.  
+Most common options are listed first:
+
+| Type | Common Profile | Resolution | Interface | Notes |
+|------|----------------|------------|-----------|-------|
+| LCD/TFT | 3.5" ILI9488 | 480 × 320 | SPI | **Default in-tree driver** |
+| LCD/TFT | 2.4" ILI9341/ST7789 | 320 × 240 | SPI | Common compact panel |
+| LCD/TFT | 5.0" class | 800 × 480 | SPI | Larger HMI panel |
+| LCD/TFT | 7.0" class | 1024 × 600 | SPI | Dashboard/kiosk style |
+| ePaper | 2.13" class | 250 × 122 (model-dependent) | SPI | Most common low-power size |
+| ePaper | 2.9" class | 296 × 128 | SPI | Popular badge/label size |
+| ePaper | 4.2" class | 400 × 300 | SPI | Common medium ePaper |
+| ePaper | 7.5" class | 800 × 480 | SPI | Common large ePaper |
+
+For non-standard sizes, keep the same SPI + control-pin wiring and update panel-specific width/height/controller settings in your board configuration (see [Configuration](#configuration)).
+
 #### TFT Display (ILI9488)
 - **Resolution**: 480 × 320 pixels
 - **Color Depth**: 16-bit RGB565
