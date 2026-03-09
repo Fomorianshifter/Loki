@@ -255,7 +255,7 @@ const TESTS = {
         label: 'TFT Display',
         statusId: 'status-tft',
         steps: [
-            'Initialising SPI bus...',
+            'Initializing SPI bus...',
             'Resetting TFT (ST7789)...',
             'Setting display orientation...',
             'Filling screen with red...',
