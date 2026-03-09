@@ -1,0 +1,43 @@
+name: CI – Build & Test
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]   # releases are handled by release.yml
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build:
+    name: Cross-compile for ARM Linux (Orange Pi Zero 2W)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM cross-compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+
+      - name: Build – debug
+        run: make DEBUG=1
+
+      - name: Build – release
+        run: make DEBUG=0
+
+      - name: Compile with test flags (MOCK_HARDWARE)
+        # Passes MOCK_HARDWARE via the EXTRA define so the Makefile's CFLAGS are not disrupted
+        run: |
+          make clean
+          make DEBUG=1 "CFLAGS+=-DMOCK_HARDWARE"
+
+      - name: Upload release binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loki_app-arm-release
+          path: build/release/loki_app
+          if-no-files-found: error
