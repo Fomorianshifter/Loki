@@ -6,7 +6,7 @@
  * Supports I2C0 for EEPROM communication
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== I2C BUS DEFINITIONS ===== */
 typedef enum {

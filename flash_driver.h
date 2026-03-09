@@ -7,8 +7,8 @@
  * 4 Megabit (512 KiB) capacity
  */
 
-#include "../../includes/types.h"
-#include "../../config/board_config.h"
+#include "types.h"
+#include "board_config.h"
 
 /* ===== LOKI CREDITS FLASH INTERFACE ===== */
 

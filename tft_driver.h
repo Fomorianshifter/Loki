@@ -6,8 +6,8 @@
  * Communicates via SPI0
  */
 
-#include "../../includes/types.h"
-#include "../../config/board_config.h"
+#include "types.h"
+#include "board_config.h"
 
 /* ===== TFT DISPLAY CONTROL ===== */
 

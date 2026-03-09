@@ -4,12 +4,16 @@
 # - Linux/Mac: Use this Makefile directly with `make` command
 # - Windows: Use build.bat or build.ps1 script instead
 #
-# Requires: arm-linux-gnueabihf-gcc cross-compiler
-# Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf
+# Requires: aarch64-linux-gnu-gcc cross-compiler (or set CROSS_COMPILE)
+# Install on Ubuntu/Debian: sudo apt-get install gcc-aarch64-linux-gnu
 
 ## Compiler Settings
-CC := arm-linux-gnueabihf-gcc
-CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
+ifeq ($(CROSS_COMPILE),)
+    CC := aarch64-linux-gnu-gcc
+else
+    CC := $(CROSS_COMPILE)gcc
+endif
+CFLAGS := -Wall -Wextra -march=armv8-a -mtune=cortex-a53
 CFLAGS += -I. 
  
 ## Debug/Release Build Modes
@@ -101,8 +105,8 @@ analyze:
 ## Size report
 size: $(BUILD_DIR)/$(TARGET)
 	@echo "[→] Binary size breakdown:"
-	arm-linux-gnueabihf-size $(BUILD_DIR)/$(TARGET)
-	arm-linux-gnueabihf-nm -tS $(BUILD_DIR)/$(TARGET) | head -20
+	aarch64-linux-gnu-size $(BUILD_DIR)/$(TARGET)
+	aarch64-linux-gnu-nm -tS $(BUILD_DIR)/$(TARGET) | head -20
  
 ## Print configuration
 info:

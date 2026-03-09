@@ -6,7 +6,7 @@
  * Supports UART1 for Flipper Zero communication
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== UART DEFINITIONS ===== */
 typedef enum {
