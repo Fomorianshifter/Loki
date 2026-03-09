@@ -30,8 +30,8 @@ CROSS_HOST ?= orange-pi.local
 CROSS_PATH ?= /tmp
 
 ## Project Structure
-SOURCES := $(wildcard hal/**/*.c drivers/**/*.c core/*.c utils/*.c)
-HEADERS := $(wildcard includes/*.h config/*.h hal/**/*.h drivers/**/*.h core/*.h utils/*.h)
+SOURCES := $(wildcard *.c hal/**/*.c drivers/**/*.c core/*.c utils/*.c)
+HEADERS := $(wildcard *.h includes/*.h config/*.h hal/**/*.h drivers/**/*.h core/*.h utils/*.h)
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(SOURCES:.c=.o))
 DEPS := $(OBJECTS:.o=.d)
 TARGET := loki_app
