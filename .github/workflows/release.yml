@@ -1,0 +1,106 @@
+name: Release – Publish ARM Binaries
+
+on:
+  push:
+    tags:
+      - "v*"   # triggered by tags like v1.0.0, v2.1.3, etc.
+
+permissions:
+  contents: write   # required to create GitHub Releases
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: armv7
+            description: "Raspberry Pi 2, Orange Pi Zero (ARMv7 Cortex-A7, 32-bit)"
+            packages: gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+            arch_suffix: arm-linux-gnueabihf
+          - platform: armv8
+            description: "Raspberry Pi 3/4/5, Orange Pi Zero 2W (ARMv8 Cortex-A53+, 64-bit)"
+            packages: gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            arch_suffix: aarch64-linux-gnu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cross-compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Build release binary
+        run: make PLATFORM=${{ matrix.platform }} DEBUG=0
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          ARCHIVE="loki_app-${{ github.ref_name }}-${{ matrix.arch_suffix }}.tar.gz"
+          cp build/${{ matrix.platform }}/release/loki_app \
+             dist/loki_app-${{ matrix.arch_suffix }}
+          tar -C dist -czf dist/${ARCHIVE} loki_app-${{ matrix.arch_suffix }}
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: dist/loki_app-${{ github.ref_name }}-${{ matrix.arch_suffix }}.tar.gz
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Loki ${{ github.ref_name }}"
+          body: |
+            ## Loki ${{ github.ref_name }}
+
+            Pre-built binaries for ARM Linux single-board computers running a full Linux OS.
+
+            | Archive | Target boards |
+            |---------|---------------|
+            | `loki_app-${{ github.ref_name }}-arm-linux-gnueabihf.tar.gz` | Raspberry Pi 2, older Orange Pi (ARMv7 Cortex-A7, 32-bit) |
+            | `loki_app-${{ github.ref_name }}-aarch64-linux-gnu.tar.gz` | Raspberry Pi 3 / 4 / 5, Orange Pi Zero 2W (ARMv8 Cortex-A53+, 64-bit) |
+
+            ### Installation
+
+            ```bash
+            # Pick the archive for your board (see table above).
+            # Example – Raspberry Pi 4 / 5 or Orange Pi Zero 2W (64-bit):
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/loki_app-${{ github.ref_name }}-aarch64-linux-gnu.tar.gz
+            tar xzf loki_app-${{ github.ref_name }}-aarch64-linux-gnu.tar.gz
+            chmod +x loki_app-aarch64-linux-gnu
+            sudo ./loki_app-aarch64-linux-gnu
+
+            # Example – Raspberry Pi 2 (32-bit):
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/loki_app-${{ github.ref_name }}-arm-linux-gnueabihf.tar.gz
+            tar xzf loki_app-${{ github.ref_name }}-arm-linux-gnueabihf.tar.gz
+            chmod +x loki_app-arm-linux-gnueabihf
+            sudo ./loki_app-arm-linux-gnueabihf
+            ```
+
+            > **Note on microcontrollers:** ESP32, ESP8266, and RP2040 are bare-metal
+            > microcontrollers and cannot run this Linux application without a full HAL
+            > port to their respective SDKs (ESP-IDF / Pico SDK). Those are not covered
+            > by these binaries.
+          files: dist/*.tar.gz
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
