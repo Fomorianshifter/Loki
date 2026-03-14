@@ -4,12 +4,24 @@
  */
 
 #include "tft_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../hal/pwm/pwm.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "pwm.h"
+#include "pinout.h"
+#include "platform.h"
+#include "log.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/fb.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 /* ===== ILI9488 COMMANDS ===== */
 #define ILI9488_SWRESET         0x01
@@ -27,12 +39,35 @@ typedef struct {
     uint8_t initialized;
     uint8_t rotation;
     uint8_t brightness;
+    uint8_t backend;
+#if PLATFORM == PLATFORM_LINUX
+    int fb_fd;
+    uint8_t *fb_ptr;
+    size_t fb_size;
+    uint32_t fb_width;
+    uint32_t fb_height;
+    uint32_t fb_line_length;
+    uint32_t fb_bits_per_pixel;
+#endif
 } tft_context_t;
+
+#define TFT_BACKEND_SPI         1U
+#define TFT_BACKEND_FRAMEBUFFER 2U
 
 static tft_context_t tft_ctx = {
     .initialized = 0,
     .rotation = TFT_ROTATION,
     .brightness = TFT_BRIGHTNESS,
+    .backend = 0,
+#if PLATFORM == PLATFORM_LINUX
+    .fb_fd = -1,
+    .fb_ptr = NULL,
+    .fb_size = 0U,
+    .fb_width = 0U,
+    .fb_height = 0U,
+    .fb_line_length = 0U,
+    .fb_bits_per_pixel = 0U,
+#endif
 };
 
 /* ===== LOCAL HELPER FUNCTIONS ===== */
@@ -70,7 +105,7 @@ static hal_status_t tft_write_data(const uint8_t *data, uint32_t length)
  */
 static void delay_ms(uint32_t ms)
 {
-    usleep(ms * 1000);
+    DELAY_US(ms * 1000);
 }
 
 /**
@@ -113,13 +148,122 @@ static hal_status_t tft_set_address_window(uint16_t x0, uint16_t y0, uint16_t x1
     return HAL_OK;
 }
 
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+static const char *tft_get_env(const char *name, const char *fallback)
+{
+    const char *value = getenv(name);
+    if (value == NULL || value[0] == '\0') {
+        return fallback;
+    }
+    return value;
+}
+
+static void tft_framebuffer_write_pixel(uint32_t x, uint32_t y, color_t color)
+{
+    uint8_t *pixel_address;
+    uint16_t color_16;
+
+    if (x >= tft_ctx.fb_width || y >= tft_ctx.fb_height || tft_ctx.fb_ptr == NULL) {
+        return;
+    }
+
+    pixel_address = tft_ctx.fb_ptr + (y * tft_ctx.fb_line_length) + ((x * tft_ctx.fb_bits_per_pixel) / 8U);
+    color_16 = color;
+
+    if (tft_ctx.fb_bits_per_pixel == 16U) {
+        memcpy(pixel_address, &color_16, sizeof(color_16));
+    } else if (tft_ctx.fb_bits_per_pixel == 32U) {
+        uint8_t red = (uint8_t)(((color >> 11) & 0x1FU) << 3);
+        uint8_t green = (uint8_t)(((color >> 5) & 0x3FU) << 2);
+        uint8_t blue = (uint8_t)((color & 0x1FU) << 3);
+
+        pixel_address[0] = blue;
+        pixel_address[1] = green;
+        pixel_address[2] = red;
+        pixel_address[3] = 0x00;
+    }
+}
+
+static hal_status_t tft_framebuffer_init(const char *device_path)
+{
+    struct fb_fix_screeninfo fixed_info;
+    struct fb_var_screeninfo variable_info;
+
+    LOG_INFO("Attempting framebuffer display backend on %s", device_path);
+    tft_ctx.fb_fd = open(device_path, O_RDWR);
+    if (tft_ctx.fb_fd < 0) {
+        LOG_WARN("Failed to open framebuffer device %s (errno=%d)", device_path, errno);
+        return HAL_ERROR;
+    }
+
+    if (ioctl(tft_ctx.fb_fd, FBIOGET_FSCREENINFO, &fixed_info) != 0 ||
+        ioctl(tft_ctx.fb_fd, FBIOGET_VSCREENINFO, &variable_info) != 0) {
+        LOG_WARN("Failed to query framebuffer info for %s (errno=%d)", device_path, errno);
+        close(tft_ctx.fb_fd);
+        tft_ctx.fb_fd = -1;
+        return HAL_ERROR;
+    }
+
+    tft_ctx.fb_size = fixed_info.smem_len;
+    tft_ctx.fb_line_length = fixed_info.line_length;
+    tft_ctx.fb_bits_per_pixel = variable_info.bits_per_pixel;
+    tft_ctx.fb_width = variable_info.xres;
+    tft_ctx.fb_height = variable_info.yres;
+    tft_ctx.fb_ptr = mmap(NULL, tft_ctx.fb_size, PROT_READ | PROT_WRITE, MAP_SHARED, tft_ctx.fb_fd, 0);
+    if (tft_ctx.fb_ptr == MAP_FAILED) {
+        LOG_WARN("Failed to map framebuffer %s (errno=%d)", device_path, errno);
+        tft_ctx.fb_ptr = NULL;
+        close(tft_ctx.fb_fd);
+        tft_ctx.fb_fd = -1;
+        return HAL_ERROR;
+    }
+
+    tft_ctx.backend = TFT_BACKEND_FRAMEBUFFER;
+    tft_ctx.initialized = 1;
+    LOG_INFO("Framebuffer ready on %s (%ux%u @ %u bpp)",
+             device_path,
+             (unsigned int)tft_ctx.fb_width,
+             (unsigned int)tft_ctx.fb_height,
+             (unsigned int)tft_ctx.fb_bits_per_pixel);
+    return HAL_OK;
+}
+#endif
+
 /* ===== PUBLIC IMPLEMENTATION ===== */
 
 hal_status_t tft_init(void)
 {
+    const char *backend_name;
+
     if (tft_ctx.initialized) {
         return HAL_OK;
     }
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    backend_name = tft_get_env("LOKI_DISPLAY_BACKEND", "auto");
+    if (strcmp(backend_name, "framebuffer") == 0 || strcmp(backend_name, "auto") == 0) {
+        const char *fb_device = tft_get_env("LOKI_FB_DEVICE", "/dev/fb1");
+        if (tft_framebuffer_init(fb_device) == HAL_OK) {
+            tft_clear();
+            return HAL_OK;
+        }
+
+        if (strcmp(backend_name, "framebuffer") == 0) {
+            LOG_WARN("Framebuffer backend requested explicitly and initialization failed");
+            return HAL_ERROR;
+        }
+
+        LOG_WARN("Primary framebuffer backend failed, trying /dev/fb0 fallback");
+        if (strcmp(fb_device, "/dev/fb0") != 0 && tft_framebuffer_init("/dev/fb0") == HAL_OK) {
+            tft_clear();
+            return HAL_OK;
+        }
+    }
+#else
+    backend_name = "spi";
+#endif
+
+    (void)backend_name;
 
     /* Initialize SPI0 for TFT */
     spi_config_t spi_cfg = {
@@ -187,6 +331,7 @@ hal_status_t tft_init(void)
     /* Clear display */
     tft_clear();
 
+    tft_ctx.backend = TFT_BACKEND_SPI;
     tft_ctx.initialized = 1;
     return HAL_OK;
 }
@@ -201,6 +346,30 @@ hal_status_t tft_write_pixels(uint16_t x, uint16_t y, uint16_t width, uint16_t h
     if (!tft_ctx.initialized) {
         return HAL_NOT_READY;
     }
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    if (tft_ctx.backend == TFT_BACKEND_FRAMEBUFFER) {
+        uint32_t row;
+        uint32_t column;
+        uint32_t target_width = width;
+        uint32_t target_height = height;
+
+        if ((uint32_t)x + target_width > tft_ctx.fb_width) {
+            target_width = tft_ctx.fb_width - x;
+        }
+        if ((uint32_t)y + target_height > tft_ctx.fb_height) {
+            target_height = tft_ctx.fb_height - y;
+        }
+
+        for (row = 0; row < target_height; row++) {
+            for (column = 0; column < target_width; column++) {
+                tft_framebuffer_write_pixel(x + column, y + row, data[(row * width) + column]);
+            }
+        }
+
+        return HAL_OK;
+    }
+#endif
 
     /* Set address window */
     tft_set_address_window(x, y, x + width - 1, y + height - 1);
@@ -226,6 +395,30 @@ hal_status_t tft_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t heig
     if (!tft_ctx.initialized) {
         return HAL_NOT_READY;
     }
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    if (tft_ctx.backend == TFT_BACKEND_FRAMEBUFFER) {
+        uint32_t row;
+        uint32_t column;
+        uint32_t target_width = width;
+        uint32_t target_height = height;
+
+        if ((uint32_t)x + target_width > tft_ctx.fb_width) {
+            target_width = tft_ctx.fb_width - x;
+        }
+        if ((uint32_t)y + target_height > tft_ctx.fb_height) {
+            target_height = tft_ctx.fb_height - y;
+        }
+
+        for (row = 0; row < target_height; row++) {
+            for (column = 0; column < target_width; column++) {
+                tft_framebuffer_write_pixel(x + column, y + row, color);
+            }
+        }
+
+        return HAL_OK;
+    }
+#endif
 
     /* Set address window */
     tft_set_address_window(x, y, x + width - 1, y + height - 1);
@@ -262,6 +455,13 @@ hal_status_t tft_set_brightness(uint8_t brightness)
     }
 
     tft_ctx.brightness = brightness;
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    if (tft_ctx.backend == TFT_BACKEND_FRAMEBUFFER) {
+        return HAL_OK;
+    }
+#endif
+
     return pwm_set_duty(PWM_CHANNEL_0, brightness);
 }
 
@@ -274,6 +474,13 @@ hal_status_t tft_set_rotation(uint8_t rotation)
     if (!tft_ctx.initialized) {
         return HAL_NOT_READY;
     }
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    if (tft_ctx.backend == TFT_BACKEND_FRAMEBUFFER) {
+        tft_ctx.rotation = rotation;
+        return HAL_OK;
+    }
+#endif
 
     tft_ctx.rotation = rotation;
 
@@ -298,6 +505,22 @@ hal_status_t tft_deinit(void)
     if (!tft_ctx.initialized) {
         return HAL_OK;
     }
+
+#if PLATFORM == PLATFORM_LINUX && !defined(_WIN32)
+    if (tft_ctx.backend == TFT_BACKEND_FRAMEBUFFER) {
+        if (tft_ctx.fb_ptr != NULL) {
+            munmap(tft_ctx.fb_ptr, tft_ctx.fb_size);
+            tft_ctx.fb_ptr = NULL;
+        }
+        if (tft_ctx.fb_fd >= 0) {
+            close(tft_ctx.fb_fd);
+            tft_ctx.fb_fd = -1;
+        }
+        tft_ctx.initialized = 0;
+        tft_ctx.backend = 0;
+        return HAL_OK;
+    }
+#endif
 
     /* Display off */
     tft_write_command(ILI9488_DISPOFF);
