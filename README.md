@@ -285,33 +285,70 @@ Loki/
 
 ## 🚀 Installation & Setup
 
+### Fastest Install on Raspberry Pi or Orange Pi
+
+If you just want Loki running quickly with the browser UI available, use the installer on the device itself:
+
+```bash
+wget https://raw.githubusercontent.com/Fomorianshifter/Loki/main/install_loki.sh
+sudo chmod +x install_loki.sh
+sudo ./install_loki.sh
+```
+
+Then choose `1` for `Automatic installation`.
+
+When the installer finishes, open the Web UI at:
+
+```text
+http://loki.local:8080
+http://<your-pi-ip>:8080
+```
+
+Quick health check:
+
+```bash
+curl http://127.0.0.1:8080/api/status
+sudo systemctl status loki
+```
+
+Use this path if your goal is:
+- easiest first install
+- automatic package setup
+- systemd service setup
+- immediate Web UI access
+
+Use the platform-specific setup sections below only if you want to build manually or cross-compile.
+
 ### Windows Setup
 
 #### Prerequisites
 1. **ARM Cross-Compiler**
-   - Download: https://developer.arm.com/open-source/gnu-toolchain
-   - Choose: `arm-linux-gnueabihf` (GNU EABI 13.2 or later)
-   - Extract to: `C:\Program Files\ARM GNU Toolchain`
+    - Required executable: `arm-linux-gnueabihf-gcc`
+    - Recommended Windows install path: WSL Ubuntu + `sudo apt-get install gcc-arm-linux-gnueabihf`
+    - WSL install guide: https://learn.microsoft.com/windows/wsl/install
+    - Native Windows fallback: https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
+    - Native Windows file: `gcc-linaro-7.5.0-2019.12-i686-mingw32_arm-linux-gnueabihf.tar.xz`
 
 2. **Add to Windows PATH**
-   - Open: Settings → System → Environment Variables
-   - Click: "Edit environment variables for your account"
-   - New Variable:
-     - Name: `Path`
-     - Value: `C:\Program Files\ARM GNU Toolchain\bin`
-   - Restart terminal after changes
+    - If using native Windows fallback:
+      - Open: Settings → System → Environment Variables
+      - Click: "Edit environment variables for your account"
+      - Add the extracted toolchain `bin` folder to `Path`
+    - Restart terminal after changes
 
 3. **Verify Installation**
    ```powershell
    arm-linux-gnueabihf-gcc --version
-   # Expected: arm-linux-gnueabihf-gcc (GNU Toolchain) 13.2.0
+    # Expected: arm-linux-gnueabihf-gcc (...) 
    ```
 
 #### Optional: Windows Subsystem for Linux (WSL)
-If you prefer Linux experience on Windows:
+Recommended on Windows because the Ubuntu package directly matches the required compiler name:
 ```powershell
 wsl --install -d Ubuntu
-# Then inside WSL, follow Linux setup below
+# Then inside WSL:
+sudo apt-get update
+sudo apt-get install gcc-arm-linux-gnueabihf
 ```
 
 ---
@@ -341,17 +378,12 @@ arm-linux-gnueabihf-gcc --version
 
 #### macOS (using Homebrew)
 ```bash
-# Install Homebrew if not present
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# Loki expects the GNU/Linux cross-compiler arm-linux-gnueabihf-gcc.
+# On macOS, the simplest reliable path is a Linux VM/container and:
+sudo apt-get update
+sudo apt-get install gcc-arm-linux-gnueabihf
 
-# Install ARM toolchain
-brew tap ArmMbed/homebrew-formulae
-brew install arm-none-eabi-gcc
-
-# Install build tools
-brew install make
-
-# Verify
+# Verify inside that Linux environment
 arm-linux-gnueabihf-gcc --version
 ```
 
@@ -389,9 +421,33 @@ make DEBUG=0
 - Runtime: Faster, minimal overhead
 - **Use for**: Production deployment, performance-critical applications
 
----
+### Building for Different Architectures
 
-### Building on Different Platforms
+#### 32-bit ARM Linux (Orange Pi Zero 2W, Raspberry Pi 2/3/Zero 2 W with 32-bit OS)
+```bash
+make ARCH=32
+```
+
+#### 64-bit ARM Linux (Raspberry Pi 3/4/5, Orange Pi with 64-bit OS)
+```bash
+make ARCH=64
+```
+
+#### Native Build for Testing on Host Machine (Linux/macOS/Windows with GCC)
+```bash
+make NATIVE=1
+```
+This compiles with your system's GCC for testing application logic without hardware dependencies. Requires GCC installed.
+
+#### Building for Specific Platforms
+The framework supports multiple platforms through conditional compilation:
+
+- **Linux SBCs** (default): `make PLATFORM=LINUX`
+- **ESP32**: Requires ESP-IDF and platform-specific HAL implementations
+- **RP2040**: Requires Pico SDK and platform-specific HAL implementations
+- **Flipper Zero**: Requires Flipper SDK and platform-specific HAL implementations
+
+**Note:** Currently, only Linux-based platforms have complete HAL implementations. Other platforms require adapting the Hardware Abstraction Layer (HAL) files for the target SDK.
 
 #### Linux/macOS
 ```bash
@@ -462,6 +518,25 @@ build.bat release orange-pi.local pi --install
 ## 🚀 Quick Start Guides
 
 ### Orange Pi Zero 2W (Recommended Primary Platform)
+
+#### Fastest Path
+
+The easiest way to get Loki running on the device with the Web UI is to install directly on the Orange Pi:
+
+```bash
+wget https://raw.githubusercontent.com/Fomorianshifter/Loki/main/install_loki.sh
+sudo chmod +x install_loki.sh
+sudo ./install_loki.sh
+```
+
+Choose `1` for `Automatic installation`, then open:
+
+```text
+http://loki.local:8080
+http://<your-orange-pi-ip>:8080
+```
+
+Use the manual steps below only if you specifically want to flash and prepare the system yourself before building.
 
 #### 1. Flash Armbian OS
 ```bash
@@ -575,6 +650,95 @@ sudo journalctl -u loki -f
 ---
 
 ### Raspberry Pi 3/4
+
+#### One-Line Installer (Bookworm/Trixie)
+```bash
+wget https://raw.githubusercontent.com/Fomorianshifter/Loki/main/install_loki.sh
+sudo chmod +x install_loki.sh && sudo ./install_loki.sh
+```
+
+Choose `1` for automatic installation. The installer will:
+- install required packages
+- enable SSH, SPI, I2C, and serial when `raspi-config` is available
+- clone or update Loki in `/opt/loki`
+- build the release binary locally on the Pi
+- install and start `loki.service`
+- print the Web UI URLs when it finishes
+
+After install, open the browser UI at one of these addresses:
+```text
+http://loki.local:8080
+http://<your-pi-ip>:8080
+```
+
+Quick API check:
+```bash
+curl http://127.0.0.1:8080/api/status
+```
+
+#### Build A Burnable Loki Image
+```bash
+sudo ./build_loki_image.sh \
+    --base-image ~/Downloads/raspios-bookworm-armhf-lite.img.xz \
+    --output ./dist/loki-rpi.img \
+    --hostname loki
+```
+
+This creates a flashable Raspberry Pi OS image that stages Loki for first boot and emits `./dist/loki-rpi.img.xz`.
+See `IMAGE_BUILD.md` for the full flow and requirements.
+Before publishing that image as a downloadable release, check `RELEASE_READINESS.md` and close the remaining polish and validation gates first.
+
+What it does:
+- Installs required packages for native Raspberry Pi builds
+- Enables SSH, SPI, I2C, and hardware serial when `raspi-config` is available
+- Clones or updates Loki into `/opt/loki`
+- Builds the release binary locally on the Pi
+- Installs and starts `loki.service`
+- Prints the Web UI addresses after startup
+
+Optional hardware probes can now be controlled from `loki.conf`:
+```ini
+[hardware]
+test_tft=true
+test_flash=false
+test_eeprom=false
+test_flipper=false
+```
+Set a probe to `false` when that device is not physically installed yet so Loki starts cleanly without repeated startup failures for missing hardware.
+
+Standalone scouting is configurable from `loki.conf` so the unit can boot without Wi-Fi and only surface fresh SSIDs on the TFT when they appear:
+```ini
+[network]
+standalone_mode=true
+announce_new_networks=true
+scan_interval_ms=12000
+discovery_hold_ms=20000
+web_ui_enabled=false
+```
+With `standalone_mode=true`, Loki keeps running offline, the service no longer waits for `network-online`, and the dashboard ticker stays in scout mode until newly discovered networks are seen.
+Discovered SSIDs are now cached under `/var/lib/loki/known_networks.cache`, so networks found in previous boots are not re-announced unless you clear the cache.
+
+To reset Loki's memory of seen networks:
+```bash
+sudo rm -f /var/lib/loki/known_networks.cache
+sudo systemctl restart loki
+```
+
+Default runtime tools also live in `loki.conf` and can be reordered or extended with additional `[tool_*]` blocks:
+```ini
+[tool_wardrive]
+enabled=true
+name=Wardrive Journal
+description=Passive Wi-Fi scan logging with GPS-ready placeholders for later hardware.
+command=internal://wardrive
+```
+`internal://wardrive` is a safe passive logging tool. It reports scan cadence and heartbeat state now, and leaves GPS integration for when a module is attached later.
+
+After the installer finishes, reboot if prompted and then verify:
+```bash
+sudo systemctl status loki
+sudo journalctl -u loki -f
+```
 
 #### 1. Flash Raspberry Pi OS
 ```bash
@@ -712,6 +876,108 @@ if (flipper_receive_message(&msg, 5000) == HAL_OK) {
 ---
 
 ## 📚 API Documentation
+
+### Embedded REST API
+
+Loki exposes a lightweight JSON API from the built-in HTTP server on the configured web port, typically `http://<device>:8080`.
+
+#### Read Endpoints
+
+- `GET /api/status`
+    Returns live runtime, dragon, GPS, network, and AI telemetry.
+- `GET /api/tools`
+    Returns all configured tool slots.
+- `GET /api/tools?id=2`
+    Returns a single tool by 1-based id.
+- `GET /api/capabilities`
+    Returns supported API routes, tool schemes, and the approved safe command set.
+
+#### Write Endpoints
+
+- `POST /api/tools`
+    Create or update a tool slot using JSON.
+
+```json
+{
+    "name": "USB Devices",
+    "section": "tool_usb_devices",
+    "description": "List USB peripherals",
+    "command": "lsusb",
+    "enabled": true
+}
+```
+
+- `POST /api/tools/run?id=1`
+    Run a configured tool and return JSON-wrapped output.
+
+- `PATCH /api/settings`
+    Update selected runtime settings without going through the HTML form.
+
+```json
+{
+    "dragon_name": "Loki",
+    "standalone_mode": true,
+    "scan_interval_ms": 12000,
+    "discovery_hold_ms": 20000,
+    "learning_rate": 0.14,
+    "tick_interval_ms": 120
+}
+```
+
+#### Tool Execution Model
+
+Tools now run directly with whatever command string you configure. The built-in helpers remain available for convenience, and everything else executes as a raw shell command on the device:
+
+- `internal://status`
+- `internal://loot`
+- `internal://wardrive`
+- `internal://gps`
+- `internal://peripherals`
+- `internal://usb`
+- `internal://i2c`
+- `internal://uart`
+- `internal://gpio`
+- `internal://nmap?target=<host>&mode=<ping|quick|service>`
+- `internal://custom_scan?target=<host>&profile=<quick|service|udp-top>`
+- Any other command string (e.g., `iwgetid`, `nmap -Pn -sV -- 192.168.4.0/24`, `bettercap -eval "net.show"`, `curl -s http://127.0.0.1:8081/api/session`).
+
+**Important:** There is no web-layer allowlist or localhost gate now. Protect access to the HTTP API and only configure commands you trust on the device.
+
+### Standalone Scout Activation Checklist
+
+Use this when you want Loki to behave like a self-contained unit first and a networked appliance second.
+
+1. Edit `/opt/loki/loki.conf` and set:
+```ini
+[network]
+dhcp_enabled=true
+standalone_mode=true
+announce_new_networks=true
+preferred_ssid=
+scan_interval_ms=12000
+hop_interval_ms=4000
+discovery_hold_ms=20000
+web_ui_enabled=false
+```
+2. Rebuild and restart:
+```bash
+cd /opt/loki
+sudo bash ./build_native.sh release
+sudo systemctl daemon-reload
+sudo systemctl restart loki
+```
+3. Verify the service:
+```bash
+sudo systemctl status loki --no-pager
+sudo journalctl -u loki -n 80 --no-pager
+```
+4. Check the expected behavior on the TFT:
+```text
+- No nearby Wi-Fi: OFFLINE SCOUT MODE banner remains active.
+- First-time SSID appears: ALERT banner and scrolling discovery feed trigger.
+- Previously seen SSID appears again after reboot: it is tracked, but not treated as new unless the cache was cleared.
+```
+5. If you still want the browser UI whenever Loki later joins a network, keep `web_ui_enabled=true` instead of `false`.
 
 ### Core System
 
@@ -1165,8 +1431,7 @@ System-level settings:
 # Ubuntu/Debian
 sudo apt-get install gcc-arm-linux-gnueabihf
 
-# macOS
-brew install arm-none-eabi-gcc
+# macOS: use a Linux VM/container that provides arm-linux-gnueabihf-gcc
 
 # Verify
 arm-linux-gnueabihf-gcc --version

@@ -71,21 +71,26 @@ make help
 All platforms require the ARM cross-compiler:
 
 ### Windows
-1. Download from: https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads
-2. Extract to `C:\Program Files\arm`
-3. Add to PATH: `C:\Program Files\arm\bin`
-4. Verify: Open PowerShell/CMD and run:
+1. Recommended: install WSL Ubuntu from https://learn.microsoft.com/windows/wsl/install
+2. Inside WSL, install the package that provides this compiler name:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install gcc-arm-linux-gnueabihf
    ```
+3. Verify inside WSL:
+   ```bash
    arm-linux-gnueabihf-gcc --version
    ```
+4. Native Windows fallback: download the Linaro Windows-hosted GNU/Linux toolchain from https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
+   - File: `gcc-linaro-7.5.0-2019.12-i686-mingw32_arm-linux-gnueabihf.tar.xz`
+   - Add its `bin` directory to your Windows `PATH`
 
 ### Mac
 ```bash
-# Using Homebrew
-brew tap ArmMbed/homebrew-formulae
-brew install arm-none-eabi-gcc
-
-# Or download from ARM website as above
+# Loki expects the GNU/Linux cross-compiler arm-linux-gnueabihf-gcc.
+# On macOS, the simplest reliable path is a Linux VM/container and:
+sudo apt-get update
+sudo apt-get install gcc-arm-linux-gnueabihf
 ```
 
 ### Linux (Ubuntu/Debian)
@@ -152,17 +157,17 @@ make run  # Build and execute
 The ARM cross-compiler is not installed or not in PATH.
 
 **Windows**:
-1. Download from https://developer.arm.com
-2. Add `bin` folder to Windows PATH environment variable
-3. Restart terminal
+1. Recommended: install WSL Ubuntu from https://learn.microsoft.com/windows/wsl/install
+2. In WSL, run `sudo apt-get install gcc-arm-linux-gnueabihf`
+3. Native Windows fallback: use the Linaro Windows-hosted toolchain at https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
+4. Restart your terminal after PATH changes
 
 **Mac/Linux**:
 ```bash
 # Ubuntu/Debian
 sudo apt-get install gcc-arm-linux-gnueabihf
 
-# Mac
-brew install arm-none-eabi-gcc
+# macOS: use a Linux VM/container that provides arm-linux-gnueabihf-gcc
 ```
 
 ### SSH connection fails during install

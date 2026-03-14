@@ -139,6 +139,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
 
 hal_status_t spi_write(spi_bus_t bus, uint32_t cs_pin, const uint8_t *data, uint32_t length)
 {
+    (void)cs_pin;  /* Suppress unused parameter warning */
     if (data == NULL || length == 0) {
         return HAL_INVALID_PARAM;
     }
@@ -172,6 +173,7 @@ hal_status_t spi_write(spi_bus_t bus, uint32_t cs_pin, const uint8_t *data, uint
 
 hal_status_t spi_read(spi_bus_t bus, uint32_t cs_pin, uint8_t *data, uint32_t length)
 {
+    (void)cs_pin;  /* Suppress unused parameter warning */
     if (data == NULL || length == 0) {
         return HAL_INVALID_PARAM;
     }
@@ -207,6 +209,7 @@ hal_status_t spi_transfer(spi_bus_t bus, uint32_t cs_pin,
                          const uint8_t *tx_data, uint32_t tx_length,
                          uint8_t *rx_data, uint32_t rx_length)
 {
+    (void)cs_pin;  /* Suppress unused parameter warning */
     if ((tx_data == NULL && rx_data == NULL) || (tx_length == 0 && rx_length == 0)) {
         return HAL_INVALID_PARAM;
     }

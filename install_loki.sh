@@ -7,15 +7,23 @@ INSTALL_DIR="/opt/loki"
 SERVICE_PATH="/etc/systemd/system/loki.service"
 INSTALL_MODE="install"
 PROMPT_FOR_REBOOT=1
+INTERACTIVE_MENU=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --auto)
+            INSTALL_MODE="install"
+            INTERACTIVE_MENU=0
+            shift
+            ;;
         --update)
             INSTALL_MODE="update"
+            INTERACTIVE_MENU=0
             shift
             ;;
         --no-reboot-prompt)
             PROMPT_FOR_REBOOT=0
+            INTERACTIVE_MENU=0
             shift
             ;;
         *)
@@ -29,6 +37,10 @@ if [[ "${LOKI_SKIP_REBOOT_PROMPT:-0}" == "1" ]]; then
     PROMPT_FOR_REBOOT=0
 fi
 
+if [[ "${DEBIAN_FRONTEND:-}" == "noninteractive" ]]; then
+    INTERACTIVE_MENU=0
+fi
+
 if [[ ${EUID} -ne 0 ]]; then
     echo "[ERROR] Please run this installer with sudo or as root."
     exit 1
@@ -40,6 +52,39 @@ print_header() {
     echo "================================================"
     echo "Loki Installer for Raspberry Pi"
     echo "================================================"
+    echo
+}
+
+choose_install_mode() {
+    if [[ ${INTERACTIVE_MENU} -eq 0 || ! -t 0 ]]; then
+        return
+    fi
+
+    echo "Choose an option:"
+    echo "  1) Automatic installation"
+    echo "  2) Update existing Loki installation"
+    echo "  3) Exit"
+    echo
+    printf "Selection [1-3]: "
+    read -r selection
+
+    case "${selection}" in
+        ""|1)
+            INSTALL_MODE="install"
+            ;;
+        2)
+            INSTALL_MODE="update"
+            ;;
+        3)
+            echo "[INFO] Installer exited"
+            exit 0
+            ;;
+        *)
+            echo "[ERROR] Invalid selection: ${selection}"
+            exit 1
+            ;;
+    esac
+
     echo
 }
 
@@ -76,6 +121,8 @@ install_packages() {
         i2c-tools \
         make \
         pkg-config
+    systemctl enable avahi-daemon >/dev/null 2>&1 || true
+    systemctl restart avahi-daemon >/dev/null 2>&1 || true
     echo "[OK] Packages installed"
     echo
 }
@@ -133,14 +180,24 @@ build_loki() {
     echo
 }
 
+prepare_runtime_state() {
+    echo "[INFO] Preparing runtime state..."
+    mkdir -p /var/lib/loki
+    chmod 755 /var/lib/loki
+    if [[ -f "${INSTALL_DIR}/loki_local_tool.sh" ]]; then
+        install -m 0755 "${INSTALL_DIR}/loki_local_tool.sh" /usr/local/bin/loki-local-tool
+    fi
+    echo "[OK] Runtime state directory ready"
+    echo
+}
+
 install_service() {
     echo "[INFO] Installing systemd service..."
 
     cat > "${SERVICE_PATH}" <<EOF
 [Unit]
 Description=Loki Embedded Companion
-After=network-online.target
-Wants=network-online.target
+After=local-fs.target
 
 [Service]
 Type=simple
@@ -164,12 +221,32 @@ EOF
 }
 
 print_summary() {
+    local host_name
+    local host_label
+    local primary_ip
+
+    host_name="$(hostname 2>/dev/null || echo loki)"
+    host_label="${host_name}.local"
+    primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+
     echo "[OK] Loki installation complete"
     echo
     echo "Next checks:"
     echo "  sudo systemctl status loki"
     echo "  sudo journalctl -u loki -f"
     echo "  ls /dev/spidev0.0"
+    echo
+    echo "Open the web UI:"
+    echo "  http://127.0.0.1:8080"
+    echo "  http://${host_label}:8080"
+    if [[ -n "${primary_ip}" ]]; then
+        echo "  http://${primary_ip}:8080"
+    fi
+    echo "API health check:"
+    echo "  curl http://127.0.0.1:8080/api/status"
+    echo
+    echo "Local-only power tool helper: /usr/local/bin/loki-local-tool"
+    echo "Advanced mode flag path: /boot/loki-advanced-mode.flag"
     echo
     echo "Config file: ${INSTALL_DIR}/loki.conf"
     echo "Service file: ${SERVICE_PATH}"
@@ -197,11 +274,13 @@ offer_reboot() {
 
 run_install() {
     print_header
+    choose_install_mode
     detect_platform
     install_packages
     enable_interfaces
     sync_repository
     build_loki
+    prepare_runtime_state
     install_service
     print_summary
     offer_reboot

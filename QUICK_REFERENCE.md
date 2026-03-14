@@ -53,7 +53,10 @@ cd C:\Users\nlane\Desktop\Loki
 ```powershell
 arm-linux-gnueabihf-gcc --version
 ```
-If this fails, download from: https://developer.arm.com
+If this fails, `build.ps1` now falls back to WSL automatically when available.
+Manual install links:
+- WSL: https://learn.microsoft.com/windows/wsl/install
+- Native Windows fallback: https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
 
 ✅ **Check 2: SSH Works**
 ```powershell
@@ -117,7 +120,7 @@ Configuration:
 
 | Problem | Solution |
 |---------|----------|
-| `arm-linux-gnueabihf-gcc not found` | Download toolchain from https://developer.arm.com |
+| `arm-linux-gnueabihf-gcc not found` | Install WSL Ubuntu and `gcc-arm-linux-gnueabihf`, or use the Linaro fallback link |
 | `SSH connection failed` | Make sure Orange Pi is on, try: `ping orange-pi.local` |
 | `Permission denied` | Use: `ssh pi@orange-pi.local "sudo /tmp/loki_app"` |
 | `Cannot overwrite variable` | Use `build.ps1` not PowerShell param named `Host` |
@@ -180,6 +183,7 @@ Output should show:
 1. Check error message
 2. See [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md) troubleshooting
 3. Check ARM compiler: `arm-linux-gnueabihf-gcc --version`
+4. If Windows does not have it, rerun `build.ps1` and let it fall back to WSL
 
 ### If deployment fails:
 1. Test SSH: `ssh pi@orange-pi.local`

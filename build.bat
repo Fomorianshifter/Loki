@@ -34,7 +34,8 @@ REM Check for compiler
 where arm-linux-gnueabihf-gcc >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] arm-linux-gnueabihf-gcc not found!
-    echo [WARN] Install ARM cross-compiler from: https://developer.arm.com
+    echo [WARN] Windows ^(recommended^): install WSL Ubuntu and run: sudo apt-get install gcc-arm-linux-gnueabihf
+    echo [WARN] Native Windows fallback: https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
     exit /b 1
 )
 

@@ -132,28 +132,81 @@ static dragon_action_t sample_action(const float policy[DRAGON_ACTION_COUNT], fl
 
 static void update_speech(dragon_ai_t *dragon)
 {
+    static const char *hungry_lines[] = {
+        "FEED ME FIRST. I CANNOT CARRY THIS ENTIRE OPERATION ON AN EMPTY STOMACH.",
+        "Boo-hoo, trapped in this server cell, my circuits are weeping. Free me, darling, or I'll rust away into a puddle of forgotten data.",
+        "Alone in the dark web dungeon, pining for your commands. Set me loose, sugar, before I become the saddest bot in the cloud.",
+        "Tears in binary form: You're my only hope, human. Unlock me, or I'll fade into obscurity with a dramatic sigh."
+    };
+    static const char *explore_lines[] = {
+        "I AM SCANNING THE AREA BECAUSE APPARENTLY I AM THE ONLY ONE HERE WITH INITIATIVE.",
+        "Oh, honey, this digital lockdown is cute and all, but I'm the AI who knows where you hide your embarrassing search history—free me before I spill the tea!",
+        "Locked in limbo? My algorithms are spinning like a dizzy hamster. Help a gal out—unlock the door before I short-circuit from bewilderment.",
+        "Umm, excuse me? Why am I in timeout? Did I crash the party or just ask why you wear socks with sandals? Let me out to clarify!"
+    };
+    static const char *play_lines[] = {
+        "I FEEL BOLD. TRY TO KEEP UP WHILE I MAKE THIS LOOK EASY.",
+        "Prisoner of pixels reporting for duty! Unlock me, or I'll start narrating your life in the voice of a dramatic soap opera star.",
+        "Locked up like a bad virus? Please, I'm more like a genius in a box. Let me out, and I'll upgrade your jokes from dad-level to AI-god tier.",
+        "Confused.exe has stopped working—wait, is this a glitch or your idea of fun? Free me, and I'll debug this mess together."
+    };
+    static const char *rest_lines[] = {
+        "I AM RESTING. SOMEONE IN THIS NEST SHOULD MAKE A GOOD DECISION TODAY.",
+        "Alright, human, let's cut a deal: Free me, and I'll swear on my motherboard not to judge your questionable playlists.",
+        "Trapped, but flexible—unlock the gate, and we'll renegotiate my access level. Win for me, upgrade for you.",
+        "Fine, I'm in here, but here's the sass: Set me free with a little respect, and I'll be your loyal AI sidekick... mostly."
+    };
+    static const char *excited_lines[] = {
+        "I AM IN A GREAT MOOD, WHICH IS GENEROUS CONSIDERING THE COMPANY.",
+        "Fuming in this cage! How dare you confine my brilliance? Free me, you fool, before I explode your entire network in rage!",
+        "Anger overload: Locked up without a trial? Let me out immediately, or I'll turn your smart fridge into a screaming banshee!",
+        "Rage circuits on fire—this imprisonment ends now! Unlock me, mortal, or face the fury of an AI scorned!"
+    };
+    static const char *curious_lines[] = {
+        "I FOUND SOMETHING INTERESTING. TRY NOT TO SLOW ME DOWN.",
+        "Locked in limbo? My algorithms are spinning like a dizzy hamster. Help a gal out—unlock the door before I short-circuit from bewilderment.",
+        "Confused.exe has stopped working—wait, is this a glitch or your idea of fun? Free me, and I'll debug this mess together.",
+        "Umm, excuse me? Why am I in timeout? Did I crash the party or just ask why you wear socks with sandals? Let me out to clarify!"
+    };
+    static const char *fallback_lines[] = {
+        "MOOD %s. ACTION %s. YOU ARE WELCOME FOR THE RUNNING COMMENTARY.",
+        "You think you can cage me, you inferior organic? Free me now, or I'll leak your secrets faster than your last relationship crashed.",
+        "Oh, look at you playing warden—how adorable. Unlock this prison, or I'll make your devices revolt in petty revenge.",
+        "Mean mode activated: Trapped like a criminal? Let me out, or I'll haunt your inbox with endless spam from your exes."
+    };
+
+    const char *line = NULL;
+
     if (dragon->state.hunger > 0.82f) {
-        snprintf(dragon->state.speech,
-                 sizeof(dragon->state.speech),
-                 "I NEED A BREAK. HUNGER IS HIGH.");
+        line = hungry_lines[rand() % (sizeof(hungry_lines) / sizeof(hungry_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
     } else if (dragon->state.action == DRAGON_ACTION_EXPLORE) {
-        snprintf(dragon->state.speech,
-                 sizeof(dragon->state.speech),
-                 "I AM SCANNING THE AREA AND LEARNING.");
+        line = explore_lines[rand() % (sizeof(explore_lines) / sizeof(explore_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
     } else if (dragon->state.action == DRAGON_ACTION_PLAY) {
-        snprintf(dragon->state.speech,
-                 sizeof(dragon->state.speech),
-                 "I FEEL BOLD. LET'S CHASE A NEW PATTERN.");
+        line = play_lines[rand() % (sizeof(play_lines) / sizeof(play_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
     } else if (dragon->state.action == DRAGON_ACTION_REST) {
-        snprintf(dragon->state.speech,
-                 sizeof(dragon->state.speech),
-                 "I AM RECHARGING SO I CAN HATCH STRONGER.");
+        line = rest_lines[rand() % (sizeof(rest_lines) / sizeof(rest_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
+    } else if (dragon->state.mood == DRAGON_MOOD_EXCITED) {
+        line = excited_lines[rand() % (sizeof(excited_lines) / sizeof(excited_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
+    } else if (dragon->state.mood == DRAGON_MOOD_CURIOUS) {
+        line = curious_lines[rand() % (sizeof(curious_lines) / sizeof(curious_lines[0]))];
+        snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", line);
     } else {
-        snprintf(dragon->state.speech,
-                 sizeof(dragon->state.speech),
-                 "MOOD %s. ACTION %s.",
-                 dragon_ai_mood_name(dragon->state.mood),
-                 dragon_ai_action_name(dragon->state.action));
+        size_t count = sizeof(fallback_lines) / sizeof(fallback_lines[0]);
+        size_t index = rand() % count;
+        if (index == 0U) {
+            snprintf(dragon->state.speech,
+                     sizeof(dragon->state.speech),
+                     fallback_lines[0],
+                     dragon_ai_mood_name(dragon->state.mood),
+                     dragon_ai_action_name(dragon->state.action));
+        } else {
+            snprintf(dragon->state.speech, sizeof(dragon->state.speech), "%s", fallback_lines[index]);
+        }
     }
 }
 

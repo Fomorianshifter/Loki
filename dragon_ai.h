@@ -14,6 +14,10 @@
 #define DRAGON_FEATURE_COUNT  4
 #define DRAGON_EGG_STAGE_MAX  3U
 #define DRAGON_HATCHLING_STAGE_MAX  8U
+#define DRAGON_HISTORY_COUNT  6U
+#define DRAGON_EVENT_TEXT_MAX  56U
+#define DRAGON_EMOTION_TEXT_MAX  24U
+#define DRAGON_FOCUS_TEXT_MAX  64U
 
 typedef struct {
     char name[64];
@@ -100,7 +104,19 @@ typedef struct {
     float value_estimate;
     float reward_total;
     float reward_average;
+    float usefulness;
+    float trust;
+    float vigilance;
+    float comfort;
     uint32_t reward_events;
+    uint32_t feed_count;
+    uint32_t successful_scans;
+    uint32_t successful_tools;
+    uint32_t interactions;
+    uint32_t recent_event_count;
+    char recent_events[DRAGON_HISTORY_COUNT][DRAGON_EVENT_TEXT_MAX];
+    char emotion[DRAGON_EMOTION_TEXT_MAX];
+    char focus[DRAGON_FOCUS_TEXT_MAX];
     char speech[96];
     dragon_mood_t mood;
     dragon_action_t action;
@@ -147,11 +163,15 @@ typedef struct {
     uint32_t tick_accumulator_ms;
     uint32_t last_growth_ms;
     uint32_t growth_interval_ms;
+    dragon_action_t last_logged_action;
 } dragon_ai_t;
 
 void dragon_ai_init(dragon_ai_t *dragon, const dragon_ai_profile_t *profile);
 void dragon_ai_tick(dragon_ai_t *dragon, uint32_t tick_ms);
 void dragon_ai_apply_reward(dragon_ai_t *dragon, float reward);
+void dragon_ai_interact(dragon_ai_t *dragon, const char *interaction);
+hal_status_t dragon_ai_save_state(const dragon_ai_t *dragon, const char *path);
+hal_status_t dragon_ai_load_state(dragon_ai_t *dragon, const char *path);
 const dragon_ai_state_t *dragon_ai_get_state(const dragon_ai_t *dragon);
 const char *dragon_ai_action_name(dragon_action_t action);
 const char *dragon_ai_mood_name(dragon_mood_t mood);

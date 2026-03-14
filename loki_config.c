@@ -197,9 +197,12 @@ void loki_config_set_defaults(loki_config_t *config)
     copy_string(config->preferred_ssid, sizeof(config->preferred_ssid), "");
 
     config->dhcp_enabled = true;
+    config->standalone_mode = false;
+    config->announce_new_networks = true;
     config->web_ui_enabled = true;
     config->scan_interval_ms = 15000U;
     config->hop_interval_ms = 4000U;
+    config->discovery_hold_ms = 20000U;
     copy_string(config->web.bind_address, sizeof(config->web.bind_address), "0.0.0.0");
     config->web.port = 8080U;
 
@@ -214,14 +217,14 @@ void loki_config_set_defaults(loki_config_t *config)
     copy_string(config->display.backend, sizeof(config->display.backend), "framebuffer");
     copy_string(config->display.framebuffer_device, sizeof(config->display.framebuffer_device), "/dev/fb1");
 
-    config->ai.learning_rate = 0.06f;
-    config->ai.actor_learning_rate = 0.05f;
-    config->ai.critic_learning_rate = 0.08f;
+    config->ai.learning_rate = 0.16f;
+    config->ai.actor_learning_rate = 0.14f;
+    config->ai.critic_learning_rate = 0.22f;
     config->ai.discount_factor = 0.92f;
-    config->ai.reward_decay = 0.97f;
-    config->ai.entropy_beta = 0.015f;
-    config->ai.policy_temperature = 0.85f;
-    config->ai.tick_interval_ms = 250U;
+    config->ai.reward_decay = 0.99f;
+    config->ai.entropy_beta = 0.02f;
+    config->ai.policy_temperature = 0.68f;
+    config->ai.tick_interval_ms = 120U;
 
     copy_string(config->dragon.profile, sizeof(config->dragon.profile), "guardian_egg");
     copy_string(config->dragon.temperament, sizeof(config->dragon.temperament), "curious");
@@ -249,15 +252,15 @@ void loki_config_set_defaults(loki_config_t *config)
     config->dragon.observe_bond_gain = 0.015f;
     config->dragon.explore_curiosity_cost = 0.080f;
     config->dragon.explore_energy_cost = 0.030f;
-    config->dragon.explore_xp_gain = 0.20f;
+    config->dragon.explore_xp_gain = 0.07f;
     config->dragon.play_bond_gain = 0.040f;
     config->dragon.play_energy_cost = 0.040f;
     config->dragon.play_hunger_gain = 0.020f;
-    config->dragon.play_xp_gain = 0.30f;
+    config->dragon.play_xp_gain = 0.10f;
     config->dragon.hunger_penalty_threshold = 0.80f;
     config->dragon.hunger_penalty = 0.20f;
-    config->dragon.growth_interval_ms = 180000U;
-    config->dragon.growth_xp_step = 25.0f;
+    config->dragon.growth_interval_ms = 900000U;
+    config->dragon.growth_xp_step = 90.0f;
     config->dragon.egg_stage_max = DRAGON_EGG_STAGE_MAX;
     config->dragon.hatchling_stage_max = DRAGON_HATCHLING_STAGE_MAX;
 
@@ -280,6 +283,70 @@ void loki_config_set_defaults(loki_config_t *config)
         copy_string(tool->name, sizeof(tool->name), "Loot Journal");
         copy_string(tool->description, sizeof(tool->description), "Track growth milestones, trophies, and future inventory.");
         copy_string(tool->command, sizeof(tool->command), "internal://loot");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_gps", &tool) == HAL_OK) {
+        tool->enabled = true;
+        copy_string(tool->name, sizeof(tool->name), "GPS Console");
+        copy_string(tool->description, sizeof(tool->description), "Show live latitude, longitude, altitude, and GPS fix source when available.");
+        copy_string(tool->command, sizeof(tool->command), "internal://gps");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_peripherals", &tool) == HAL_OK) {
+        tool->enabled = true;
+        copy_string(tool->name, sizeof(tool->name), "Peripheral Console");
+        copy_string(tool->description, sizeof(tool->description), "Summarize attached display, GPS state, nearby Wi-Fi, and safe peripheral probe options.");
+        copy_string(tool->command, sizeof(tool->command), "internal://peripherals");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_usb", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "USB Probe");
+        copy_string(tool->description, sizeof(tool->description), "List attached USB devices using the built-in USB probe.");
+        copy_string(tool->command, sizeof(tool->command), "internal://usb");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_i2c_probe", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "I2C Probe");
+        copy_string(tool->description, sizeof(tool->description), "List detected I2C buses using the built-in I2C probe.");
+        copy_string(tool->command, sizeof(tool->command), "internal://i2c");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_uart_probe", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "UART Probe");
+        copy_string(tool->description, sizeof(tool->description), "List detected UART-style device nodes using the built-in UART probe.");
+        copy_string(tool->command, sizeof(tool->command), "internal://uart");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_gpio_probe", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "GPIO Probe");
+        copy_string(tool->description, sizeof(tool->description), "Inspect GPIO line metadata using the built-in GPIO probe.");
+        copy_string(tool->command, sizeof(tool->command), "internal://gpio");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_nmap_ping", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "Nmap Ping Sweep");
+        copy_string(tool->description,
+                    sizeof(tool->description),
+                    "Validated nmap wrapper for host discovery. Edit the target query in loki.conf before enabling.");
+        copy_string(tool->command,
+                    sizeof(tool->command),
+                    "internal://nmap?target=127.0.0.1&mode=ping");
+    }
+
+    if (loki_config_ensure_tool(config, "tool_custom_scan", &tool) == HAL_OK) {
+        tool->enabled = false;
+        copy_string(tool->name, sizeof(tool->name), "Custom Scan");
+        copy_string(tool->description,
+                    sizeof(tool->description),
+                    "Validated curated scan profile wrapper. Edit target and ports in loki.conf before enabling.");
+        copy_string(tool->command,
+                    sizeof(tool->command),
+                    "internal://custom_scan?target=127.0.0.1&profile=quick&ports=22,80");
     }
 }
 
@@ -308,9 +375,12 @@ hal_status_t loki_config_save(const char *path, const loki_config_t *config)
             "hostname=%s\n\n"
             "[network]\n"
             "dhcp_enabled=%s\n"
+            "standalone_mode=%s\n"
+            "announce_new_networks=%s\n"
             "preferred_ssid=%s\n"
             "scan_interval_ms=%u\n"
             "hop_interval_ms=%u\n"
+            "discovery_hold_ms=%u\n"
             "web_ui_enabled=%s\n\n"
             "[web]\n"
             "bind_address=%s\n"
@@ -378,9 +448,12 @@ hal_status_t loki_config_save(const char *path, const loki_config_t *config)
             config->dragon_name,
             config->hostname,
             config->dhcp_enabled ? "true" : "false",
+            config->standalone_mode ? "true" : "false",
+            config->announce_new_networks ? "true" : "false",
             config->preferred_ssid,
             config->scan_interval_ms,
             config->hop_interval_ms,
+            config->discovery_hold_ms,
             config->web_ui_enabled ? "true" : "false",
             config->web.bind_address,
             config->web.port,
@@ -516,12 +589,18 @@ hal_status_t loki_config_load(const char *path, loki_config_t *config)
         } else if (strcmp(section, "network") == 0) {
             if (strcmp(key, "dhcp_enabled") == 0) {
                 config->dhcp_enabled = parse_bool(value);
+            } else if (strcmp(key, "standalone_mode") == 0) {
+                config->standalone_mode = parse_bool(value);
+            } else if (strcmp(key, "announce_new_networks") == 0) {
+                config->announce_new_networks = parse_bool(value);
             } else if (strcmp(key, "preferred_ssid") == 0) {
                 copy_string(config->preferred_ssid, sizeof(config->preferred_ssid), value);
             } else if (strcmp(key, "scan_interval_ms") == 0) {
                 config->scan_interval_ms = (uint32_t)strtoul(value, NULL, 10);
             } else if (strcmp(key, "hop_interval_ms") == 0) {
                 config->hop_interval_ms = (uint32_t)strtoul(value, NULL, 10);
+            } else if (strcmp(key, "discovery_hold_ms") == 0) {
+                config->discovery_hold_ms = (uint32_t)strtoul(value, NULL, 10);
             } else if (strcmp(key, "web_ui_enabled") == 0) {
                 config->web_ui_enabled = parse_bool(value);
             }

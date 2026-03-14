@@ -6,26 +6,33 @@ The Loki project is ready to build and deploy to Orange Pi Zero 2W. Since you're
 
 ## Step 1: Install ARM Cross-Compiler
 
-### Option A: Using ARM's Official Toolchain (Recommended)
+### Option A: WSL Ubuntu (Recommended)
 
-1. Go to: https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads
-2. Download: **Arm GNU Toolchain** (not EABI - you want `arm-linux-gnueabihf`)
-   - Look for: `arm-linux-gnueabihf` version
-3. Extract to: `C:\Program Files\arm-toolchain`
-4. Add to Windows PATH:
-   - Search for "Edit environment variables"
-   - Add: `C:\Program Files\arm-toolchain\bin`
-   - Click OK, restart terminal
-5. Verify:
-   ```powershell
+This project expects the GNU/Linux hard-float cross-compiler `arm-linux-gnueabihf-gcc`.
+
+1. Install WSL Ubuntu: https://learn.microsoft.com/windows/wsl/install
+2. Open Ubuntu and run:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install gcc-arm-linux-gnueabihf
+   ```
+3. Verify:
+   ```bash
    arm-linux-gnueabihf-gcc --version
    ```
 
-### Option B: Using Chocolatey (Easier if you have it)
+### Option B: Native Windows Fallback
 
-```powershell
-choco install gcc-arm-none-eabi
-```
+If you want the compiler directly in PowerShell/CMD, use the Linaro Windows-hosted package:
+
+1. Open: https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
+2. Download: `gcc-linaro-7.5.0-2019.12-i686-mingw32_arm-linux-gnueabihf.tar.xz`
+3. Extract it to a folder such as `C:\toolchains\linaro-arm-linux-gnueabihf`
+4. Add `C:\toolchains\linaro-arm-linux-gnueabihf\bin` to `PATH`
+5. Restart PowerShell/CMD and verify:
+   ```powershell
+   arm-linux-gnueabihf-gcc --version
+   ```
 
 ## Step 2: Verify SSH Connectivity
 
@@ -115,13 +122,12 @@ You should see output like:
 
 ### "arm-linux-gnueabihf-gcc not found"
 
-**Solution**: Add ARM toolchain to Windows PATH
+**Solution**: Install the correct GNU/Linux cross-compiler
 
-1. Download and install ARM toolchain
-2. Find location (e.g., `C:\Program Files\ARM GNU Toolchain\bin`)
-3. Open Settings > Environment Variables > Edit PATH
-4. Add the bin folder
-5. Restart PowerShell/CMD and try again
+1. Recommended: install WSL Ubuntu and run `sudo apt-get install gcc-arm-linux-gnueabihf`
+2. Native Windows fallback: download the Linaro package from https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
+3. Add the selected toolchain `bin` folder to `PATH`
+4. Restart PowerShell/CMD and try again
 
 ### "SSH connection failed"
 

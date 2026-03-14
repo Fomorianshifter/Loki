@@ -4,10 +4,10 @@
  */
 
 #include "eeprom_driver.h"
-#include "../../hal/i2c/i2c.h"
-#include "../../config/pinout.h"
+#include "i2c.h"
+#include "pinout.h"
+#include "platform.h"
 #include <string.h>
-#include <unistd.h>
 
 /* ===== EEPROM STATE ===== */
 typedef struct {
@@ -105,7 +105,7 @@ hal_status_t eeprom_write(uint8_t address, const uint8_t *buffer, uint16_t lengt
         }
 
         /* Wait for EEPROM write cycle (~5ms) */
-        usleep(5000);
+        DELAY_US(5000);
 
         bytes_written += chunk_size;
     }

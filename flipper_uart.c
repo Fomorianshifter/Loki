@@ -4,9 +4,10 @@
  */
 
 #include "flipper_uart.h"
-#include "../../hal/uart/uart.h"
-#include "../../config/pinout.h"
+#include "uart.h"
+#include "pinout.h"
 #include <string.h>
+#include <stdlib.h>
 
 /* ===== FLIPPER UART STATE ===== */
 typedef struct {

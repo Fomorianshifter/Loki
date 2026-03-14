@@ -105,9 +105,12 @@ typedef struct {
     char hostname[LOKI_CONFIG_STRING_MAX];
     char preferred_ssid[LOKI_CONFIG_STRING_MAX];
     bool dhcp_enabled;
+    bool standalone_mode;
+    bool announce_new_networks;
     bool web_ui_enabled;
     uint32_t scan_interval_ms;
     uint32_t hop_interval_ms;
+    uint32_t discovery_hold_ms;
     loki_plugin_config_t plugins;
     loki_hardware_config_t hardware;
     loki_display_config_t display;

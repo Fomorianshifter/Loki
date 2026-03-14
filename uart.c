@@ -98,6 +98,7 @@ hal_status_t uart_send_byte(uart_port_t port, uint8_t byte)
 
 hal_status_t uart_receive(uart_port_t port, uint8_t *data, uint32_t length, uint32_t timeout_ms)
 {
+    (void)timeout_ms;  /* Suppress unused parameter warning */
     if (data == NULL || length == 0) {
         return HAL_INVALID_PARAM;
     }

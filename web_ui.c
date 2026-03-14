@@ -6,6 +6,7 @@
 #include "web_ui.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,7 +25,15 @@
 typedef pthread_t web_ui_thread_t;
 typedef pthread_mutex_t web_ui_mutex_t;
 
+static void web_ui_send_status_response(int client_fd,
+                                        int status_code,
+                                        const char *status_text,
+                                        const char *content_type,
+                                        const char *body);
 static void web_ui_send_response(int client_fd, const char *content_type, const char *body);
+static void web_ui_json_append_escaped(char *dest, size_t dest_size, const char *src);
+static void web_ui_append_format(char *dest, size_t dest_size, const char *format, ...);
+static bool web_ui_request_is_localhost(int client_fd, char *remote_address, size_t remote_address_size);
 
 static void web_ui_free_snapshot_tools(web_ui_snapshot_t *snapshot)
 {
@@ -114,17 +123,85 @@ static void web_ui_append_text(char *dest, size_t dest_size, const char *src)
     (void)written;
 }
 
+static void web_ui_append_format(char *dest, size_t dest_size, const char *format, ...)
+{
+    size_t current_length;
+    size_t remaining;
+    va_list args;
+    int written;
+
+    if (dest == NULL || dest_size == 0U || format == NULL) {
+        return;
+    }
+
+    current_length = strlen(dest);
+    if (current_length >= dest_size - 1U) {
+        return;
+    }
+
+    remaining = dest_size - current_length;
+    va_start(args, format);
+    written = vsnprintf(dest + current_length, remaining, format, args);
+    va_end(args);
+    (void)written;
+}
+
+static void web_ui_json_append_escaped(char *dest, size_t dest_size, const char *src)
+{
+    size_t index;
+
+    if (src == NULL) {
+        return;
+    }
+
+    for (index = 0; src[index] != '\0'; index++) {
+        unsigned char character = (unsigned char)src[index];
+
+        switch (character) {
+            case '\\':
+                web_ui_append_text(dest, dest_size, "\\\\");
+                break;
+            case '"':
+                web_ui_append_text(dest, dest_size, "\\\"");
+                break;
+            case '\n':
+                web_ui_append_text(dest, dest_size, "\\n");
+                break;
+            case '\r':
+                web_ui_append_text(dest, dest_size, "\\r");
+                break;
+            case '\t':
+                web_ui_append_text(dest, dest_size, "\\t");
+                break;
+            default:
+                if (character < 32U) {
+                    char escape[7];
+                    snprintf(escape, sizeof(escape), "\\u%04x", character);
+                    web_ui_append_text(dest, dest_size, escape);
+                } else {
+                    char plain[2];
+                    plain[0] = (char)character;
+                    plain[1] = '\0';
+                    web_ui_append_text(dest, dest_size, plain);
+                }
+                break;
+        }
+    }
+}
+
 static void web_ui_build_tool_cards(const web_ui_snapshot_t *snapshot, char *buffer, size_t buffer_size)
 {
     size_t index;
 
     buffer[0] = '\0';
     for (index = 0; index < snapshot->tool_count; index++) {
-        char card[768];
+        char card[1024];
         snprintf(card,
                  sizeof(card),
-                 "<div class=\"loot-card\"><div class=\"chip\">%s</div><div class=\"stat\">%s</div><div class=\"muted\">%s</div><div class=\"muted\" style=\"margin-top:12px\">Command: %s</div><form method=\"post\" action=\"/tool/run?id=%u\" style=\"margin-top:14px\"><button class=\"tab active\" type=\"submit\">Run Tool</button></form></div>",
-                 snapshot->tools[index].enabled ? "Active" : "Idle",
+                    "<div class=\"card\"><h2>Tool %u</h2><label class=\"muted\"><input type=\"checkbox\" name=\"tool_%u_enabled\" %s> Enabled</label><div class=\"grid\"><div><div class=\"muted\">Name</div><input name=\"tool_%u_name\" value=\"%s\" style=\"width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Command</div><input name=\"tool_%u_command\" value=\"%s\" style=\"width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">Description</div><textarea name=\"tool_%u_description\" style=\"width:100%;min-height:72px;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\">%s</textarea></div>",
+                 snapshot->tools[index].enabled ? "chip-ready" : "chip-disabled",
+                 snapshot->tools[index].enabled ? "Ready" : "Disabled",
+                 (unsigned int)(index + 1U),
                  snapshot->tools[index].name,
                  snapshot->tools[index].description,
                  snapshot->tools[index].command[0] != '\0' ? snapshot->tools[index].command : "Not configured",
@@ -142,14 +219,14 @@ static void web_ui_build_tool_forms(const web_ui_snapshot_t *snapshot, char *buf
         char card[1536];
         snprintf(card,
                  sizeof(card),
-                 "<div class=\"card\"><h2>Tool %u</h2><label class=\"muted\"><input type=\"checkbox\" name=\"tool_%u_enabled\" %s> Enabled</label><div class=\"grid\"><div><div class=\"muted\">Name</div><input name=\"tool_%u_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Command</div><input name=\"tool_%u_command\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">Description</div><textarea name=\"tool_%u_description\" style=\"width:100%%;min-height:72px;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\">%s</textarea></div>",
+                    "<div class=\"card\"><h2>Tool %u</h2><label class=\"muted\"><input type=\"checkbox\" name=\"tool_%u_enabled\" %s> Enabled</label><div class=\"grid\"><div><div class=\"muted\">Name</div><input name=\"tool_%u_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Command</div><input name=\"tool_%u_command\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">Description</div><textarea name=\"tool_%u_description\" style=\"width:100%%;min-height:72px;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\">%s</textarea></div>",
                  (unsigned int)(index + 1U),
                  (unsigned int)(index + 1U),
                  snapshot->tools[index].enabled ? "checked" : "",
                  (unsigned int)(index + 1U),
                  snapshot->tools[index].name,
                  (unsigned int)(index + 1U),
-                 snapshot->tools[index].command,
+                    snapshot->tools[index].command[0] != '\0' ? snapshot->tools[index].command : "Not configured",
                  (unsigned int)(index + 1U),
                  snapshot->tools[index].description);
         web_ui_append_text(buffer, buffer_size, card);
@@ -169,19 +246,38 @@ static void web_ui_send_message_page(int client_fd, const char *title, const cha
     web_ui_send_response(client_fd, "text/html; charset=utf-8", body);
 }
 
-static void web_ui_send_response(int client_fd, const char *content_type, const char *body)
+static void web_ui_send_status_response(int client_fd,
+                                        int status_code,
+                                        const char *status_text,
+                                        const char *content_type,
+                                        const char *body)
 {
-    char header[256];
+    char header[512];
     int header_len;
     size_t body_len;
+
+    if (status_text == NULL) {
+        status_text = "OK";
+    }
+    if (content_type == NULL) {
+        content_type = "text/plain; charset=utf-8";
+    }
+    if (body == NULL) {
+        body = "";
+    }
 
     body_len = strlen(body);
     header_len = snprintf(header,
                           sizeof(header),
-                          "HTTP/1.1 200 OK\r\n"
+                          "HTTP/1.1 %d %s\r\n"
                           "Content-Type: %s\r\n"
                           "Content-Length: %u\r\n"
-                          "Connection: close\r\n\r\n",
+                          "Connection: close\r\n"
+                          "Access-Control-Allow-Origin: *\r\n"
+                          "Access-Control-Allow-Methods: GET, POST, PUT, PATCH, OPTIONS\r\n"
+                          "Access-Control-Allow-Headers: Content-Type\r\n\r\n",
+                          status_code,
+                          status_text,
                           content_type,
                           (unsigned int)body_len);
 
@@ -191,115 +287,147 @@ static void web_ui_send_response(int client_fd, const char *content_type, const 
     }
 }
 
+static void web_ui_send_response(int client_fd, const char *content_type, const char *body)
+{
+    web_ui_send_status_response(client_fd, 200, "OK", content_type, body);
+}
+
 static void web_ui_send_not_found(int client_fd)
 {
-    static const char *response =
-        "HTTP/1.1 404 Not Found\r\n"
-        "Content-Type: text/plain\r\n"
-        "Content-Length: 9\r\n"
-        "Connection: close\r\n\r\nNot Found";
-
-    send(client_fd, response, strlen(response), 0);
+    web_ui_send_status_response(client_fd, 404, "Not Found", "text/plain; charset=utf-8", "Not Found");
 }
 
 static void web_ui_build_json(const web_ui_snapshot_t *snapshot, char *buffer, size_t buffer_size)
 {
-    snprintf(buffer,
-             buffer_size,
-             "{"
-             "\"device_name\":\"%s\","
-             "\"dragon_name\":\"%s\","
-             "\"hostname\":\"%s\","
-             "\"primary_ip\":\"%s\","
-             "\"bind_address\":\"%s\","
-             "\"port\":%u,"
-             "\"dhcp_enabled\":%s,"
-             "\"display_ready\":%s,"
-             "\"preferred_ssid\":\"%s\","
-             "\"display_backend\":\"%s\","
-             "\"framebuffer_device\":\"%s\","
-             "\"tool_count\":%u,"
-             "\"heartbeat_ticks\":%u,"
-             "\"network_phase_ms\":%u,"
-             "\"scan_interval_ms\":%u,"
-             "\"hop_interval_ms\":%u,"
-             "\"ai\":{"
-             "\"learning_rate\":%.3f,"
-             "\"actor_learning_rate\":%.3f,"
-             "\"critic_learning_rate\":%.3f,"
-             "\"discount_factor\":%.3f,"
-             "\"reward_decay\":%.3f,"
-             "\"entropy_beta\":%.3f,"
-             "\"policy_temperature\":%.3f,"
-             "\"tick_interval_ms\":%u"
-             "},"
-             "\"dragon\":{" 
-             "\"name\":\"%s\","
-             "\"age_ticks\":%u,"
-             "\"growth_stage\":%u,"
-             "\"life_stage\":\"%s\","
-             "\"hunger\":%.3f,"
-             "\"energy\":%.3f,"
-             "\"curiosity\":%.3f,"
-             "\"bond\":%.3f,"
-             "\"xp\":%.3f,"
-             "\"last_reward\":%.3f,"
-             "\"last_advantage\":%.3f,"
-             "\"policy_confidence\":%.3f,"
-             "\"policy_entropy\":%.3f,"
-             "\"value_estimate\":%.3f,"
-             "\"reward_total\":%.3f,"
-             "\"reward_average\":%.3f,"
-             "\"reward_events\":%u,"
-             "\"speech\":\"%s\","
-             "\"mood\":\"%s\","
-             "\"action\":\"%s\""
-             "}"
-             "}",
-             snapshot->device_name,
-             snapshot->dragon_name,
-             snapshot->hostname,
-             snapshot->primary_ip,
-             snapshot->bind_address,
-             snapshot->port,
-             snapshot->dhcp_enabled ? "true" : "false",
-             snapshot->display_ready ? "true" : "false",
-             snapshot->preferred_ssid,
-             snapshot->display_backend,
-             snapshot->framebuffer_device,
-             (unsigned int)snapshot->tool_count,
-             snapshot->heartbeat_ticks,
-             snapshot->network_phase_ms,
-             snapshot->scan_interval_ms,
-             snapshot->hop_interval_ms,
-             snapshot->ai_learning_rate,
-             snapshot->ai_actor_learning_rate,
-             snapshot->ai_critic_learning_rate,
-             snapshot->ai_discount_factor,
-             snapshot->ai_reward_decay,
-             snapshot->ai_entropy_beta,
-             snapshot->ai_policy_temperature,
-             snapshot->ai_tick_interval_ms,
-             snapshot->dragon.name,
-             snapshot->dragon.age_ticks,
-             snapshot->dragon.growth_stage,
-             web_ui_life_stage_name(snapshot->dragon.growth_stage),
-             snapshot->dragon.hunger,
-             snapshot->dragon.energy,
-             snapshot->dragon.curiosity,
-             snapshot->dragon.bond,
-             snapshot->dragon.xp,
-             snapshot->dragon.last_reward,
-             snapshot->dragon.last_advantage,
-             snapshot->dragon.policy_confidence,
-             snapshot->dragon.policy_entropy,
-             snapshot->dragon.value_estimate,
-             snapshot->dragon.reward_total,
-             snapshot->dragon.reward_average,
-             snapshot->dragon.reward_events,
-             snapshot->dragon.speech,
-             web_ui_mood_name(snapshot->dragon.mood),
-             web_ui_action_name(snapshot->dragon.action));
+    buffer[0] = '\0';
+    web_ui_append_text(buffer, buffer_size, "{");
+    web_ui_append_text(buffer, buffer_size, "\"device_name\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->device_name);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"dragon_name\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->dragon_name);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"hostname\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->hostname);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"primary_ip\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->primary_ip);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_format(buffer, buffer_size, "\"credits_balance\":%.2f,", snapshot->credits_balance);
+    web_ui_append_format(buffer, buffer_size, "\"running_tool_count\":%u,", (unsigned int)snapshot->running_tool_count);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\"gps\":{\"has_fix\":%s,\"latitude\":%.5f,\"longitude\":%.5f,\"altitude_m\":%.2f,\"source\":\"",
+                         snapshot->gps_has_fix ? "true" : "false",
+                         snapshot->gps_latitude,
+                         snapshot->gps_longitude,
+                         snapshot->gps_altitude_m);
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->gps_source);
+    web_ui_append_text(buffer, buffer_size, "\"},");
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\"nearby_network_count\":%u,\"known_network_total\":%u,\"nearby_networks\":\"",
+                         snapshot->nearby_network_count,
+                         snapshot->known_network_total);
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->nearby_networks);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"discovery_message\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->discovery_message);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"bind_address\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->bind_address);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\",\"port\":%u,\"dhcp_enabled\":%s,\"standalone_mode\":%s,\"announce_new_networks\":%s,\"display_ready\":%s,\"preferred_ssid\":\"",
+                         snapshot->port,
+                         snapshot->dhcp_enabled ? "true" : "false",
+                         snapshot->standalone_mode ? "true" : "false",
+                         snapshot->announce_new_networks ? "true" : "false",
+                         snapshot->display_ready ? "true" : "false");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->preferred_ssid);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"display_backend\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->display_backend);
+    web_ui_append_text(buffer, buffer_size, "\",");
+    web_ui_append_text(buffer, buffer_size, "\"framebuffer_device\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->framebuffer_device);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\",\"tool_count\":%u,\"heartbeat_ticks\":%u,\"network_phase_ms\":%u,\"scan_interval_ms\":%u,\"hop_interval_ms\":%u,",
+                         (unsigned int)snapshot->tool_count,
+                         snapshot->heartbeat_ticks,
+                         snapshot->network_phase_ms,
+                         snapshot->scan_interval_ms,
+                         snapshot->hop_interval_ms);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\"ai\":{\"learning_rate\":%.3f,\"actor_learning_rate\":%.3f,\"critic_learning_rate\":%.3f,\"discount_factor\":%.3f,\"reward_decay\":%.3f,\"entropy_beta\":%.3f,\"policy_temperature\":%.3f,\"tick_interval_ms\":%u},",
+                         snapshot->ai_learning_rate,
+                         snapshot->ai_actor_learning_rate,
+                         snapshot->ai_critic_learning_rate,
+                         snapshot->ai_discount_factor,
+                         snapshot->ai_reward_decay,
+                         snapshot->ai_entropy_beta,
+                         snapshot->ai_policy_temperature,
+                         snapshot->ai_tick_interval_ms);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\"dragon\":{\"name\":\"",
+                         0);
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->dragon.name);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\",\"age_ticks\":%u,\"growth_stage\":%u,\"life_stage\":\"",
+                         snapshot->dragon.age_ticks,
+                         snapshot->dragon.growth_stage);
+    web_ui_json_append_escaped(buffer, buffer_size, web_ui_life_stage_name(snapshot->dragon.growth_stage));
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\",\"hunger\":%.3f,\"energy\":%.3f,\"curiosity\":%.3f,\"bond\":%.3f,\"xp\":%.3f,\"last_reward\":%.3f,\"last_advantage\":%.3f,\"policy_confidence\":%.3f,\"policy_entropy\":%.3f,\"value_estimate\":%.3f,\"reward_total\":%.3f,\"reward_average\":%.3f,\"reward_events\":%u,\"speech\":\"",
+                         snapshot->dragon.hunger,
+                         snapshot->dragon.energy,
+                         snapshot->dragon.curiosity,
+                         snapshot->dragon.bond,
+                         snapshot->dragon.xp,
+                         snapshot->dragon.last_reward,
+                         snapshot->dragon.last_advantage,
+                         snapshot->dragon.policy_confidence,
+                         snapshot->dragon.policy_entropy,
+                         snapshot->dragon.value_estimate,
+                         snapshot->dragon.reward_total,
+                         snapshot->dragon.reward_average,
+                         snapshot->dragon.reward_events);
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->dragon.speech);
+    web_ui_append_text(buffer, buffer_size, "\",\"mood\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, web_ui_mood_name(snapshot->dragon.mood));
+    web_ui_append_text(buffer, buffer_size, "\",\"action\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, web_ui_action_name(snapshot->dragon.action));
+    web_ui_append_text(buffer, buffer_size, "\"},\"settings\":{\"profile\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->dragon_profile);
+    web_ui_append_text(buffer, buffer_size, "\",\"temperament\":\"");
+    web_ui_json_append_escaped(buffer, buffer_size, snapshot->dragon_temperament);
+    web_ui_append_format(buffer,
+                         buffer_size,
+                         "\",\"plugin_display\":%s,\"plugin_dragon_ai\":%s,\"plugin_network_state\":%s,\"standalone_mode\":%s,\"announce_new_networks\":%s,\"base_energy\":%.3f,\"base_curiosity\":%.3f,\"base_bond\":%.3f,\"base_hunger\":%.3f,\"hunger_rate\":%.3f,\"energy_decay\":%.3f,\"curiosity_rate\":%.3f,\"explore_xp_gain\":%.3f,\"play_xp_gain\":%.3f,\"growth_interval_ms\":%u,\"growth_xp_step\":%.3f,\"egg_stage_max\":%u,\"hatchling_stage_max\":%u,\"discovery_hold_ms\":%u}}",
+                         snapshot->plugin_display ? "true" : "false",
+                         snapshot->plugin_dragon_ai ? "true" : "false",
+                         snapshot->plugin_network_state ? "true" : "false",
+                         snapshot->standalone_mode ? "true" : "false",
+                         snapshot->announce_new_networks ? "true" : "false",
+                         snapshot->dragon_base_energy,
+                         snapshot->dragon_base_curiosity,
+                         snapshot->dragon_base_bond,
+                         snapshot->dragon_base_hunger,
+                         snapshot->dragon_hunger_rate,
+                         snapshot->dragon_energy_decay,
+                         snapshot->dragon_curiosity_rate,
+                         snapshot->dragon_explore_xp_gain,
+                         snapshot->dragon_play_xp_gain,
+                         snapshot->dragon_growth_interval_ms,
+                         snapshot->dragon_growth_xp_step,
+                         snapshot->dragon_egg_stage_max,
+                         snapshot->dragon_hatchling_stage_max,
+                         snapshot->discovery_hold_ms);
 }
 
 static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
@@ -309,6 +437,7 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
     const char *mood = web_ui_mood_name(snapshot->dragon.mood);
     const char *action = web_ui_action_name(snapshot->dragon.action);
     const char *life_stage = web_ui_life_stage_name(snapshot->dragon.growth_stage);
+    const char *gps_fix = snapshot->gps_has_fix ? "locked" : "no fix";
     unsigned int energy_pct = (unsigned int)(snapshot->dragon.energy * 100.0f);
     unsigned int curiosity_pct = (unsigned int)(snapshot->dragon.curiosity * 100.0f);
     unsigned int bond_pct = (unsigned int)(snapshot->dragon.bond * 100.0f);
@@ -322,6 +451,10 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
     char *tool_cards;
     char *tool_forms;
     char *buffer;
+    char gps_lat[32];
+    char gps_long[32];
+    char gps_alt[32];
+    char credits_display[32];
     char snippet[12288];
     size_t tool_cards_size;
     size_t tool_forms_size;
@@ -332,6 +465,18 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
     } else if (dragon_ai_life_stage(snapshot->dragon.growth_stage) == DRAGON_LIFE_STAGE_ADULT) {
         stage_art = "🐲";
     }
+
+    if (snapshot->gps_has_fix) {
+        snprintf(gps_lat, sizeof(gps_lat), "%.5f", snapshot->gps_latitude);
+        snprintf(gps_long, sizeof(gps_long), "%.5f", snapshot->gps_longitude);
+        snprintf(gps_alt, sizeof(gps_alt), "%.1f m", snapshot->gps_altitude_m);
+    } else {
+        web_ui_copy_string(gps_lat, sizeof(gps_lat), "--");
+        web_ui_copy_string(gps_long, sizeof(gps_long), "--");
+        web_ui_copy_string(gps_alt, sizeof(gps_alt), "--");
+    }
+
+    snprintf(credits_display, sizeof(credits_display), "$ %.2f", snapshot->credits_balance);
 
     tool_cards_size = (snapshot->tool_count * 640U) + 256U;
     tool_forms_size = (snapshot->tool_count * 1280U) + 512U;
@@ -353,69 +498,97 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
 
     web_ui_append_text(buffer, buffer_size,
                        "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Loki Control</title><style>"
-                       ":root{color-scheme:dark;--bg:#07141d;--panel:#10202c;--panel-2:#152b39;--line:rgba(173,226,220,.12);--ink:#edf7f5;--muted:#96b6ba;--accent:#8ce9c8;--accent-2:#ffbf73;--danger:#ff7979;}"
-                       "body{margin:0;font-family:Verdana,sans-serif;background:radial-gradient(circle at top,#163445 0,#0c1d29 45%,#07141d 100%);color:var(--ink);}"
-                       ".wrap{max-width:1120px;margin:0 auto;padding:22px;}"
-                       ".nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;background:rgba(10,21,30,.82);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(14px);position:sticky;top:12px;z-index:3;}"
-                       ".brand{display:flex;align-items:center;gap:14px;}.glyph{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,#163c51,#244d46);font-size:24px;}"
+                       ":root{color-scheme:dark;--bg:#0a0f14;--panel:#1a232c;--panel-2:#232e3a;--line:rgba(255,255,255,.08);--ink:#f6f6f6;--muted:#b6b6b6;--accent:#e6b450;--accent-2:#ff7f50;--danger:#ff4b4b;--glow:rgba(230,180,80,.18);}"
+                       "body{margin:0;font-family:'Segoe UI',Verdana,sans-serif;background:linear-gradient(180deg,#232e3a 0%,#1a232c 100%);color:var(--ink);letter-spacing:.01em;min-height:100vh;}"
+                       ".wrap{max-width:1240px;margin:0 auto;padding:24px;}"
+                       ".nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;background:#232e3a;border:1px solid var(--line);border-radius:24px;position:sticky;top:12px;z-index:6;}"
+                       ".brand{display:flex;align-items:center;gap:14px;}.glyph{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,#e6b450,#ff7f50);font-size:24px;}"
+                       ".nav-meta{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;}"
                        ".tabs{display:flex;gap:10px;flex-wrap:wrap;}.tab{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.08em;}"
-                       ".tab.active{background:var(--accent);color:#09202a;border-color:transparent;font-weight:700;}.page{display:none;padding-top:18px;}.page.active{display:block;}"
-                       ".hero{display:grid;grid-template-columns:1.7fr 1fr;gap:18px;}.card{background:linear-gradient(180deg,rgba(16,32,44,.95),rgba(13,25,36,.88));border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.24);}"
-                       "h1{margin:0 0 8px;font-size:42px;letter-spacing:.03em;}h2{margin:0;font-size:24px;}.muted{color:var(--muted);font-size:14px;}"
-                       ".metric{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);gap:12px;}.metric:last-child{border-bottom:none;}"
-                       ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:18px;}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:#18384d;color:var(--accent);text-transform:uppercase;font-size:12px;letter-spacing:.08em;}"
-                       ".big-stage{font-size:78px;line-height:1;margin:14px 0;}.bar{height:12px;background:#0d2030;border-radius:999px;overflow:hidden;margin-top:8px;}.fill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));}"
+                       ".tab.active{background:var(--accent);color:#232e3a;border-color:transparent;font-weight:800;}.page{display:none;padding-top:20px;}.page.active{display:block;}"
+                       ".hero{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;}.card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:0 22px 60px rgba(0,0,0,.32);}"
+                       "h1{margin:0 0 10px;font-size:48px;letter-spacing:.02em;}h2{margin:0;font-size:24px;}.muted{color:var(--muted);font-size:14px;}"
+                       ".metric{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);gap:12px;}.metric:last-child{border-bottom:none;}"
+                       ".grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:18px;}.pill{display:inline-block;padding:7px 12px;border-radius:999px;background:var(--accent);color:#232e3a;text-transform:uppercase;font-size:12px;letter-spacing:.08em;}"
+                       ".big-stage{font-size:78px;line-height:1;margin:14px 0;}.bar{height:12px;background:var(--panel-2);border-radius:999px;overflow:hidden;margin-top:8px;}.fill{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));}"
                        ".stat{font-size:28px;font-weight:700;margin-top:8px;}.stack{display:grid;gap:14px;}.subgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px;}"
-                       ".loot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;}.loot-card{padding:20px;border-radius:20px;background:linear-gradient(180deg,rgba(26,33,46,.96),rgba(17,24,35,.88));border:1px solid rgba(255,190,117,.14);}"
-                       ".chip{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,191,115,.1);color:var(--accent-2);font-size:12px;text-transform:uppercase;letter-spacing:.08em;}"
-                       ".speech{margin-top:14px;padding:14px 16px;border-radius:16px;background:#0b1721;border:1px solid var(--line);font-size:15px;line-height:1.5;min-height:52px;}"
-                       ".status-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px;}.status-tile{padding:14px 16px;border-radius:16px;background:#0b1721;border:1px solid var(--line);}"
-                       ".mono{font-family:Consolas,monospace;}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}input,textarea{box-sizing:border-box;}a{color:#9ae7ff;text-decoration:none;}"
-                       "@media (max-width:860px){.hero{grid-template-columns:1fr;}.nav{flex-direction:column;align-items:flex-start;}}</style>"
+                       ".loot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;}.loot-card{padding:20px;border-radius:22px;background:var(--panel-2);border:1px solid var(--accent);box-shadow:inset 0 1px 0 var(--line);}.loot-card .stat{font-size:24px;}"
+                       ".chip{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:var(--accent-2);color:#232e3a;font-size:12px;text-transform:uppercase;letter-spacing:.08em;}"
+                       ".speech{margin-top:14px;padding:16px 18px;border-radius:18px;background:var(--panel-2);border:1px solid var(--accent);font-size:15px;line-height:1.55;min-height:52px;box-shadow:0 0 0 1px var(--line) inset;}"
+                       ".speech-remarks{min-height:122px;margin-top:10px;}"
+                       ".status-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:18px;}.status-tile{padding:14px 16px;border-radius:16px;background:var(--panel-2);border:1px solid var(--accent);}"
+                       ".mono{font-family:Consolas,monospace;}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}.actions .tab{text-decoration:none;}input,textarea{box-sizing:border-box;font:inherit;}a{color:var(--accent-2);text-decoration:none;}"
+                       ".section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}"
+                       ".settings-note{padding:12px 14px;border-radius:16px;background:var(--glow);border:1px solid var(--accent);color:var(--muted);margin-top:14px;}"
+                       "@media (max-width:860px){.hero{grid-template-columns:1fr;}.nav{flex-direction:column;align-items:flex-start;}}@media (max-width:560px){.hero-stats,.pulse-grid{grid-template-columns:1fr;}}"
+                       "</style>"
+                       "<div style='text-align:center;margin-top:12px;color:#e6b450;font-size:15px;'>Theme: The Harvester by <a href='https://github.com/harvester-theme' style='color:#ff7f50;text-decoration:underline;'>Harvester Author</a> &mdash; Loki UI adaptation</div>"
                        "<script>"
                        "function showTab(tab){document.querySelectorAll('.tab').forEach(function(el){el.classList.toggle('active',el.dataset.tab===tab);});document.querySelectorAll('.page').forEach(function(el){el.classList.toggle('active',el.id===tab);});}"
                        "function setText(id,value){var el=document.getElementById(id);if(el){el.textContent=String(value);}}"
                        "function setWidth(id,value){var el=document.getElementById(id);if(el){el.style.width=Math.max(0,Math.min(100,value))+'%';}}"
-                       "function stageGlyph(stage){if(stage==='Adult'){return '🐲';}if(stage==='Hatchling'){return '🐉';}return '🥚';}"
-                       "async function refreshStatus(){try{var response=await fetch('/api/status',{cache:'no-store'});if(!response.ok){return;}var data=await response.json();setText('live-navbar-name',data.dragon_name);setText('live-stage-chip',String(data.dragon.life_stage).toUpperCase());setText('live-title',data.dragon_name);setText('live-mood-action','Mood '+data.dragon.mood+', action '+data.dragon.action+', growth stage '+data.dragon.growth_stage);setText('live-stage-art',stageGlyph(data.dragon.life_stage));setText('live-stage-line',data.dragon.life_stage+' Stage '+data.dragon.growth_stage);setText('live-xp',Number(data.dragon.xp).toFixed(1));setText('live-reward',Number(data.dragon.last_reward).toFixed(2));setText('live-display',data.display_ready?'ready':'offline');setText('live-network',data.dhcp_enabled?'dhcp':'static');setText('live-speech',data.dragon.speech);setText('live-heartbeat',data.heartbeat_ticks);setText('live-phase',data.network_phase_ms+' ms');setText('live-confidence',Number(data.dragon.policy_confidence).toFixed(2));setText('live-advantage',Number(data.dragon.last_advantage).toFixed(2));setText('live-value',Number(data.dragon.value_estimate).toFixed(2));setText('live-entropy',Number(data.dragon.policy_entropy).toFixed(3));setText('live-reward-total',Number(data.dragon.reward_total).toFixed(2));setText('live-reward-average',Number(data.dragon.reward_average).toFixed(3));setText('live-reward-events',data.dragon.reward_events);setText('live-tool-count',data.tool_count);setText('live-tool-count-detail',data.tool_count);setText('live-ip',data.primary_ip);setText('live-ip-detail',data.primary_ip);setText('live-scan',data.network_phase_ms+' / '+data.scan_interval_ms+' ms');setWidth('live-hatch-fill',data.dragon.growth_stage>=4?100:Math.round((data.dragon.growth_stage*100)/4));setWidth('live-energy-fill',Math.round(data.dragon.energy*100));setWidth('live-curiosity-fill',Math.round(data.dragon.curiosity*100));setWidth('live-bond-fill',Math.round(data.dragon.bond*100));setWidth('live-hunger-fill',Math.round((1-data.dragon.hunger)*100));}catch(error){}}"
-                       "window.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('.tab').forEach(function(el){el.addEventListener('click',function(){showTab(el.dataset.tab);});});showTab('home');refreshStatus();window.setInterval(refreshStatus,2000);});"
+                       "function setHTML(id,value){var el=document.getElementById(id);if(el){el.innerHTML=value;}}"
+                       "function stageGlyph(stage){if(stage==='Adult'){return '<svg width=\"132\" height=\"132\" viewBox=\"0 0 132 132\"><defs><linearGradient id=\"s1\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#a3c1de\"/><stop offset=\"100%\" stop-color=\"#2f4668\"/></linearGradient><linearGradient id=\"d1\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#824dff\"/><stop offset=\"100%\" stop-color=\"#2d245f\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"132\" height=\"132\" rx=\"22\" fill=\"url(#s1)\"/><path d=\"M0 112 L36 68 L66 112 Z\" fill=\"#1e3050\"/><path d=\"M48 112 L84 54 L132 112 Z\" fill=\"#2a4064\"/><ellipse cx=\"73\" cy=\"74\" rx=\"31\" ry=\"21\" fill=\"url(#d1)\"/><ellipse cx=\"93\" cy=\"63\" rx=\"13\" ry=\"12\" fill=\"url(#d1)\"/><path d=\"M60 70 L36 48 L46 82 Z\" fill=\"#aa8dff\"/><path d=\"M86 70 L112 54 L95 84 Z\" fill=\"#aa8dff\"/><path d=\"M45 84 Q24 95 18 108\" stroke=\"#d2baff\" stroke-width=\"6\" stroke-linecap=\"round\" fill=\"none\"/><circle cx=\"96\" cy=\"61\" r=\"2.4\" fill=\"#ffe8ab\"/><path d=\"M100 68 Q94 71 89 68\" stroke=\"#ffe2a3\" stroke-width=\"2\" fill=\"none\"/></svg>';}if(stage==='Hatchling'){return '<svg width=\"132\" height=\"132\" viewBox=\"0 0 132 132\"><defs><linearGradient id=\"s2\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#b4cbe0\"/><stop offset=\"100%\" stop-color=\"#3b5274\"/></linearGradient><linearGradient id=\"d2\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#f8b45e\"/><stop offset=\"100%\" stop-color=\"#96522a\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"132\" height=\"132\" rx=\"22\" fill=\"url(#s2)\"/><path d=\"M0 112 L34 74 L62 112 Z\" fill=\"#253c5d\"/><path d=\"M44 112 L76 58 L116 112 Z\" fill=\"#324d71\"/><ellipse cx=\"72\" cy=\"80\" rx=\"24\" ry=\"18\" fill=\"url(#d2)\"/><ellipse cx=\"86\" cy=\"72\" rx=\"10\" ry=\"9\" fill=\"url(#d2)\"/><path d=\"M60 77 L47 66 L55 84 Z\" fill=\"#ffd7a0\"/><path d=\"M76 77 L91 67 L82 86 Z\" fill=\"#ffd7a0\"/><circle cx=\"88\" cy=\"71\" r=\"2\" fill=\"#1f1712\"/><path d=\"M91 76 Q86 79 82 76\" stroke=\"#ffe8c7\" stroke-width=\"1.8\" fill=\"none\"/></svg>';}return '<svg width=\"132\" height=\"132\" viewBox=\"0 0 132 132\"><defs><linearGradient id=\"s3\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#bdd0e1\"/><stop offset=\"100%\" stop-color=\"#4d6688\"/></linearGradient><linearGradient id=\"e3\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0%\" stop-color=\"#ffe3ac\"/><stop offset=\"100%\" stop-color=\"#c9853f\"/></linearGradient></defs><rect x=\"0\" y=\"0\" width=\"132\" height=\"132\" rx=\"22\" fill=\"url(#s3)\"/><path d=\"M0 112 L34 74 L62 112 Z\" fill=\"#253c5d\"/><path d=\"M44 112 L78 58 L120 112 Z\" fill=\"#324d71\"/><ellipse cx=\"66\" cy=\"82\" rx=\"24\" ry=\"32\" fill=\"url(#e3)\" stroke=\"#f9d89d\" stroke-width=\"2\"/><path d=\"M56 80 Q65 73 73 82 Q66 90 56 80\" fill=\"#fff4dc\" opacity=\".55\"/></svg>';}"
+                       "var dragonState={lifeStage:'Egg',mood:'calm',action:'idle',name:'Loki'};"
+                       "function dragonSpriteMarkup(stage){var tone=stage==='Adult'?'#7a50f1':(stage==='Hatchling'?'#e29548':'#d6bd86');var wing=stage==='Adult'?'#ab8eff':(stage==='Hatchling'?'#ffd6a5':'#f0e5c7');return '<svg viewBox=\"0 0 230 160\" aria-hidden=\"true\"><defs><linearGradient id=\"dragonBody\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0%\" stop-color=\"'+tone+'\"/><stop offset=\"100%\" stop-color=\"#2d2759\"/></linearGradient><linearGradient id=\"dragonWing\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0%\" stop-color=\"'+wing+'\"/><stop offset=\"100%\" stop-color=\"#5b537e\"/></linearGradient></defs><path class=\"wing\" d=\"M88 78 L44 34 L60 95 Z\"/><path class=\"wing\" d=\"M126 74 L180 44 L146 102 Z\"/><ellipse class=\"shell\" cx=\"104\" cy=\"94\" rx=\"64\" ry=\"34\"/><ellipse class=\"shell\" cx=\"159\" cy=\"74\" rx=\"28\" ry=\"23\"/><path d=\"M146 56 L152 42 L160 56 Z\" fill=\"#f7d596\"/><path d=\"M161 54 L168 40 L174 55 Z\" fill=\"#f7d596\"/><ellipse class=\"belly\" cx=\"111\" cy=\"98\" rx=\"29\" ry=\"16\"/><circle class=\"eye\" cx=\"166\" cy=\"74\" r=\"4.2\"/><circle cx=\"167\" cy=\"72\" r=\"1.1\" fill=\"#fff7dc\"/><path d=\"M174 84 Q165 92 154 87\" stroke=\"#f8dfab\" stroke-width=\"3\" fill=\"none\"/><path d=\"M52 106 Q30 121 22 139\" stroke=\"#cfb2ff\" stroke-width=\"9\" stroke-linecap=\"round\" fill=\"none\"/><circle class=\"spark\" cx=\"188\" cy=\"55\" r=\"4\"/><circle class=\"spark\" cx=\"198\" cy=\"65\" r=\"2.7\"/></svg>'; }"
+                       "function roamDragon(){var dragon=document.getElementById('loki-dragon');var bubble=document.getElementById('dragon-chat');if(!dragon||!bubble){return;}var bob=Math.floor(Math.sin(Date.now()/850)*6);var flip=(Math.cos(Date.now()/2100)>0)?1:-1;dragon.style.right='18px';dragon.style.bottom=(22+bob)+'px';dragon.style.left='auto';dragon.style.top='auto';dragon.style.transform='scaleX('+flip+') rotate('+Math.floor(Math.sin(Date.now()/1200)*3)+'deg)';bubble.style.right='20px';bubble.style.bottom=(126+bob)+'px';bubble.style.left='auto';bubble.style.top='auto';}"
+                       "function sassyLine(){var stage=dragonState.lifeStage||'Egg';var mood=String(dragonState.mood||'calm').toLowerCase();var action=String(dragonState.action||'idle').toLowerCase();var name=dragonState.name||'Loki';if(stage==='Adult'){if(mood.indexOf('curious')>=0){return name+': Mountain signal acquired. If you need me, I am judging your network hygiene from this cliff.';}if(action.indexOf('explore')>=0){return name+': I roam where packets fear to go. Keep up.';}return name+': Crown polished. Sass online. Realm secure.';}if(stage==='Hatchling'){if(mood.indexOf('play')>=0||action.indexOf('play')>=0){return name+': Tiny wings, massive confidence. Watch me strut.';}return name+': I am learning fast. Please act impressed.';}return name+': Still in egg mode, still running this mountain.';}"
+                       "function updateDragonPersona(data){var dragon=document.getElementById('loki-dragon');var bubble=document.getElementById('dragon-chat');if(!data||!data.dragon){return;}dragonState.lifeStage=data.dragon.life_stage||'Egg';dragonState.mood=data.dragon.mood||'calm';dragonState.action=data.dragon.action||'idle';dragonState.name=data.dragon_name||'Loki';if(dragon){dragon.innerHTML=dragonSpriteMarkup(dragonState.lifeStage);}if(bubble){bubble.innerHTML='<strong>'+dragonState.name+'</strong><br>'+sassyLine();}}"
+                       "async function refreshStatus(){try{var response=await fetch('/api/status',{cache:'no-store'});if(!response.ok){return;}var data=await response.json();setText('live-navbar-name',data.dragon_name);setText('live-stage-chip',String(data.dragon.life_stage).toUpperCase());setText('live-title',data.dragon_name);setText('live-mood-action','Mood '+data.dragon.mood+', action '+data.dragon.action+', growth stage '+data.dragon.growth_stage);setHTML('live-stage-art',stageGlyph(data.dragon.life_stage));setText('live-stage-line',data.dragon.life_stage+' Stage '+data.dragon.growth_stage);setText('live-xp',Number(data.dragon.xp).toFixed(1));setText('live-reward',Number(data.dragon.last_reward).toFixed(2));setText('live-display',data.display_ready?'ready':'offline');setText('live-network',data.standalone_mode?'standalone scout':(data.dhcp_enabled?'dhcp':'static'));setText('live-speech',data.dragon.speech);setText('live-remarks',data.dragon.speech);setText('live-attitude',data.dragon.mood);setText('live-heartbeat',data.heartbeat_ticks);setText('live-phase',data.network_phase_ms+' ms');setText('live-confidence',Number(data.dragon.policy_confidence).toFixed(2));setText('live-advantage',Number(data.dragon.last_advantage).toFixed(2));setText('live-value',Number(data.dragon.value_estimate).toFixed(2));setText('live-entropy',Number(data.dragon.policy_entropy).toFixed(3));setText('live-reward-total',Number(data.dragon.reward_total).toFixed(2));setText('live-reward-average',Number(data.dragon.reward_average).toFixed(3));setText('live-reward-events',data.dragon.reward_events);setText('live-tool-count',data.tool_count);setText('live-tool-count-detail',data.tool_count);setText('live-ip',data.primary_ip);setText('live-ip-detail',data.primary_ip);setText('live-gps-fix',data.gps.has_fix?'locked':'no fix');setText('live-gps-source',data.gps.source);setText('live-gps-lat',data.gps.has_fix?Number(data.gps.latitude).toFixed(5):'--');setText('live-gps-long',data.gps.has_fix?Number(data.gps.longitude).toFixed(5):'--');setText('live-gps-alt',data.gps.has_fix?Number(data.gps.altitude_m).toFixed(1)+' m':'--');setText('live-nearby-count',data.nearby_network_count);setText('live-nearby-count-copy',data.nearby_network_count);setText('live-known-count',data.known_network_total);setText('live-known-count-telemetry',data.known_network_total);setText('live-nearby-list',data.nearby_networks);setText('live-discovery',data.discovery_message||'waiting for new networks');setText('live-scan',data.network_phase_ms+' / '+data.scan_interval_ms+' ms');setWidth('live-hatch-fill',data.dragon.growth_stage>=4?100:Math.round((data.dragon.growth_stage*100)/4));setWidth('live-energy-fill',Math.round(data.dragon.energy*100));setWidth('live-curiosity-fill',Math.round(data.dragon.curiosity*100));setWidth('live-bond-fill',Math.round(data.dragon.bond*100));setWidth('live-hunger-fill',Math.round((1-data.dragon.hunger)*100));}catch(error){}}"
+                       "async function refreshStatus(){try{var response=await fetch('/api/status',{cache:'no-store'});if(!response.ok){return;}var data=await response.json();var credits=(Number(data.dragon.reward_total)||0).toFixed(2);setText('live-navbar-name',data.dragon_name);setText('live-stage-chip',String(data.dragon.life_stage).toUpperCase());setText('live-title',data.dragon_name);setText('live-mood-action','Mood '+data.dragon.mood+', action '+data.dragon.action+', growth stage '+data.dragon.growth_stage);setHTML('live-stage-art',stageGlyph(data.dragon.life_stage));setText('live-stage-line',data.dragon.life_stage+' Stage '+data.dragon.growth_stage);setText('live-xp',Number(data.dragon.xp).toFixed(1));setText('live-reward',Number(data.dragon.last_reward).toFixed(2));setText('live-display',data.display_ready?'ready':'offline');setText('live-network',data.standalone_mode?'standalone scout':(data.dhcp_enabled?'dhcp':'static'));setText('live-speech',data.dragon.speech);setText('live-remarks',data.dragon.speech+'  '+sassyLine());setText('live-attitude',data.dragon.mood);setText('live-mood-main',data.dragon.mood);setText('live-action-main',data.dragon.action);setText('live-confidence-main',Number(data.dragon.policy_confidence).toFixed(2));setText('live-advantage-main',Number(data.dragon.last_advantage).toFixed(2));setText('live-entropy-main',Number(data.dragon.policy_entropy).toFixed(3));setText('live-credits','¢ '+credits);setText('live-credits-main','¢ '+credits);setText('live-heartbeat',data.heartbeat_ticks);setText('live-phase',data.network_phase_ms+' ms');setText('live-confidence',Number(data.dragon.policy_confidence).toFixed(2));setText('live-advantage',Number(data.dragon.last_advantage).toFixed(2));setText('live-value',Number(data.dragon.value_estimate).toFixed(2));setText('live-entropy',Number(data.dragon.policy_entropy).toFixed(3));setText('live-reward-total',Number(data.dragon.reward_total).toFixed(2));setText('live-reward-average',Number(data.dragon.reward_average).toFixed(3));setText('live-reward-events',data.dragon.reward_events);setText('live-tool-count',data.tool_count);setText('live-tool-count-detail',data.tool_count);setText('live-ip',data.primary_ip);setText('live-ip-detail',data.primary_ip);setText('live-gps-fix',data.gps.has_fix?'locked':'no fix');setText('live-gps-source',data.gps.source);setText('live-gps-lat',data.gps.has_fix?Number(data.gps.latitude).toFixed(5):'--');setText('live-gps-long',data.gps.has_fix?Number(data.gps.longitude).toFixed(5):'--');setText('live-gps-alt',data.gps.has_fix?Number(data.gps.altitude_m).toFixed(1)+' m':'--');setText('live-nearby-count',data.nearby_network_count);setText('live-nearby-count-copy',data.nearby_network_count);setText('live-known-count',data.known_network_total);setText('live-known-count-telemetry',data.known_network_total);setText('live-nearby-list',data.nearby_networks);setText('live-discovery',data.discovery_message||'waiting for new networks');setText('live-scan',data.network_phase_ms+' / '+data.scan_interval_ms+' ms');setWidth('live-hatch-fill',data.dragon.growth_stage>=4?100:Math.round((data.dragon.growth_stage*100)/4));setWidth('live-energy-fill',Math.round(data.dragon.energy*100));setWidth('live-curiosity-fill',Math.round(data.dragon.curiosity*100));setWidth('live-bond-fill',Math.round(data.dragon.bond*100));setWidth('live-hunger-fill',Math.round((1-data.dragon.hunger)*100));updateDragonPersona(data);}catch(error){}}"
+                       "async function resetNetworkMemory(){try{var response=await fetch('/api/networks/reset',{method:'POST'});if(!response.ok){return;}await refreshStatus();}catch(error){}}"
+                       "window.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('.tab').forEach(function(el){el.addEventListener('click',function(){showTab(el.dataset.tab);});});showTab('home');refreshStatus();window.setInterval(refreshStatus,2000);window.setInterval(roamDragon,4200);roamDragon();});"
                        "</script></head><body><div class=\"wrap\">");
 
     snprintf(snippet,
              sizeof(snippet),
-             "<div class=\"nav\"><div class=\"brand\"><div class=\"glyph\">%s</div><div><div class=\"pill\" id=\"live-stage-chip\">%s</div><h2 id=\"live-navbar-name\">%s</h2><div class=\"muted\">Primary IP <span class=\"mono\" id=\"live-ip\">%s</span></div></div></div><div class=\"tabs\"><button class=\"tab active\" data-tab=\"home\">Home</button><button class=\"tab\" data-tab=\"telemetry\">Telemetry</button><button class=\"tab\" data-tab=\"settings\">Settings</button><button class=\"tab\" data-tab=\"tools\">Tools</button></div></div>",
+             "<div class=\"nav\"><div class=\"brand\"><div class=\"nav-meta\"><span class=\"mini-label\">IP</span><span class=\"mono\" id=\"live-ip\">%s</span><span class=\"mini-label\">Credits</span><span class=\"mono\" id=\"live-credits\">--</span><span class=\"mini-label\">Tools</span><span class=\"mono\" id=\"live-running-tools\">0</span></div><div class=\"brand-main\"><div class=\"glyph\">%s</div><div><div class=\"pill\" id=\"live-stage-chip\">%s</div><h2 id=\"live-navbar-name\">%s</h2></div></div></div><div class=\"tabs\"><button class=\"tab active\" data-tab=\"home\">Home</button><button class=\"tab\" data-tab=\"telemetry\">Telemetry</button><button class=\"tab\" data-tab=\"settings\">Settings</button><button class=\"tab\" data-tab=\"tools\">Tools</button></div></div>",
+             snapshot->primary_ip,
              stage_art,
              life_stage,
-             snapshot->dragon_name,
-             snapshot->primary_ip);
+             snapshot->dragon_name);
     web_ui_append_text(buffer, buffer_size, snippet);
 
     snprintf(snippet,
              sizeof(snippet),
-             "<section class=\"page active\" id=\"home\"><div class=\"hero\"><div class=\"card\"><div class=\"pill\">Lifecycle</div><h1 id=\"live-title\">%s</h1><div class=\"muted\" id=\"live-mood-action\">Mood %s, action %s, growth stage %u</div><div class=\"big-stage\" id=\"live-stage-art\">%s</div><div class=\"muted\">Hatch progress</div><div class=\"bar\"><div class=\"fill\" id=\"live-hatch-fill\" style=\"width:%u%%\"></div></div><div class=\"grid\"><div><div class=\"muted\">XP</div><div class=\"stat\" id=\"live-xp\">%.1f</div></div><div><div class=\"muted\">Reward</div><div class=\"stat\" id=\"live-reward\">%.2f</div></div><div><div class=\"muted\">Display</div><div class=\"stat\" id=\"live-display\">%s</div></div><div><div class=\"muted\">Network</div><div class=\"stat\" id=\"live-network\">%s</div></div></div><div class=\"speech\" id=\"live-speech\">%s</div><div class=\"status-strip\"><div class=\"status-tile\"><div class=\"muted\">IP Address</div><div class=\"stat mono\" id=\"live-ip-detail\">%s</div></div><div class=\"status-tile\"><div class=\"muted\">Stage</div><div class=\"stat\" id=\"live-stage-line\">%s Stage %u</div></div><div class=\"status-tile\"><div class=\"muted\">Tool Slots</div><div class=\"stat\" id=\"live-tool-count\">%u</div></div></div></div><div class=\"stack\"><div class=\"card\"><div class=\"muted\">Web UI</div><h2 class=\"mono\">%s:%u</h2><div class=\"muted\">API at <a href=\"/api/status\">/api/status</a></div><div class=\"actions\"><a class=\"tab active\" href=\"/api/status\">View API</a></div></div><div class=\"card\"><div class=\"muted\">Runtime</div><div class=\"stat\" id=\"live-heartbeat\">%u</div><div class=\"muted\">Phase <span id=\"live-phase\">%u ms</span></div><div class=\"subgrid\"><div><div class=\"muted\">Confidence</div><div class=\"stat\" id=\"live-confidence\">%.2f</div></div><div><div class=\"muted\">Advantage</div><div class=\"stat\" id=\"live-advantage\">%.2f</div></div></div><div class=\"muted\" style=\"margin-top:14px\">Scan window <span id=\"live-scan\">%u / %u ms</span></div></div></div></div><div class=\"grid\"><div class=\"card\"><div class=\"muted\">Energy</div><div class=\"bar\"><div class=\"fill\" id=\"live-energy-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Curiosity</div><div class=\"bar\"><div class=\"fill\" id=\"live-curiosity-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Bond</div><div class=\"bar\"><div class=\"fill\" id=\"live-bond-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Reserve</div><div class=\"bar\"><div class=\"fill\" id=\"live-hunger-fill\" style=\"width:%u%%\"></div></div></div></div></section>",
+             "<section class=\"page active\" id=\"home\"><div class=\"hero\"><div class=\"card hero-core\"><div class=\"section-head\"><div><div class=\"pill\">Dragon Chamber</div><h1 id=\"live-title\">%s</h1><div class=\"muted\" id=\"live-mood-action\">Mood %s, action %s, growth stage %u</div></div><div class=\"chip chip-ready\">Dragon Core</div></div><div class=\"hero-ridge\"><div class=\"stage-sigil\" id=\"live-stage-art\">%s</div><div class=\"speech-panel\"><div><div class=\"muted\">Current voice</div><div class=\"speech\" id=\"live-speech\">%s</div></div><div><div class=\"muted\">Hatch progress</div><div class=\"bar\"><div class=\"fill\" id=\"live-hatch-fill\" style=\"width:%u%%\"></div></div></div><div class=\"hero-stats\"><div class=\"hero-stat\"><div class=\"muted\">XP</div><div class=\"stat\" id=\"live-xp\">%.1f</div></div><div class=\"hero-stat\"><div class=\"muted\">Reward</div><div class=\"stat\" id=\"live-reward\">%.2f</div></div><div class=\"hero-stat\"><div class=\"muted\">Display</div><div class=\"stat\" id=\"live-display\">%s</div></div><div class=\"hero-stat\"><div class=\"muted\">Network</div><div class=\"stat\" id=\"live-network\">%s</div></div></div></div></div><div class=\"status-strip\"><div class=\"status-tile\"><div class=\"muted\">Attitude</div><div class=\"stat\" id=\"live-attitude\">%s</div></div><div class=\"status-tile\"><div class=\"muted\">Stage</div><div class=\"stat\" id=\"live-stage-line\">%s Stage %u</div></div><div class=\"status-tile\"><div class=\"muted\">Tool Slots</div><div class=\"stat\" id=\"live-tool-count\">%u</div></div><div class=\"status-tile\"><div class=\"muted\">Running</div><div class=\"stat\" id=\"live-running-tools-main\">0</div></div></div></div><div class=\"stack\"><div class=\"card signal-card\"><div class=\"muted\">Dragon Mood Stack</div><h2>Sass Channel</h2><div class=\"mood-stack\"><div class=\"mood-item\"><span>Mood</span><span class=\"value\" id=\"live-mood-main\">--</span></div><div class=\"mood-item\"><span>Action</span><span class=\"value\" id=\"live-action-main\">--</span></div><div class=\"mood-item\"><span>Confidence</span><span class=\"value\" id=\"live-confidence-main\">--</span></div><div class=\"mood-item\"><span>Advantage</span><span class=\"value\" id=\"live-advantage-main\">--</span></div><div class=\"mood-item\"><span>Entropy</span><span class=\"value\" id=\"live-entropy-main\">--</span></div><div class=\"mood-item\"><span>Credits</span><span class=\"value\" id=\"live-credits-main\">--</span></div></div><div class=\"speech speech-remarks\" id=\"live-remarks\">%s</div><div class=\"muted\">Primary IP <span class=\"mono\" id=\"live-ip-detail\">%s</span></div><div class=\"actions\"><a class=\"tab active\" href=\"/api/status\">View API</a></div></div><div class=\"card signal-card\"><div class=\"muted\">Scout Banner</div><h2>Discovery Feed</h2><div class=\"speech\" id=\"live-discovery\">%s</div><div class=\"pulse-grid\"><div><div class=\"muted\">Known Networks</div><div class=\"stat\" id=\"live-known-count\">%u</div></div><div><div class=\"muted\">Nearby Now</div><div class=\"stat\" id=\"live-nearby-count\">%u</div></div></div><div class=\"muted\" style=\"margin-top:12px\">Standalone mode %s, announce new networks %s</div><div class=\"actions\"><button class=\"tab\" type=\"button\" onclick=\"resetNetworkMemory()\">Reset Network Memory</button></div></div><div class=\"card signal-card\"><div class=\"muted\">GPS</div><h2 id=\"live-gps-fix\">%s</h2><div class=\"subgrid\"><div><div class=\"muted\">Lat</div><div class=\"stat mono\" id=\"live-gps-lat\">%s</div></div><div><div class=\"muted\">Long</div><div class=\"stat mono\" id=\"live-gps-long\">%s</div></div><div><div class=\"muted\">Alt</div><div class=\"stat mono\" id=\"live-gps-alt\">%s</div></div></div><div class=\"muted\" style=\"margin-top:12px\">Source <span class=\"mono\" id=\"live-gps-source\">%s</span></div></div><div class=\"card signal-card\"><div class=\"muted\">Nearby Wi-Fi</div><h2><span id=\"live-nearby-count-copy\">%u</span> seen</h2><div class=\"speech\" id=\"live-nearby-list\">%s</div></div><div class=\"card signal-card\"><div class=\"muted\">Runtime</div><div class=\"stat\" id=\"live-heartbeat\">%u</div><div class=\"muted\">Phase <span id=\"live-phase\">%u ms</span></div><div class=\"subgrid\"><div><div class=\"muted\">Confidence</div><div class=\"stat\" id=\"live-confidence\">%.2f</div></div><div><div class=\"muted\">Advantage</div><div class=\"stat\" id=\"live-advantage\">%.2f</div></div></div><div class=\"muted\" style=\"margin-top:14px\">Scan window <span id=\"live-scan\">%u / %u ms</span></div><div class=\"muted\" style=\"margin-top:10px\">Web UI <span class=\"mono\">%s:%u</span></div></div></div></div><div class=\"grid\"><div class=\"card\"><div class=\"muted\">Energy</div><div class=\"bar\"><div class=\"fill\" id=\"live-energy-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Curiosity</div><div class=\"bar\"><div class=\"fill\" id=\"live-curiosity-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Bond</div><div class=\"bar\"><div class=\"fill\" id=\"live-bond-fill\" style=\"width:%u%%\"></div></div></div><div class=\"card\"><div class=\"muted\">Reserve</div><div class=\"bar\"><div class=\"fill\" id=\"live-hunger-fill\" style=\"width:%u%%\"></div></div></div></div></section>",
              snapshot->dragon_name,
              mood,
              action,
              snapshot->dragon.growth_stage,
              stage_art,
+             snapshot->dragon.speech,
              hatch_progress,
              snapshot->dragon.xp,
              snapshot->dragon.last_reward,
              display_state,
              network_state,
-             snapshot->dragon.speech,
-             snapshot->primary_ip,
+             mood,
              life_stage,
              snapshot->dragon.growth_stage,
              (unsigned int)snapshot->tool_count,
-             snapshot->bind_address,
-             snapshot->port,
+             snapshot->dragon.speech,
+             snapshot->primary_ip,
+             snapshot->discovery_message[0] != '\0' ? snapshot->discovery_message : "Waiting for new networks",
+             snapshot->known_network_total,
+             snapshot->nearby_network_count,
+             snapshot->standalone_mode ? "on" : "off",
+             snapshot->announce_new_networks ? "on" : "off",
+             gps_fix,
+             gps_lat,
+             gps_long,
+             gps_alt,
+             snapshot->gps_source,
+             snapshot->nearby_network_count,
+             snapshot->nearby_networks,
              snapshot->heartbeat_ticks,
              snapshot->network_phase_ms,
              snapshot->dragon.policy_confidence,
              snapshot->dragon.last_advantage,
              snapshot->network_phase_ms,
              snapshot->scan_interval_ms,
+             snapshot->bind_address,
+             snapshot->port,
              energy_pct,
              curiosity_pct,
              bond_pct,
@@ -424,7 +597,7 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
 
     snprintf(snippet,
              sizeof(snippet),
-             "<section class=\"page\" id=\"telemetry\"><div class=\"grid\"><div class=\"card\"><h2>Learning Telemetry</h2><div class=\"metric\"><span class=\"muted\">Value Estimate</span><strong id=\"live-value\">%.2f</strong></div><div class=\"metric\"><span class=\"muted\">Policy Entropy</span><strong id=\"live-entropy\">%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Total</span><strong id=\"live-reward-total\">%.2f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Average</span><strong id=\"live-reward-average\">%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Events</span><strong id=\"live-reward-events\">%u</strong></div></div><div class=\"card\"><h2>Runtime Shape</h2><div class=\"metric\"><span class=\"muted\">Tick Interval</span><strong>%u ms</strong></div><div class=\"metric\"><span class=\"muted\">Actor Rate</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Critic Rate</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Discount</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Tools Registered</span><strong id=\"live-tool-count-detail\">%u</strong></div></div><div class=\"card\"><h2>Dragon State</h2><div class=\"metric\"><span class=\"muted\">Current Mood</span><strong>%s</strong></div><div class=\"metric\"><span class=\"muted\">Current Action</span><strong>%s</strong></div><div class=\"metric\"><span class=\"muted\">Preferred SSID</span><strong class=\"mono\">%s</strong></div><div class=\"metric\"><span class=\"muted\">Display Backend</span><strong class=\"mono\">%s</strong></div><div class=\"metric\"><span class=\"muted\">Framebuffer</span><strong class=\"mono\">%s</strong></div></div></div></section>",
+             "<section class=\"page\" id=\"telemetry\"><div class=\"grid\"><div class=\"card\"><h2>Learning Telemetry</h2><div class=\"metric\"><span class=\"muted\">Value Estimate</span><strong id=\"live-value\">%.2f</strong></div><div class=\"metric\"><span class=\"muted\">Policy Entropy</span><strong id=\"live-entropy\">%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Total</span><strong id=\"live-reward-total\">%.2f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Average</span><strong id=\"live-reward-average\">%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Reward Events</span><strong id=\"live-reward-events\">%u</strong></div></div><div class=\"card\"><h2>Runtime Shape</h2><div class=\"metric\"><span class=\"muted\">Tick Interval</span><strong>%u ms</strong></div><div class=\"metric\"><span class=\"muted\">Actor Rate</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Critic Rate</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Discount</span><strong>%.3f</strong></div><div class=\"metric\"><span class=\"muted\">Tools Registered</span><strong id=\"live-tool-count-detail\">%u</strong></div></div><div class=\"card\"><h2>Dragon State</h2><div class=\"metric\"><span class=\"muted\">Current Mood</span><strong>%s</strong></div><div class=\"metric\"><span class=\"muted\">Current Action</span><strong>%s</strong></div><div class=\"metric\"><span class=\"muted\">Preferred SSID</span><strong class=\"mono\">%s</strong></div><div class=\"metric\"><span class=\"muted\">Display Backend</span><strong class=\"mono\">%s</strong></div><div class=\"metric\"><span class=\"muted\">Framebuffer</span><strong class=\"mono\">%s</strong></div><div class=\"metric\"><span class=\"muted\">Discovery Hold</span><strong>%u ms</strong></div><div class=\"metric\"><span class=\"muted\">Known Network Memory</span><strong id=\"live-known-count-telemetry\">%u</strong></div></div></div></section>",
              snapshot->dragon.value_estimate,
              snapshot->dragon.policy_entropy,
              snapshot->dragon.reward_total,
@@ -439,20 +612,28 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
              action,
              snapshot->preferred_ssid[0] != '\0' ? snapshot->preferred_ssid : "(none)",
              snapshot->display_backend,
-             snapshot->framebuffer_device);
+             snapshot->framebuffer_device,
+             snapshot->discovery_hold_ms,
+             snapshot->known_network_total);
     web_ui_append_text(buffer, buffer_size, snippet);
 
     snprintf(snippet,
              sizeof(snippet),
-             "<section class=\"page\" id=\"settings\"><form method=\"post\" action=\"/settings\"><div class=\"grid\"><div class=\"card\"><h2>Identity</h2><div class=\"grid\"><div><div class=\"muted\">Loki Name</div><input name=\"dragon_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">System Label</div><input name=\"device_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hostname</div><input name=\"hostname\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Preferred SSID</div><input name=\"preferred_ssid\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">The dragon is Loki. The system label is only for internal runtime identification.</div><div class=\"grid\" style=\"margin-top:18px\"><label class=\"muted\"><input type=\"checkbox\" name=\"dhcp_enabled\" %s> DHCP roaming enabled</label><label class=\"muted\"><input type=\"checkbox\" name=\"web_ui_enabled\" %s> Web UI enabled</label></div></div><div class=\"card\"><h2>Runtime</h2><div class=\"grid\"><div><div class=\"muted\">Scan Interval</div><input name=\"scan_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hop Interval</div><input name=\"hop_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Web Bind Address</div><input name=\"web_bind_address\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Web Port</div><input name=\"web_port\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Display Backend</div><input name=\"display_backend\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Framebuffer Device</div><input name=\"framebuffer_device\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"grid\"><label class=\"muted\"><input type=\"checkbox\" name=\"test_tft\" %s> TFT test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_flash\" %s> Flash test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_eeprom\" %s> EEPROM test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_flipper\" %s> Flipper test</label></div></div><div class=\"card\"><h2>A2C Controls</h2><div class=\"grid\"><div><div class=\"muted\">Learning Rate</div><input name=\"learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Actor Rate</div><input name=\"actor_learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Critic Rate</div><input name=\"critic_learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Discount</div><input name=\"discount_factor\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Reward Decay</div><input name=\"reward_decay\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Entropy Beta</div><input name=\"entropy_beta\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Policy Temperature</div><input name=\"policy_temperature\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Tick Interval</div><input name=\"tick_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">These values now drive live telemetry and online actor critic updates during runtime.</div></div><div class=\"card\"><h2>Add Tool</h2><div class=\"grid\"><div><div class=\"muted\">Section Name</div><input name=\"new_tool_section\" placeholder=\"tool_custom_scan\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Display Name</div><input name=\"new_tool_name\" placeholder=\"Passive Scanner\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Command</div><input name=\"new_tool_command\" placeholder=\"internal://status or safe://iwgetid\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">Description</div><textarea name=\"new_tool_description\" style=\"width:100%%;min-height:72px;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></textarea><div class=\"grid\" style=\"margin-top:12px\"><label class=\"muted\"><input type=\"checkbox\" name=\"new_tool_enabled\" checked> Enable new tool immediately</label></div><div class=\"muted\" style=\"margin-top:12px\">Leave section name blank to auto-build one from the display name.</div></div>%s</div><p style=\"margin-top:18px\"><button class=\"tab active\" type=\"submit\">Save Settings</button></p></form></section>",
+             "<section class=\"page\" id=\"settings\"><form method=\"post\" action=\"/settings\"><div class=\"grid\"><div class=\"card\"><div class=\"section-head\"><h2>Identity</h2><span class=\"pill\">Core</span></div><div class=\"grid\"><div><div class=\"muted\">Loki Name</div><input name=\"dragon_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">System Label</div><input name=\"device_name\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hostname</div><input name=\"hostname\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Preferred SSID</div><input name=\"preferred_ssid\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"settings-note\">Identity changes save immediately. Plugin and display backend changes may need a restart to fully apply.</div><div class=\"grid\" style=\"margin-top:18px\"><label class=\"muted\"><input type=\"checkbox\" name=\"dhcp_enabled\" %s> DHCP roaming enabled</label><label class=\"muted\"><input type=\"checkbox\" name=\"standalone_mode\" %s> Standalone scout mode</label><label class=\"muted\"><input type=\"checkbox\" name=\"announce_new_networks\" %s> Announce new networks</label><label class=\"muted\"><input type=\"checkbox\" name=\"web_ui_enabled\" %s> Web UI enabled</label><label class=\"muted\"><input type=\"checkbox\" name=\"plugin_display\" %s> Display plugin</label><label class=\"muted\"><input type=\"checkbox\" name=\"plugin_dragon_ai\" %s> Brain plugin</label><label class=\"muted\"><input type=\"checkbox\" name=\"plugin_network_state\" %s> Network plugin</label></div></div><div class=\"card\"><div class=\"section-head\"><h2>Runtime</h2><span class=\"pill\">Display</span></div><div class=\"grid\"><div><div class=\"muted\">Scan Interval</div><input name=\"scan_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hop Interval</div><input name=\"hop_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Discovery Hold</div><input name=\"discovery_hold_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Web Bind Address</div><input name=\"web_bind_address\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Web Port</div><input name=\"web_port\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Display Backend</div><input name=\"display_backend\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Framebuffer Device</div><input name=\"framebuffer_device\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"grid\"><label class=\"muted\"><input type=\"checkbox\" name=\"test_tft\" %s> TFT test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_flash\" %s> Flash test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_eeprom\" %s> EEPROM test</label><label class=\"muted\"><input type=\"checkbox\" name=\"test_flipper\" %s> Flipper test</label></div></div><div class=\"card\"><div class=\"section-head\"><h2>Brain</h2><span class=\"pill\">A2C</span></div><div class=\"grid\"><div><div class=\"muted\">Learning Rate</div><input name=\"learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Actor Rate</div><input name=\"actor_learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Critic Rate</div><input name=\"critic_learning_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Discount</div><input name=\"discount_factor\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Reward Decay</div><input name=\"reward_decay\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Entropy Beta</div><input name=\"entropy_beta\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Policy Temperature</div><input name=\"policy_temperature\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Tick Interval</div><input name=\"tick_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"settings-note\">This is the quick-learning section. Higher actor/critic rates and lower tick intervals make the dragon adapt faster.</div></div><div class=\"card\"><div class=\"section-head\"><h2>Dragon Profile</h2><span class=\"pill\">Behavior</span></div><div class=\"grid\"><div><div class=\"muted\">Profile</div><input name=\"profile\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Temperament</div><input name=\"temperament\" value=\"%s\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Base Energy</div><input name=\"base_energy\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Base Curiosity</div><input name=\"base_curiosity\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Base Bond</div><input name=\"base_bond\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Base Hunger</div><input name=\"base_hunger\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hunger Rate</div><input name=\"hunger_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Energy Decay</div><input name=\"energy_decay\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Curiosity Rate</div><input name=\"curiosity_rate\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div></div><div class=\"card\"><div class=\"section-head\"><h2>Growth Pace</h2><span class=\"pill\">Slow Grow</span></div><div class=\"grid\"><div><div class=\"muted\">Explore XP Gain</div><input name=\"explore_xp_gain\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Play XP Gain</div><input name=\"play_xp_gain\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Growth Interval</div><input name=\"growth_interval_ms\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Growth XP Step</div><input name=\"growth_xp_step\" value=\"%.3f\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Egg Stage Max</div><input name=\"egg_stage_max\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Hatchling Stage Max</div><input name=\"hatchling_stage_max\" value=\"%u\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div></div><div class=\"card\"><div class=\"section-head\"><h2>Add Tool</h2><span class=\"pill\">Utility Deck</span></div><div class=\"grid\"><div><div class=\"muted\">Section Name</div><input name=\"new_tool_section\" placeholder=\"tool_custom_scan\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Display Name</div><input name=\"new_tool_name\" placeholder=\"Passive Scanner\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div><div><div class=\"muted\">Command</div><input name=\"new_tool_command\" placeholder=\"raw iwgetid (runs directly)\" style=\"width:100%%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></div></div><div class=\"muted\" style=\"margin-top:12px\">Description</div><textarea name=\"new_tool_description\" style=\"width:100%%;min-height:72px;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0b1721;color:var(--ink)\"></textarea><div class=\"grid\" style=\"margin-top:12px\"><label class=\"muted\"><input type=\"checkbox\" name=\"new_tool_enabled\" checked> Enable new tool immediately</label></div><div class=\"settings-note\">Commands run directly with no safety checks. Bettercap is not integrated here.</div></div>%s</div><p style=\"margin-top:18px\"><button class=\"tab active\" type=\"submit\">Save Settings</button></p></form></section>",
              snapshot->dragon_name,
              snapshot->device_name,
              snapshot->hostname,
              snapshot->preferred_ssid,
              snapshot->dhcp_enabled ? "checked" : "",
+             snapshot->standalone_mode ? "checked" : "",
+             snapshot->announce_new_networks ? "checked" : "",
              snapshot->web_ui_enabled ? "checked" : "",
+             snapshot->plugin_display ? "checked" : "",
+             snapshot->plugin_dragon_ai ? "checked" : "",
+             snapshot->plugin_network_state ? "checked" : "",
              snapshot->scan_interval_ms,
              snapshot->hop_interval_ms,
+             snapshot->discovery_hold_ms,
              snapshot->bind_address,
              snapshot->port,
              snapshot->display_backend,
@@ -469,12 +650,27 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
              snapshot->ai_entropy_beta,
              snapshot->ai_policy_temperature,
              snapshot->ai_tick_interval_ms,
+             snapshot->dragon_profile,
+             snapshot->dragon_temperament,
+             snapshot->dragon_base_energy,
+             snapshot->dragon_base_curiosity,
+             snapshot->dragon_base_bond,
+             snapshot->dragon_base_hunger,
+             snapshot->dragon_hunger_rate,
+             snapshot->dragon_energy_decay,
+             snapshot->dragon_curiosity_rate,
+             snapshot->dragon_explore_xp_gain,
+             snapshot->dragon_play_xp_gain,
+             snapshot->dragon_growth_interval_ms,
+             snapshot->dragon_growth_xp_step,
+             snapshot->dragon_egg_stage_max,
+             snapshot->dragon_hatchling_stage_max,
              tool_forms);
     web_ui_append_text(buffer, buffer_size, snippet);
 
     snprintf(snippet,
              sizeof(snippet),
-             "<section class=\"page\" id=\"tools\"><div class=\"loot-grid\"><div class=\"loot-card\"><div class=\"chip\">Growth Cache</div><div class=\"stat\">%u trophies</div><div class=\"muted\">Each growth stage banks one milestone trophy toward adulthood.</div></div><div class=\"loot-card\"><div class=\"chip\">Field Scans</div><div class=\"stat\">%u runs</div><div class=\"muted\">Derived from scheduler heartbeats and scan cadence.</div></div><div class=\"loot-card\"><div class=\"chip\">Bond Ledger</div><div class=\"stat\">%u%% affinity</div><div class=\"muted\">Tool cards below can be run directly, and successful runs now feed the learning loop.</div></div>%s</div></section></div></body></html>",
+             "<section class=\"page\" id=\"tools\"><div class=\"loot-grid\"><div class=\"loot-card\"><div class=\"chip\">Growth Cache</div><div class=\"stat\">%u trophies</div><div class=\"muted\">Each growth stage banks one milestone trophy toward adulthood.</div></div><div class=\"loot-card\"><div class=\"chip\">Field Scans</div><div class=\"stat\">%u runs</div><div class=\"muted\">Derived from scheduler heartbeats and scan cadence.</div></div><div class=\"loot-card\"><div class=\"chip\">Bond Ledger</div><div class=\"stat\">%u%% affinity</div><div class=\"muted\">Tool cards below can be run directly, and successful runs now feed the learning loop.</div></div>%s</div></section></div><div id=\"loki-dragon\" class=\"loki-dragon\"></div><div id=\"dragon-chat\" class=\"dragon-chat\">Loki is scanning the mountain horizon...</div></body></html>",
              loot_trophies,
              loot_scans,
              bond_pct,
@@ -489,11 +685,16 @@ static char *web_ui_build_html(const web_ui_snapshot_t *snapshot)
 static void web_ui_handle_client(web_ui_t *web_ui, int client_fd)
 {
     char request[16384];
+    char method[8];
+    char path[256];
     ssize_t bytes_read;
     web_ui_snapshot_t snapshot;
     char body[32768];
+    int status_code;
     char *html_body;
     char *form_body;
+    char remote_address[64];
+    bool request_is_localhost;
 
     bytes_read = recv(client_fd, request, sizeof(request) - 1, 0);
     if (bytes_read <= 0) {
@@ -501,6 +702,9 @@ static void web_ui_handle_client(web_ui_t *web_ui, int client_fd)
     }
 
     request[bytes_read] = '\0';
+    method[0] = '\0';
+    path[0] = '\0';
+    (void)sscanf(request, "%7s %255s", method, path);
 
     memset(&snapshot, 0, sizeof(snapshot));
     pthread_mutex_lock((web_ui_mutex_t *)web_ui->mutex_handle);
@@ -516,35 +720,92 @@ static void web_ui_handle_client(web_ui_t *web_ui, int client_fd)
         form_body += 4;
     }
 
-    if (strncmp(request, "POST /settings", 14) == 0) {
+    request_is_localhost = web_ui_request_is_localhost(client_fd, remote_address, sizeof(remote_address));
+
+    if (strcmp(method, "OPTIONS") == 0) {
+        web_ui_send_status_response(client_fd, 204, "No Content", "text/plain; charset=utf-8", "");
+    } else if (strcmp(method, "POST") == 0 && strcmp(path, "/settings") == 0) {
         char message[512];
         if (form_body == NULL || web_ui->save_settings == NULL) {
             web_ui_send_message_page(client_fd, "Settings Update", "Settings handler is unavailable.");
             web_ui_free_snapshot_tools(&snapshot);
             return;
         }
-        if (web_ui->save_settings(form_body, message, sizeof(message), web_ui->handler_context) == HAL_OK) {
+        if (web_ui->save_settings(form_body,
+                                  request_is_localhost,
+                                  remote_address,
+                                  message,
+                                  sizeof(message),
+                                  web_ui->handler_context) == HAL_OK) {
             web_ui_send_message_page(client_fd, "Settings Saved", message);
         } else {
             web_ui_send_message_page(client_fd, "Settings Error", message);
         }
-    } else if (strncmp(request, "POST /tool/run?id=", 18) == 0) {
+    } else if (strcmp(method, "POST") == 0 && strncmp(path, "/tool/run?id=", 13) == 0) {
         char output[4096];
-        size_t tool_index = (size_t)strtoul(request + 18, NULL, 10);
+        size_t tool_index = (size_t)strtoul(path + 13, NULL, 10);
         if (tool_index == 0U || tool_index > snapshot.tool_count || web_ui->run_tool == NULL) {
             web_ui_send_message_page(client_fd, "Tool Runner", "Tool request is invalid.");
             web_ui_free_snapshot_tools(&snapshot);
             return;
         }
-        if (web_ui->run_tool(tool_index - 1U, output, sizeof(output), web_ui->handler_context) == HAL_OK) {
+        if (web_ui->run_tool(tool_index - 1U,
+                             request_is_localhost,
+                             remote_address,
+                             output,
+                             sizeof(output),
+                             web_ui->handler_context) == HAL_OK) {
             web_ui_send_message_page(client_fd, "Tool Output", output);
         } else {
             web_ui_send_message_page(client_fd, "Tool Output", output);
         }
-    } else if (strncmp(request, "GET /api/status", 15) == 0) {
+    } else if (strcmp(method, "GET") == 0 && strcmp(path, "/api/status") == 0) {
         web_ui_build_json(&snapshot, body, sizeof(body));
         web_ui_send_response(client_fd, "application/json; charset=utf-8", body);
-    } else if (strncmp(request, "GET / ", 6) == 0 || strncmp(request, "GET /HTTP", 9) == 0) {
+    } else if (strncmp(path, "/api/", 5) == 0) {
+        if (web_ui->api_request == NULL) {
+            web_ui_send_not_found(client_fd);
+        } else {
+            status_code = 500;
+            body[0] = '\0';
+            switch (web_ui->api_request(method,
+                                        path,
+                                        form_body,
+                                        request_is_localhost,
+                                        remote_address,
+                                        body,
+                                        sizeof(body),
+                                        web_ui->handler_context)) {
+                case HAL_OK:
+                    status_code = 200;
+                    break;
+                case HAL_INVALID_PARAM:
+                    status_code = 400;
+                    break;
+                case HAL_NOT_READY:
+                    status_code = 503;
+                    break;
+                case HAL_BUSY:
+                    status_code = 409;
+                    break;
+                case HAL_NOT_SUPPORTED:
+                    status_code = 404;
+                    break;
+                default:
+                    status_code = 500;
+                    break;
+            }
+            web_ui_send_status_response(client_fd,
+                                        status_code,
+                                        (status_code == 200) ? "OK" :
+                                        (status_code == 400) ? "Bad Request" :
+                                        (status_code == 404) ? "Not Found" :
+                                        (status_code == 409) ? "Conflict" :
+                                        (status_code == 503) ? "Service Unavailable" : "Internal Server Error",
+                                        "application/json; charset=utf-8",
+                                        body[0] != '\0' ? body : "{\"error\":\"request failed\"}");
+        }
+    } else if (strcmp(method, "GET") == 0 && strcmp(path, "/") == 0) {
         html_body = web_ui_build_html(&snapshot);
         if (html_body == NULL) {
             web_ui_send_message_page(client_fd, "Web UI", "Failed to render dashboard.");
@@ -559,9 +820,42 @@ static void web_ui_handle_client(web_ui_t *web_ui, int client_fd)
     web_ui_free_snapshot_tools(&snapshot);
 }
 
+static bool web_ui_request_is_localhost(int client_fd, char *remote_address, size_t remote_address_size)
+{
+    struct sockaddr_storage peer_address;
+    socklen_t peer_address_length = sizeof(peer_address);
+
+    web_ui_copy_string(remote_address, remote_address_size, "unknown");
+    if (getpeername(client_fd, (struct sockaddr *)&peer_address, &peer_address_length) != 0) {
+        return false;
+    }
+
+    if (peer_address.ss_family == AF_INET) {
+        struct sockaddr_in *ipv4 = (struct sockaddr_in *)&peer_address;
+        const char *converted = inet_ntop(AF_INET, &ipv4->sin_addr, remote_address, (socklen_t)remote_address_size);
+        if (converted == NULL) {
+            web_ui_copy_string(remote_address, remote_address_size, "unknown");
+        }
+        return ntohl(ipv4->sin_addr.s_addr) == INADDR_LOOPBACK;
+    }
+
+    if (peer_address.ss_family == AF_INET6) {
+        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&peer_address;
+        static const struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+        const char *converted = inet_ntop(AF_INET6, &ipv6->sin6_addr, remote_address, (socklen_t)remote_address_size);
+        if (converted == NULL) {
+            web_ui_copy_string(remote_address, remote_address_size, "unknown");
+        }
+        return memcmp(&ipv6->sin6_addr, &loopback, sizeof(loopback)) == 0;
+    }
+
+    return false;
+}
+
 void web_ui_set_handlers(web_ui_t *web_ui,
                          web_ui_save_settings_fn save_settings,
                          web_ui_run_tool_fn run_tool,
+                         web_ui_api_request_fn api_request,
                          void *context)
 {
     if (web_ui == NULL) {
@@ -570,6 +864,7 @@ void web_ui_set_handlers(web_ui_t *web_ui,
 
     web_ui->save_settings = save_settings;
     web_ui->run_tool = run_tool;
+    web_ui->api_request = api_request;
     web_ui->handler_context = context;
 }
 
@@ -631,6 +926,8 @@ hal_status_t web_ui_start(web_ui_t *web_ui)
 {
     struct sockaddr_in address;
     int option_value = 1;
+    bool fallback_address = false;
+    bool fallback_port = false;
     web_ui_thread_t *thread_handle;
 
     if (web_ui == NULL) {
@@ -649,17 +946,43 @@ hal_status_t web_ui_start(web_ui_t *web_ui)
     address.sin_family = AF_INET;
     address.sin_port = htons(web_ui->port);
     if (inet_pton(AF_INET, web_ui->bind_address, &address.sin_addr) != 1) {
-        close(web_ui->listen_fd);
-        web_ui->listen_fd = -1;
-        LOG_WARN("Web UI bind address is invalid: %s", web_ui->bind_address);
-        return HAL_INVALID_PARAM;
+        LOG_WARN("Web UI bind address is invalid: %s. Falling back to 0.0.0.0", web_ui->bind_address);
+        address.sin_addr.s_addr = htonl(INADDR_ANY);
+        web_ui_copy_string(web_ui->bind_address, sizeof(web_ui->bind_address), "0.0.0.0");
+        fallback_address = true;
     }
 
     if (bind(web_ui->listen_fd, (struct sockaddr *)&address, sizeof(address)) != 0) {
-        LOG_WARN("Web UI bind failed on %s:%u", web_ui->bind_address, web_ui->port);
-        close(web_ui->listen_fd);
-        web_ui->listen_fd = -1;
-        return HAL_BUSY;
+        LOG_WARN("Web UI bind failed on %s:%u, retrying on 0.0.0.0:%u",
+                 web_ui->bind_address,
+                 web_ui->port,
+                 web_ui->port);
+
+        /* Recover from stale static bind IPs by retrying INADDR_ANY on the same port first. */
+        address.sin_addr.s_addr = htonl(INADDR_ANY);
+        if (bind(web_ui->listen_fd, (struct sockaddr *)&address, sizeof(address)) == 0) {
+            web_ui_copy_string(web_ui->bind_address, sizeof(web_ui->bind_address), "0.0.0.0");
+            fallback_address = true;
+        } else if (web_ui->port != 8080U) {
+            LOG_WARN("Web UI bind retry failed, attempting fallback endpoint 0.0.0.0:8080");
+            address.sin_port = htons(8080U);
+            if (bind(web_ui->listen_fd, (struct sockaddr *)&address, sizeof(address)) == 0) {
+                web_ui_copy_string(web_ui->bind_address, sizeof(web_ui->bind_address), "0.0.0.0");
+                web_ui->port = 8080U;
+                fallback_address = true;
+                fallback_port = true;
+            } else {
+                LOG_WARN("Web UI bind fallback failed on 0.0.0.0:8080");
+                close(web_ui->listen_fd);
+                web_ui->listen_fd = -1;
+                return HAL_BUSY;
+            }
+        } else {
+            LOG_WARN("Web UI bind fallback failed on 0.0.0.0:%u", web_ui->port);
+            close(web_ui->listen_fd);
+            web_ui->listen_fd = -1;
+            return HAL_BUSY;
+        }
     }
 
     if (listen(web_ui->listen_fd, 4) != 0) {
@@ -686,7 +1009,11 @@ hal_status_t web_ui_start(web_ui_t *web_ui)
         return HAL_ERROR;
     }
 
-    LOG_INFO("Web UI listening on http://%s:%u", web_ui->bind_address, web_ui->port);
+    if (fallback_address || fallback_port) {
+        LOG_WARN("Web UI started with fallback endpoint http://%s:%u", web_ui->bind_address, web_ui->port);
+    } else {
+        LOG_INFO("Web UI listening on http://%s:%u", web_ui->bind_address, web_ui->port);
+    }
     return HAL_OK;
 }
 

@@ -5,7 +5,7 @@
 
 #include "retry.h"
 #include "log.h"
-#include <unistd.h>
+#include "platform.h"
 
 /* ===== DEFAULT RETRY STRATEGIES ===== */
 
@@ -80,7 +80,7 @@ hal_status_t retry_execute(hal_status_t result, const retry_config_t config,
                 func_name, file, line, attempt, config.max_attempts, delay_ms);
         
         /* Wait before retry */
-        usleep(delay_ms * 1000);
+        DELAY_US(delay_ms * 1000);
         
         /* Exponential backoff */
         delay_ms = (delay_ms * config.backoff_factor);

@@ -23,6 +23,10 @@ Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
   # Verify installation
   arm-linux-gnueabihf-gcc --version
   ```
+- [ ] If building from Windows, prefer WSL Ubuntu:
+  - Install WSL: https://learn.microsoft.com/windows/wsl/install
+  - Install compiler in WSL: `sudo apt-get update && sudo apt-get install gcc-arm-linux-gnueabihf`
+  - Native Windows fallback: https://releases.linaro.org/components/toolchain/binaries/latest-7/arm-linux-gnueabihf/
 - [ ] GNU Make installed: `make`
   ```bash
   sudo apt-get install make
@@ -222,6 +226,8 @@ arm-linux-gnueabihf-gcc: command not found
 # Solution: Install cross-compiler
 sudo apt-get install gcc-arm-linux-gnueabihf
 ```
+
+On Windows, `build.ps1` will automatically fall back to WSL if `arm-linux-gnueabihf-gcc` is not installed natively.
 
 #### Header file not found
 ```bash

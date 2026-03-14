@@ -4,11 +4,11 @@
  */
 
 #include "flash_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "pinout.h"
+#include "platform.h"
 #include <string.h>
-#include <unistd.h>
 
 /* ===== W25Q40 COMMANDS ===== */
 #define W25Q_CMD_READ_ID       0x9F  /* Read JEDEC ID */
@@ -41,6 +41,7 @@ static flash_context_t flash_ctx = {
 static hal_status_t flash_wait_ready(void)
 {
     uint8_t status;
+    (void)status;  /* Suppress unused variable warning */
     uint32_t timeout = 10000;
 
     while (timeout-- > 0) {
@@ -58,7 +59,7 @@ static hal_status_t flash_wait_ready(void)
         if ((status_byte & W25Q_STATUS_BUSY) == 0) {
             return HAL_OK;
         }
-        usleep(100);
+        DELAY_US(100);
     }
 
     return HAL_TIMEOUT;

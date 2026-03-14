@@ -6,8 +6,8 @@
  * Bidirectional serial protocol over UART1
  */
 
-#include "../../includes/types.h"
-#include "../../config/board_config.h"
+#include "types.h"
+#include "board_config.h"
 
 /* ===== FLIPPER MESSAGE PROTOCOL ===== */
 
@@ -26,6 +26,10 @@ typedef enum {
     FLIPPER_CMD_REQUEST_DATA  = 0x20,
     FLIPPER_CMD_SEND_DATA     = 0x21,
     FLIPPER_CMD_CONTROL       = 0x30,
+    FLIPPER_CMD_NFC_SCAN_REQUEST  = 0x40,
+    FLIPPER_CMD_NFC_SCAN_RESULT   = 0x41,
+    FLIPPER_CMD_RFID_SCAN_REQUEST = 0x42,
+    FLIPPER_CMD_RFID_SCAN_RESULT  = 0x43,
     FLIPPER_CMD_DEBUG         = 0xF0,
 } flipper_cmd_t;
 
