@@ -1403,6 +1403,7 @@ static hal_status_t api_reset_network_memory(app_state_t *state,
     clear_known_network_cache();
     refresh_nearby_networks();
     dragon_ai_apply_reward(&state->dragon, 0.05f);
+    dragon_ai_award_xp(&state->dragon, 0.08f);
 
     response[0] = '\0';
     json_append_text(response, response_size, "{\"ok\":true,\"message\":\"Network memory cleared\",\"known_network_total\":0}");
@@ -1487,6 +1488,7 @@ static hal_status_t api_upsert_tool(app_state_t *state,
     }
 
     dragon_ai_apply_reward(&state->dragon, 0.08f);
+    dragon_ai_award_xp(&state->dragon, 0.10f);
     for (tool_id = 0U; tool_id < state->config.tool_count; tool_id++) {
         if (strcmp(state->config.tools[tool_id].section, section) == 0) {
             tool = &state->config.tools[tool_id];
@@ -1868,6 +1870,7 @@ static hal_status_t save_settings_from_form(const char *form_data,
     }
 
     dragon_ai_apply_reward(&state->dragon, 0.08f);
+    dragon_ai_award_xp(&state->dragon, 0.05f);
     return HAL_OK;
 }
 
@@ -1916,8 +1919,10 @@ static hal_status_t run_tool_from_slot(size_t tool_index,
     }
     if (status == HAL_OK) {
         dragon_ai_apply_reward(&state->dragon, 0.12f);
+        dragon_ai_award_xp(&state->dragon, 0.30f);
     } else {
         dragon_ai_apply_reward(&state->dragon, -0.04f);
+        dragon_ai_award_xp(&state->dragon, -0.05f);
     }
 
     return status;

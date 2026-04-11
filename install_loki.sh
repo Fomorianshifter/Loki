@@ -8,6 +8,8 @@ SERVICE_PATH="/etc/systemd/system/loki.service"
 INSTALL_MODE="install"
 PROMPT_FOR_REBOOT=1
 INTERACTIVE_MENU=1
+DISPLAY_BACKEND="auto"
+FRAMEBUFFER_DEVICE="/dev/fb1"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -47,6 +49,7 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 CURRENT_USER="${SUDO_USER:-$(logname 2>/dev/null || echo root)}"
+CURRENT_USER_HOME="$(eval echo "~${CURRENT_USER}")"
 
 print_header() {
     echo "================================================"
@@ -82,6 +85,52 @@ choose_install_mode() {
         *)
             echo "[ERROR] Invalid selection: ${selection}"
             exit 1
+            ;;
+    esac
+
+    echo
+}
+
+choose_display_type() {
+    if [[ ${INTERACTIVE_MENU} -eq 0 || ! -t 0 ]]; then
+        return
+    fi
+
+    echo "Select your display type for Loki:"
+    echo "  1) TFT (SPI framebuffer, usually /dev/fb1)"
+    echo "  2) LCD (SPI framebuffer, usually /dev/fb1)"
+    echo "  3) OLED (framebuffer device, often /dev/fb0)"
+    echo "  4) EPD / ePaper (framebuffer device, often /dev/fb0)"
+    echo "  5) Auto / use existing framebuffer settings"
+    echo
+    printf "Selection [1-5]: "
+    read -r display_choice
+
+    case "${display_choice}" in
+        ""|5)
+            DISPLAY_BACKEND="auto"
+            FRAMEBUFFER_DEVICE="/dev/fb1"
+            ;;
+        1)
+            DISPLAY_BACKEND="framebuffer"
+            FRAMEBUFFER_DEVICE="/dev/fb1"
+            ;;
+        2)
+            DISPLAY_BACKEND="framebuffer"
+            FRAMEBUFFER_DEVICE="/dev/fb1"
+            ;;
+        3)
+            DISPLAY_BACKEND="framebuffer"
+            FRAMEBUFFER_DEVICE="/dev/fb0"
+            ;;
+        4)
+            DISPLAY_BACKEND="framebuffer"
+            FRAMEBUFFER_DEVICE="/dev/fb0"
+            ;;
+        *)
+            echo "[WARN] Invalid selection, defaulting to auto framebuffer settings."
+            DISPLAY_BACKEND="auto"
+            FRAMEBUFFER_DEVICE="/dev/fb1"
             ;;
     esac
 
@@ -141,6 +190,62 @@ enable_interfaces() {
         echo "[WARN] raspi-config not found; please manually verify SSH, SPI, I2C, and serial settings"
     fi
 
+    echo
+}
+
+save_display_config() {
+    if [[ -f "${INSTALL_DIR}/loki.conf" ]]; then
+        sed -i -e 's/^backend=.*/backend='"${DISPLAY_BACKEND}"'/' \
+               -e 's|^framebuffer_device=.*|framebuffer_device='"${FRAMEBUFFER_DEVICE}"'|' \
+               "${INSTALL_DIR}/loki.conf"
+        echo "[OK] Display configuration saved: ${DISPLAY_BACKEND} ${FRAMEBUFFER_DEVICE}"
+        echo
+    fi
+}
+
+install_external_tools() {
+    if [[ ${INTERACTIVE_MENU} -eq 0 || ! -t 0 ]]; then
+        return
+    fi
+
+    echo "Would you like to run external install scripts for Bjorn, Ragnar, or Pwnagotchi if they exist?"
+    printf "Run external install scripts? [y/N]: "
+    read -r answer
+
+    case "${answer}" in
+        y|Y|yes|YES)
+            echo "[INFO] Checking for external tool installers..."
+            ;;
+        *)
+            echo "[INFO] Skipping external tool installation."
+            return
+            ;;
+    esac
+
+    local install_paths=(
+        "/opt/bjorn/install.sh"
+        "/opt/ragnar/install.sh"
+        "/opt/pwnagotchi/install.sh"
+        "/root/bjorn/install.sh"
+        "/root/ragnar/install.sh"
+        "/root/pwnagotchi/install.sh"
+        "${CURRENT_USER_HOME}/bjorn/install.sh"
+        "${CURRENT_USER_HOME}/ragnar/install.sh"
+        "${CURRENT_USER_HOME}/pwnagotchi/install.sh"
+    )
+
+    for tool_script in "${install_paths[@]}"; do
+        if [[ -f "${tool_script}" ]]; then
+            echo "[INFO] Found external installer: ${tool_script}"
+            if bash "${tool_script}"; then
+                echo "[OK] External installer completed: ${tool_script}"
+            else
+                echo "[WARN] External installer failed: ${tool_script}"
+            fi
+        fi
+    done
+
+    echo "[INFO] External tool install step finished."
     echo
 }
 
@@ -275,12 +380,15 @@ offer_reboot() {
 run_install() {
     print_header
     choose_install_mode
+    choose_display_type
     detect_platform
     install_packages
     enable_interfaces
     sync_repository
+    save_display_config
     build_loki
     prepare_runtime_state
+    install_external_tools
     install_service
     print_summary
     offer_reboot

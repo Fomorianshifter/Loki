@@ -295,6 +295,8 @@ sudo chmod +x install_loki.sh
 sudo ./install_loki.sh
 ```
 
+The installer now includes a startup setup menu. It will ask you to choose the display type (TFT, LCD, OLED, EPD/ePaper, or auto) and can optionally run external install scripts for Bjorn, Ragnar, or Pwnagotchi if those scripts are present.
+
 Then choose `1` for `Automatic installation`.
 
 When the installer finishes, open the Web UI at:
@@ -834,6 +836,8 @@ void loop() {
 ---
 
 ### Flipper Zero Integration
+
+> Hardware setup for this configuration: Orange Pi Zero 2W with a UPS HAT, ST7789 LCD HAT 1.3, and an RS485 serial interface used to connect to the Flipper Zero.
 
 #### 1. Wiring
 ```

@@ -169,6 +169,7 @@ typedef struct {
 void dragon_ai_init(dragon_ai_t *dragon, const dragon_ai_profile_t *profile);
 void dragon_ai_tick(dragon_ai_t *dragon, uint32_t tick_ms);
 void dragon_ai_apply_reward(dragon_ai_t *dragon, float reward);
+void dragon_ai_award_xp(dragon_ai_t *dragon, float xp);
 void dragon_ai_interact(dragon_ai_t *dragon, const char *interaction);
 hal_status_t dragon_ai_save_state(const dragon_ai_t *dragon, const char *path);
 hal_status_t dragon_ai_load_state(dragon_ai_t *dragon, const char *path);

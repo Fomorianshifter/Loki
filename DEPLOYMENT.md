@@ -60,11 +60,13 @@ Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
   sudo apt-get install gdbserver
   ```
 - [ ] Wiring verified:
+  - [ ] UPS HAT power connected and supplying 5V/3.3V as required
+  - [ ] ST7789 LCD HAT 1.3 connected on SPI0 and display control pins
   - [ ] SPI0 (TFT): Pins 23, 19, 21, 24
   - [ ] SPI1 (SD): Pins 29, 31, 33, 32
   - [ ] SPI2 (Flash): Pins 13, 11, 12, 15
   - [ ] I2C0 (EEPROM): Pins 3, 5
-  - [ ] UART1 (Flipper): Pins 8, 10
+  - [ ] UART1 (Flipper): Pins 8, 10 (or RS485 serial adapter interfacing to Flipper)
   - [ ] PWM (Backlight): Pin 7
   - [ ] Power, GND, and all control pins
 

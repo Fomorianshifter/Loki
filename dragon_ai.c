@@ -321,6 +321,15 @@ void dragon_ai_apply_reward(dragon_ai_t *dragon, float reward)
     dragon->state.last_reward = reward;
 }
 
+void dragon_ai_award_xp(dragon_ai_t *dragon, float xp)
+{
+    if (dragon == NULL || xp == 0.0f) {
+        return;
+    }
+
+    dragon->state.xp = clampf(dragon->state.xp + xp, 0.0f, 9999.0f);
+}
+
 void dragon_ai_tick(dragon_ai_t *dragon, uint32_t tick_ms)
 {
     float features_before[DRAGON_FEATURE_COUNT];
