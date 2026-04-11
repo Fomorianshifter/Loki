@@ -14,18 +14,19 @@
 4. [Project Structure](#project-structure)
 5. [Hardware Specifications](#hardware-specifications)
 6. [Installation & Setup](#installation--setup)
-7. [Build Instructions](#build-instructions)
-8. [Quick Start Guides](#quick-start-guides)
-9. [API Documentation](#api-documentation)
-10. [Code Examples](#code-examples)
-11. [Hardware Connections](#hardware-connections)
-12. [Configuration](#configuration)
-13. [Troubleshooting](#troubleshooting)
-14. [Performance Metrics](#performance-metrics)
-15. [Development Guide](#development-guide)
-16. [Contributing](#contributing)
-17. [License](#license)
-18. [Support & Resources](#support--resources)
+7. [Complete Setup Walkthrough](#-complete-setup-walkthrough)
+8. [Build Instructions](#build-instructions)
+9. [Quick Start Guides](#quick-start-guides)
+10. [API Documentation](#api-documentation)
+11. [Code Examples](#code-examples)
+12. [Hardware Connections](#hardware-connections)
+13. [Configuration](#configuration)
+14. [Troubleshooting](#troubleshooting)
+15. [Performance Metrics](#performance-metrics)
+16. [Development Guide](#development-guide)
+17. [Contributing](#contributing)
+18. [License](#license)
+19. [Support & Resources](#support--resources)
 
 ---
 
@@ -313,13 +314,29 @@ curl http://127.0.0.1:8080/api/status
 sudo systemctl status loki
 ```
 
-Use this path if your goal is:
-- easiest first install
-- automatic package setup
-- systemd service setup
-- immediate Web UI access
+---
 
-Use the platform-specific setup sections below only if you want to build manually or cross-compile.
+## 🎯 Complete Setup Walkthrough
+
+**NEW!** For a comprehensive walkthrough covering everything from hardware setup to running all tools including EEPROM management and NFC/RFID credits:
+
+📖 **→ [FULL_SETUP_GUIDE.md](FULL_SETUP_GUIDE.md) ←**
+
+This guide covers:
+- ✅ Hardware wiring for EEPROM (I2C), display, and Flipper serial
+- ✅ Building Loki on Windows/Mac/Linux  
+- ✅ Deploying to Orange Pi / Raspberry Pi
+- ✅ Initializing NFC/RFID credit system with 256-byte EEPROM
+- ✅ Testing EEPROM hex reader/writer tools
+- ✅ Running all tools (Bjorn suite, credit manager, etc.)
+- ✅ Creating systemd service for auto-startup
+- ✅ Troubleshooting I2C, permissions, and hardware issues
+
+**→ Start here if you want the full experience! ←**
+
+---
+
+## 🚀 Installation & Setup (Detailed Instructions)
 
 ### Windows Setup
 
