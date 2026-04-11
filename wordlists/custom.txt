@@ -1,0 +1,4 @@
+# Add your custom cracking words here, one per line.
+# Example:
+# letmein
+# admin123

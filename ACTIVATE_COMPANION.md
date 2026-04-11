@@ -111,6 +111,40 @@ The companion tracks and learns from:
 
 ---
 
+## 🧠 Wordlist Reference
+
+Loki now includes a dedicated wordlist configuration section for cracking tools to use.
+You can configure which wordlists a tool should reference when cracking passwords, Wi-Fi keys, SSH logins, or RFID PINs.
+
+The default wordlist paths are defined in `loki.conf` under the `[wordlists]` section.
+
+Example default entries:
+
+```ini
+[wordlists]
+enabled=true
+common_passwords=/opt/loki/wordlists/common-passwords.txt
+ssh_passwords=/opt/loki/wordlists/ssh-passwords.txt
+wifi_passwords=/opt/loki/wordlists/wifi-passwords.txt
+rfid_passwords=/opt/loki/wordlists/rfid-passwords.txt
+custom=/opt/loki/wordlists/custom.txt
+```
+
+### How it works
+- **Common passwords** is the default reference for generic cracking tools.
+- **SSH passwords** is used by SSH brute-force helpers.
+- **Wi-Fi passwords** is used by wireless password cracking tools.
+- **RFID passwords** is used by NFC/RFID PIN or tag cracking tools.
+- **Custom** can be used for any bespoke cracking workflow.
+
+### Using wordlists in tools
+Tools can now look up the configured file paths in `loki.conf` and use them when launching crack attempts.
+If a tool supports wordlist references, it should read the configured file and use the best matching list automatically.
+
+You can edit or replace the files in `/opt/loki/wordlists/` to customize what Loki attempts.
+
+---
+
 ## 💾 Memory and Persistence
 
 All learned patterns are stored in:
