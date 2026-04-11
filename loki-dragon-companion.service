@@ -1,0 +1,24 @@
+[Unit]
+Description=Loki Dragon Companion - Active Learning System
+After=loki.service
+Requires=loki.service
+Documentation=file:///opt/loki/COMPANION_LEARNING.md
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/loki
+ExecStart=/usr/bin/python3 /opt/loki/actions/dragon_companion_daemon.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dragon-companion
+
+# Resource limits
+MemoryMax=100M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target
