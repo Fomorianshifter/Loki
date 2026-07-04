@@ -79,18 +79,21 @@ hal_status_t plugin_registry_set_order(const char *name, uint8_t order)
     return HAL_OK;
 }
 
-/* Compare function for qsort-style bubble-sort by order */
+/* Sort an indices[] array by registry[].order (insertion sort, ascending). */
 static void sort_by_order(uint8_t *indices, uint8_t count)
 {
-    /* Simple insertion sort — count is small (≤ MAX_PLUGINS = 16) */
+    /* Simple insertion sort — count is small (≤ MAX_PLUGINS = 16).
+     * Each element of indices[] is a registry array subscript.
+     * 'cur_idx' stores the registry subscript from indices[i] so we can
+     * compare registry[cur_idx].order against registry[indices[j]].order. */
     for (uint8_t i = 1; i < count; i++) {
-        uint8_t key = indices[i];
-        int8_t  j   = (int8_t)(i - 1);
-        while (j >= 0 && registry[indices[j]].order > registry[key].order) {
+        uint8_t cur_idx = indices[i]; /* registry subscript being inserted */
+        int8_t  j       = (int8_t)(i - 1);
+        while (j >= 0 && registry[indices[j]].order > registry[cur_idx].order) {
             indices[j + 1] = indices[j];
             j--;
         }
-        indices[j + 1] = key;
+        indices[j + 1] = cur_idx;
     }
 }
 

@@ -357,9 +357,15 @@ if (cfg != NULL) {
 
 ## Limitations and Follow-up Work
 
-- The SD config loader uses raw sector access (sector offset 2048) rather than
-  a proper FAT filesystem driver.  When a FAT layer is available, replace
-  `load_config_from_sd()` with `fopen(DEFAULT_CONFIG_PATH, "r")`.
+- **SD config uses raw sector access (temporary).**  
+  `load_config_from_sd()` reads a fixed block of SD sectors starting at sector
+  offset 2048 (conventional 1 MiB offset) rather than using a FAT filesystem
+  driver.  This is intentional for the current codebase which lacks a FAT layer.
+  The value 2048 is a placeholder; on a real SD card with a FAT partition, user
+  files will not be at a predictable raw sector offset.  
+  **Action required:** When a FAT filesystem driver is available, replace the
+  raw `sdcard_read_sector()` call in `load_config_from_sd()` with
+  `fopen(DEFAULT_CONFIG_PATH, "r")` and read line by line.
 
 - The `[hardware]` section keys are parsed but not yet applied to HAL settings
   at runtime — hardware frequencies remain compile-time constants.

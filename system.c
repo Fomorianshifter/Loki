@@ -26,6 +26,7 @@
 
 /* Central configuration manager */
 #include "config_manager.h"
+#include "config_defaults.h"
 
 /* ===== SYSTEM STATE ===== */
 typedef struct {
@@ -110,7 +111,7 @@ hal_status_t system_init(void)
     }
 
     /* Initialize Flipper UART (only if enabled in config) */
-    uint8_t flipper_enabled = (cfg != NULL) ? cfg->flipper.enabled : 1;
+    uint8_t flipper_enabled = (cfg != NULL) ? cfg->flipper.enabled : DEFAULT_FLIPPER_ENABLED;
     if (flipper_enabled) {
         LOG_INFO("Initializing Flipper UART (115200 baud)...");
         if (flipper_uart_init() != HAL_OK) {
