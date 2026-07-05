@@ -9,7 +9,7 @@
 #include <string.h>
 
 /* ===== MEMORY TRACKING (DEBUG MODE) ===== */
-#ifdef DEBUG
+#if DEBUG
 
 typedef struct {
     void *ptr;
@@ -89,7 +89,7 @@ void* malloc_safe(size_t size)
         return NULL;
     }
 
-#ifdef DEBUG
+#if DEBUG
     track_allocation(ptr, size);
 #endif
 
@@ -109,7 +109,7 @@ void* calloc_safe(size_t count, size_t elem_size)
         return NULL;
     }
 
-#ifdef DEBUG
+#if DEBUG
     track_allocation(ptr, count * elem_size);
 #endif
 
@@ -122,7 +122,7 @@ void free_safe(void **ptr)
         return;
     }
 
-#ifdef DEBUG
+#if DEBUG
     untrack_allocation(*ptr);
 #endif
 
@@ -132,7 +132,7 @@ void free_safe(void **ptr)
 
 size_t memory_get_usage(void)
 {
-#ifdef DEBUG
+#if DEBUG
     return total_allocated;
 #else
     return 0;  /* Not tracking in release mode */
@@ -141,7 +141,7 @@ size_t memory_get_usage(void)
 
 void memory_report(void)
 {
-#ifdef DEBUG
+#if DEBUG
     LOG_INFO("=== Memory Allocation Report ===");
     LOG_INFO("Total allocated: %zu bytes", total_allocated);
     LOG_INFO("Active allocations: %zu", alloc_count);
@@ -161,7 +161,7 @@ void memory_report(void)
 
 void memory_init(void)
 {
-#ifdef DEBUG
+#if DEBUG
     memset(alloc_table, 0, sizeof(alloc_table));
     alloc_count = 0;
     total_allocated = 0;
@@ -171,7 +171,7 @@ void memory_init(void)
 
 void memory_deinit(void)
 {
-#ifdef DEBUG
+#if DEBUG
     if (alloc_count > 0) {
         LOG_WARN("Memory deinit: %zu allocations still active", alloc_count);
         memory_report();

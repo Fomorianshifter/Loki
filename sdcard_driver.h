@@ -6,8 +6,8 @@
  * Communicates via SPI1
  */
 
-#include "../../includes/types.h"
-#include "../../config/board_config.h"
+#include "types.h"
+#include "board_config.h"
 
 /* ===== SD CARD INTERFACE ===== */
 

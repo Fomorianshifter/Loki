@@ -10,20 +10,66 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <strings.h>
 #include <string.h>
 
-#include "core/system.h"
-#include "drivers/tft/tft_driver.h"
-#include "drivers/sdcard/sdcard_driver.h"
-#include "drivers/flash/flash_driver.h"
-#include "drivers/eeprom/eeprom_driver.h"
-#include "drivers/flipper_uart/flipper_uart.h"
-#include "utils/log.h"
-#include "utils/memory.h"
-#include "utils/retry.h"
+#include "system.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
+#include "log.h"
+#include "memory.h"
+#include "retry.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
+
+typedef struct {
+    int safe_mode;
+    int enable_credit_write;
+} runtime_config_t;
+
+static int parse_env_flag(const char *name, int default_value)
+{
+    const char *value = getenv(name);
+
+    if (value == NULL || *value == '\0') {
+        return default_value;
+    }
+
+    if (strcmp(value, "1") == 0 ||
+        strcasecmp(value, "true") == 0 ||
+        strcasecmp(value, "yes") == 0 ||
+        strcasecmp(value, "on") == 0) {
+        return 1;
+    }
+
+    if (strcmp(value, "0") == 0 ||
+        strcasecmp(value, "false") == 0 ||
+        strcasecmp(value, "no") == 0 ||
+        strcasecmp(value, "off") == 0) {
+        return 0;
+    }
+
+    LOG_WARN("Unrecognized %s value '%s'; using default %d", name, value, default_value);
+    return default_value;
+}
+
+static runtime_config_t load_runtime_config(void)
+{
+    runtime_config_t config = {
+        .safe_mode = parse_env_flag("SAFE_MODE", 1),
+        .enable_credit_write = parse_env_flag("ENABLE_CREDIT_WRITE", 0),
+    };
+
+    if (config.safe_mode) {
+        config.enable_credit_write = 0;
+    }
+
+    return config;
+}
 
 /* ===== SIGNAL HANDLERS ===== */
 /**
@@ -158,6 +204,11 @@ static void test_flipper_communication(void)
  */
 int main(int argc, char *argv[])
 {
+    runtime_config_t runtime_config;
+
+    (void)argc;
+    (void)argv;
+
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
     fprintf(stdout, "║        Loki - Orange Pi Zero 2W Display System    ║\n");
@@ -166,8 +217,9 @@ int main(int argc, char *argv[])
 
     /* Initialize logging system */
     log_init();
+    runtime_config = load_runtime_config();
     
-#ifdef DEBUG
+#if DEBUG
     log_set_level(LOG_DEBUG);
     LOG_DEBUG("Debug mode enabled");
 #else
@@ -178,6 +230,9 @@ int main(int argc, char *argv[])
     /* Set up signal handlers for graceful shutdown */
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
+
+    LOG_INFO("Runtime safety: SAFE_MODE=%d, ENABLE_CREDIT_WRITE=%d",
+             runtime_config.safe_mode, runtime_config.enable_credit_write);
 
     /* Initialize system */
     if (system_init() != HAL_OK) {
@@ -196,8 +251,12 @@ int main(int argc, char *argv[])
     test_flash();
     sleep(1);
 
-    test_eeprom();
-    sleep(1);
+    if (runtime_config.safe_mode || !runtime_config.enable_credit_write) {
+        LOG_WARN("Skipping EEPROM write test. Set SAFE_MODE=0 and ENABLE_CREDIT_WRITE=1 to opt in.");
+    } else {
+        test_eeprom();
+        sleep(1);
+    }
 
     test_flipper_communication();
     sleep(1);

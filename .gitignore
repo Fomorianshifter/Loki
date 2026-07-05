@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+/build/
+/docs/html/
 
 # Object files
 *.o

@@ -6,8 +6,8 @@
  * Communicates via I2C0
  */
 
-#include "../../includes/types.h"
-#include "../../config/board_config.h"
+#include "types.h"
+#include "board_config.h"
 
 /* ===== EEPROM INTERFACE ===== */
 

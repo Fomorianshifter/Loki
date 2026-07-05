@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file="${LOKI_CONFIG_FILE:-}"
+
+if [ -z "${config_file}" ]; then
+    for candidate in "/etc/loki/loki.env" "${XDG_CONFIG_HOME:-${HOME}/.config}/loki/loki.env"; do
+        if [ -f "${candidate}" ]; then
+            config_file="${candidate}"
+            break
+        fi
+    done
+fi
+
+if [ -n "${config_file}" ] && [ -f "${config_file}" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "${config_file}"
+    set +a
+fi
+
+service_name="${LOKI_SERVICE_NAME:-loki.service}"
+service_scope="${LOKI_SYSTEMD_SCOPE:-system}"
+subcommand="${1:-}"
+tool_name="$(basename -- "$0")"
+
+case "${tool_name}" in
+    loki-start) subcommand="start" ;;
+    loki-stop) subcommand="stop" ;;
+    loki-status) subcommand="status" ;;
+    loki-logs) subcommand="logs" ;;
+esac
+
+if [ -z "${subcommand}" ]; then
+    printf 'Usage: %s {start|stop|restart|status|logs}\n' "${tool_name}" >&2
+    exit 1
+fi
+
+systemctl_cmd=(systemctl)
+journalctl_cmd=(journalctl)
+
+if [ "${service_scope}" = "user" ]; then
+    systemctl_cmd+=(--user)
+    journalctl_cmd+=(--user)
+elif [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then
+    systemctl_cmd=(sudo "${systemctl_cmd[@]}")
+    journalctl_cmd=(sudo "${journalctl_cmd[@]}")
+fi
+
+case "${subcommand}" in
+    start)
+        "${systemctl_cmd[@]}" start "${service_name}"
+        ;;
+    stop)
+        "${systemctl_cmd[@]}" stop "${service_name}"
+        ;;
+    restart)
+        "${systemctl_cmd[@]}" restart "${service_name}"
+        ;;
+    status)
+        "${systemctl_cmd[@]}" status "${service_name}" --no-pager
+        ;;
+    logs)
+        "${journalctl_cmd[@]}" -u "${service_name}" -f
+        ;;
+    *)
+        printf 'Unknown command: %s\nUsage: %s {start|stop|restart|status|logs}\n' "${subcommand}" "${tool_name}" >&2
+        exit 1
+        ;;
+esac
