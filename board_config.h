@@ -10,7 +10,7 @@
 /* ===== BOARD IDENTIFICATION ===== */
 #define BOARD_NAME        "Loki Linux SBC"
 #define BOARD_VERSION     "2.0"
-#define BOARD_MODEL       "RPI_ZERO_W_DEFAULT"
+#define BOARD_MODEL       "LOKI_SBC_GENERIC"
 #define BOARD_PROFILE_DEFAULT "raspberry_pi_zero_w"
 
 /* ===== POWER CONFIGURATION ===== */
