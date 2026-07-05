@@ -72,6 +72,7 @@ static int parse_bool(const char *value, uint8_t *out)
 static int parse_long_checked(const char *value, long *out)
 {
     char *end = NULL;
+    const char *tail;
     long n;
 
     if (value == NULL || out == NULL) {
@@ -80,7 +81,16 @@ static int parse_long_checked(const char *value, long *out)
 
     errno = 0;
     n = strtol(value, &end, 10);
-    if (errno != 0 || end == value || (end != NULL && *trim(end) != '\0')) {
+    if (errno != 0 || end == value) {
+        return 0;
+    }
+
+    tail = end;
+    while (*tail != '\0' && isspace((unsigned char)*tail)) {
+        tail++;
+    }
+
+    if (*tail != '\0') {
         return 0;
     }
 
