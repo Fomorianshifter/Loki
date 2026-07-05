@@ -188,7 +188,6 @@ int main(int argc, char *argv[])
 {
     const char *config_path = getenv("LOKI_CONFIG_PATH");
     loki_runtime_config_t runtime_config;
-    uint8_t created_default = 0;
 
     (void)argc;
     (void)argv;
@@ -208,17 +207,17 @@ int main(int argc, char *argv[])
     
     log_set_level(LOG_INFO);
 
-    if (loki_config_load_or_create(config_path, &runtime_config, &created_default) != HAL_OK) {
+    if (loki_config_load_or_create(config_path, &runtime_config, NULL) != HAL_OK) {
         LOG_WARN("Failed to use config path '%s', falling back to '%s'",
                  config_path, LOKI_CONFIG_PATH_FALLBACK);
         config_path = LOKI_CONFIG_PATH_FALLBACK;
-        if (loki_config_load_or_create(config_path, &runtime_config, &created_default) != HAL_OK) {
+        if (loki_config_load_or_create(config_path, &runtime_config, NULL) != HAL_OK) {
             LOG_CRITICAL("Unable to load/create runtime config");
             return EXIT_FAILURE;
         }
     }
 
-    if (created_default || runtime_config.device.first_boot) {
+    if (runtime_config.device.first_boot) {
         if (loki_setup_wizard_run(config_path, &runtime_config) != HAL_OK) {
             LOG_CRITICAL("Initial setup failed");
             return EXIT_FAILURE;
