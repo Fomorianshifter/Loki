@@ -3,10 +3,10 @@
 
 /**
  * System Initialization and Management
- * Orange Pi Zero 2W Loki Board
+ * Portable Linux SBC Loki board runtime
  */
 
-#include "../includes/types.h"
+#include "types.h"
 
 /* ===== SYSTEM LIFECYCLE ===== */
 

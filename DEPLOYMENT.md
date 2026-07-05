@@ -1,13 +1,14 @@
 # Loki Deployment Guide
 
-Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
+Complete instructions for deploying Loki to Linux SBC hardware (Raspberry Pi Zero W default profile).
 
 ## Version Information
 
-- **Project**: Loki Orange Pi Zero 2W Embedded System
-- **Target Hardware**: Orange Pi Zero 2W (ARMv7 Cortex-A7)
-- **OS**: Armbian or Orange Pi OS (Linux-based)
-- **Status**: Ready for deployment (v1.0)
+- **Project**: Loki Portable Linux SBC Embedded System
+- **Primary Target Hardware**: Raspberry Pi Zero W
+- **Also Supported**: Orange Pi Zero 2W and other Linux SBC profiles
+- **OS**: Raspberry Pi OS Lite / Armbian (Linux-based)
+- **Status**: Runtime profile/config revamp baseline (v2.0)
 - **Updated**: February 2026
 
 ---
@@ -36,21 +37,21 @@ Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
   sudo apt-get install cppcheck
   ```
 
-### ✅ Orange Pi Zero 2W Hardware Setup
-- [ ] Orange Pi running Armbian or Orange Pi OS
+### ✅ Raspberry Pi Zero W Hardware Setup (Primary)
+- [ ] Raspberry Pi Zero W running Raspberry Pi OS Lite
 - [ ] SSH access enabled and working
   ```bash
   # Test SSH connection
-  ssh pi@orange-pi.local
+  ssh pi@raspberrypi.local
 
   # Or if DHCP not working, use IP address from router
   ssh pi@192.168.1.XXX
   ```
-- [ ] Development tools available on Orange Pi:
+- [ ] Development tools available on Raspberry Pi:
   ```bash
-  # On Orange Pi - install cross-compilation runtime support
+  # On Raspberry Pi
   sudo apt-get update
-  sudo apt-get install libc6-armhf-cross
+  sudo apt-get install build-essential git
 
   # Optional: GDB for remote debugging
   sudo apt-get install gdbserver
@@ -109,12 +110,20 @@ ARM_CROSS_COMPILE ?= arm-linux-gnueabihf-
 # Check your cross-compiler
 which arm-linux-gnueabihf-gcc  # Should show path
 
-# Verify Orange Pi hostname/IP
+# Verify Raspberry Pi hostname/IP
 # Change CROSS_HOST if needed:
-CROSS_HOST ?= orange-pi.local
+CROSS_HOST ?= raspberrypi.local
 # Or use IP address:
 CROSS_HOST ?= 192.168.1.100
 ```
+
+### Runtime Config Path
+
+Loki now uses a master runtime config file:
+
+- Default path: `/etc/loki/loki.conf`
+- Override with: `LOKI_CONFIG_PATH=/custom/path/loki.conf`
+- First boot scaffolding auto-generates config if missing.
 
 ### Step 3: Build Release Binary
 

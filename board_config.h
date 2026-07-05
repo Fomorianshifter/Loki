@@ -2,14 +2,16 @@
 #define BOARD_CONFIG_H
 
 /**
- * Orange Pi Zero 2W Loki Board Configuration
- * Defines board-level settings for all subsystems
+ * Loki board-level safety defaults.
+ * Keep hard electrical and bus defaults here; user/runtime settings live in
+ * the master runtime config.
  */
 
 /* ===== BOARD IDENTIFICATION ===== */
-#define BOARD_NAME        "Orange Pi Zero 2W Loki"
-#define BOARD_VERSION     "1.0"
-#define BOARD_MODEL       "OPI_ZERO_2W"
+#define BOARD_NAME        "Loki Linux SBC"
+#define BOARD_VERSION     "2.0"
+#define BOARD_MODEL       "LOKI_SBC_GENERIC"
+#define BOARD_PROFILE_DEFAULT "raspberry_pi_zero_w"
 
 /* ===== POWER CONFIGURATION ===== */
 #define POWER_INPUT_VOLTAGE     5.0  /* 5V USB input from Flipper */
@@ -19,11 +21,13 @@
 /* ===== TFT DISPLAY CONFIGURATION ===== */
 #define TFT_WIDTH         480   /* Pixels */
 #define TFT_HEIGHT        320   /* Pixels */
-#define TFT_SPI_FREQ      40000000  /* 40 MHz SPI frequency */
+#define TFT_SPI_FREQ      32000000  /* Safe default for Raspberry Pi Zero W */
 #define TFT_TYPE          "ILI9488"  /* Display controller IC */
 #define TFT_COLOR_DEPTH   16    /* Bits per pixel */
 #define TFT_ROTATION      0     /* 0=Normal, 1=90°, 2=180°, 3=270° */
-#define TFT_BRIGHTNESS    100   /* Default brightness (0-100%) */
+#define TFT_BRIGHTNESS    80    /* Boot-safe brightness, runtime may override */
+#define BOARD_DEFAULT_TFT_ROTATION TFT_ROTATION
+#define BOARD_DEFAULT_TFT_BRIGHTNESS TFT_BRIGHTNESS
 
 /* ===== SD CARD CONFIGURATION ===== */
 #define SD_SPI_FREQ       25000000  /* 25 MHz SPI frequency */
