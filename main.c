@@ -21,6 +21,7 @@
 #include "utils/log.h"
 #include "utils/memory.h"
 #include "utils/retry.h"
+#include "loki_behavior.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
@@ -146,6 +147,60 @@ static void test_flipper_communication(void)
     }
 }
 
+static loki_care_event_t map_flipper_command_to_care(uint8_t command)
+{
+    switch (command) {
+        case FLIPPER_CMD_SEND_DATA:
+            return LOKI_CARE_FEED;
+        case FLIPPER_CMD_CONTROL:
+            return LOKI_CARE_PLAY;
+        case FLIPPER_CMD_REQUEST_STATE:
+            return LOKI_CARE_COMFORT;
+        default:
+            return LOKI_CARE_NONE;
+    }
+}
+
+static void render_loki_scene(const loki_dragon_state_t *loki)
+{
+    const loki_background_state_t *background = loki_get_background_state(loki);
+    if (background == NULL) {
+        return;
+    }
+
+    LOG_DEBUG("Render hook: stage=%s mood=%s dragon_anim=%s bg=%s/%s frame=%u",
+              loki_stage_name(loki->stage),
+              loki_mood_name(loki->mood),
+              loki_animation_name(loki->animation),
+              loki_background_theme_name(background->theme),
+              loki_background_anim_name(background->animation),
+              background->frame);
+}
+
+static void log_loki_status(const loki_dragon_state_t *loki)
+{
+    const loki_background_state_t *background = loki_get_background_state(loki);
+    if (background == NULL) {
+        return;
+    }
+
+    LOG_INFO("Loki status | stage=%s growth=%u hunger=%u energy=%u mood=%s traits[T:%u C:%u P:%u R:%u I:%u]",
+             loki_stage_name(loki->stage),
+             loki->growth_points,
+             loki->hunger,
+             loki->energy,
+             loki_mood_name(loki->mood),
+             loki->traits.trust,
+             loki->traits.curiosity,
+             loki->traits.playfulness,
+             loki->traits.resilience,
+             loki->traits.independence);
+    LOG_INFO("Background | theme=%s animation=%s frame=%u",
+             loki_background_theme_name(background->theme),
+             loki_background_anim_name(background->animation),
+             background->frame);
+}
+
 /* ===== MAIN APPLICATION ===== */
 /**
  * @brief Main application entry point
@@ -158,6 +213,9 @@ static void test_flipper_communication(void)
  */
 int main(int argc, char *argv[])
 {
+    loki_dragon_state_t loki = {0};
+    uint32_t loop_ticks = 0;
+
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
     fprintf(stdout, "║        Loki - Orange Pi Zero 2W Display System    ║\n");
@@ -204,11 +262,17 @@ int main(int argc, char *argv[])
 
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
+    loki_init_state(&loki);
+    LOG_INFO("Loki behavior initialized: stage=%s mood=%s",
+             loki_stage_name(loki.stage), loki_mood_name(loki.mood));
+
     /* Main loop */
     LOG_INFO("Entering main loop. Press Ctrl+C to exit.");
-    LOG_INFO("Waiting for Flipper commands...\n");
+    LOG_INFO("Waiting for Flipper commands while Loki adapts autonomously...\n");
 
     while (!should_exit) {
+        loki_care_event_t care_event = LOKI_CARE_NONE;
+
         /* Check for Flipper messages */
         if (flipper_available() > 0) {
             flipper_message_t msg = {0};
@@ -225,6 +289,11 @@ int main(int argc, char *argv[])
                 };
                 flipper_send_message(&ack);
 
+                care_event = map_flipper_command_to_care(msg.cmd);
+                if (care_event != LOKI_CARE_NONE) {
+                    loki_record_care_event(&loki, care_event);
+                }
+
                 /* Free payload if allocated */
                 if (msg.payload != NULL) {
                     free(msg.payload);
@@ -232,6 +301,18 @@ int main(int argc, char *argv[])
             }
         }
 
+        if ((loop_ticks % 9U) == 8U) {
+            loki_record_care_event(&loki, LOKI_CARE_NEGLECT);
+        }
+
+        loki_autonomous_tick(&loki, 1000);
+        render_loki_scene(&loki);
+
+        if ((loop_ticks % 5U) == 0U) {
+            log_loki_status(&loki);
+        }
+
+        loop_ticks++;
         sleep(1);  /* CPU-friendly polling */
     }
 

@@ -49,6 +49,18 @@ At a high level, `main.c` shows a teachable embedded application structure:
 
 That pattern is a good starting point for your own SBC or hardware-control application.
 
+## Dragon autonomy and background behavior
+
+The gameplay layer now has a lightweight autonomous simulation in `loki_behavior.c` / `loki_behavior.h` that is meant to stay embedded-friendly and expandable.
+
+- **Life stages**: Loki starts as an egg and can progress through hatchling, young, and adult stages.
+- **Adaptive traits**: trust, curiosity, playfulness, resilience, and independence shift over time.
+- **Care influence**: feed/play/comfort events improve growth tendencies and mood stability, while repeated neglect raises withdrawal/grumpy behavior.
+- **Autonomous updates**: `loki_autonomous_tick(...)` advances hunger, energy, mood, growth, animation state, and trait drift even without direct user commands.
+- **Background animation state**: stage and mood drive a separate background theme/animation/frame selection layer via `loki_get_background_state(...)`.
+
+The main loop calls this periodic behavior tick so Loki appears to grow and react on his own, while still accepting direct interaction from Flipper commands.
+
 ## Concepts worth learning from Loki
 
 ### 1. Layered design
