@@ -4,7 +4,7 @@
 param(
     [string]$Mode = "debug",
     [switch]$Install = $false,
-    [string]$HostName = "orange-pi.local",
+    [string]$HostName = "raspberrypi.local",
     [string]$User = "pi"
 )
 
@@ -185,7 +185,7 @@ if ($Install) {
     Write-Host "[+] Build successful" -ForegroundColor Green
     Write-Host "[!] To deploy: add -Install flag" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Example: .\build.ps1 -Mode release -Install -HostName orange-pi.local" -ForegroundColor Cyan
+    Write-Host "Example: .\build.ps1 -Mode release -Install -HostName raspberrypi.local" -ForegroundColor Cyan
 }
 
 Write-Host ""

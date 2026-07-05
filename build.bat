@@ -8,7 +8,7 @@ set MODE=%1
 if "%MODE%"=="" set MODE=debug
 
 set HOST=%2
-if "%HOST%"=="" set HOST=orange-pi.local
+if "%HOST%"=="" set HOST=raspberrypi.local
 
 set USER=%3
 if "%USER%"=="" set USER=pi
@@ -180,7 +180,7 @@ if "%4"=="--install" (
     echo Usage:
     echo   build.bat debug
     echo   build.bat release
-    echo   build.bat debug orange-pi.local pi --install
+    echo   build.bat debug raspberrypi.local pi --install
 )
 
 exit /b 0

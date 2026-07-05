@@ -1,28 +1,28 @@
 /**
  * @file system.c
  * @brief System Initialization and Management Implementation
- * Orange Pi Zero 2W Loki Board
+ * Portable Linux SBC Loki runtime
  */
 
 #include "system.h"
-#include "../config/pinout.h"
-#include "../config/board_config.h"
-#include "../utils/log.h"
-#include "../utils/memory.h"
+#include "pinout.h"
+#include "board_config.h"
+#include "log.h"
+#include "memory.h"
 
 /* Import HAL drivers */
-#include "../hal/gpio/gpio.h"
-#include "../hal/spi/spi.h"
-#include "../hal/i2c/i2c.h"
-#include "../hal/uart/uart.h"
-#include "../hal/pwm/pwm.h"
+#include "gpio.h"
+#include "spi.h"
+#include "i2c.h"
+#include "uart.h"
+#include "pwm.h"
 
 /* Import device drivers */
-#include "../drivers/tft/tft_driver.h"
-#include "../drivers/sdcard/sdcard_driver.h"
-#include "../drivers/flash/flash_driver.h"
-#include "../drivers/eeprom/eeprom_driver.h"
-#include "../drivers/flipper_uart/flipper_uart.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
 
 /* ===== SYSTEM STATE ===== */
 typedef struct {
@@ -62,14 +62,14 @@ hal_status_t system_init(void)
     system_state.gpio_ready = 1;
 
     /* Initialize TFT Display */
-    LOG_INFO("Initializing TFT Display (480×320 ILI9488)...");
+    LOG_INFO("Initializing TFT Display (safe board defaults)...");
     if (tft_init() != HAL_OK) {
         LOG_WARN("TFT initialization failed (continuing without display)");
     } else {
         system_state.tft_ready = 1;
         LOG_INFO("TFT initialized - clearing display");
         tft_clear();
-        tft_set_brightness(TFT_BRIGHTNESS);
+        tft_set_brightness(BOARD_DEFAULT_TFT_BRIGHTNESS);
     }
 
     /* Initialize SD Card */
@@ -100,7 +100,7 @@ hal_status_t system_init(void)
     }
 
     /* Initialize Flipper UART */
-    LOG_INFO("Initializing Flipper UART (115200 baud)...");
+    LOG_INFO("Initializing Flipper UART (%u baud)...", UART1_BAUD_RATE);
     if (flipper_uart_init() != HAL_OK) {
         LOG_WARN("Flipper UART initialization failed (continuing without Flipper)");
     } else {

@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @brief Loki - Orange Pi Zero 2W Interactive Display System
+ * @brief Loki portable Linux SBC interactive display system
  * 
  * Main entry point and example usage of the Loki board system.
  * Demonstrates hardware initialization, device testing, and communication.
@@ -11,16 +11,19 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <strings.h>
 
-#include "core/system.h"
-#include "drivers/tft/tft_driver.h"
-#include "drivers/sdcard/sdcard_driver.h"
-#include "drivers/flash/flash_driver.h"
-#include "drivers/eeprom/eeprom_driver.h"
-#include "drivers/flipper_uart/flipper_uart.h"
-#include "utils/log.h"
-#include "utils/memory.h"
-#include "utils/retry.h"
+#include "system.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
+#include "log.h"
+#include "memory.h"
+#include "retry.h"
+#include "runtime_config.h"
+#include "setup_wizard.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
@@ -33,6 +36,31 @@ static void handle_signal(int sig)
 {
     LOG_WARN("Received signal %d, initiating shutdown...", sig);
     should_exit = 1;
+}
+
+static log_level_t log_level_from_string(const char *level)
+{
+    if (level == NULL) {
+        return LOG_INFO;
+    }
+
+    if (strcasecmp(level, "debug") == 0) {
+        return LOG_DEBUG;
+    }
+    if (strcasecmp(level, "info") == 0) {
+        return LOG_INFO;
+    }
+    if (strcasecmp(level, "warn") == 0 || strcasecmp(level, "warning") == 0) {
+        return LOG_WARN;
+    }
+    if (strcasecmp(level, "error") == 0) {
+        return LOG_ERROR;
+    }
+    if (strcasecmp(level, "critical") == 0) {
+        return LOG_CRITICAL;
+    }
+
+    return LOG_INFO;
 }
 
 /* ===== EXAMPLE: TFT DISPLAY TEST ===== */
@@ -158,22 +186,48 @@ static void test_flipper_communication(void)
  */
 int main(int argc, char *argv[])
 {
+    const char *config_path = getenv("LOKI_CONFIG_PATH");
+    loki_runtime_config_t runtime_config;
+    uint8_t created_default = 0;
+
+    (void)argc;
+    (void)argv;
+
+    if (config_path == NULL || config_path[0] == '\0') {
+        config_path = LOKI_CONFIG_PATH_DEFAULT;
+    }
+
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
-    fprintf(stdout, "║        Loki - Orange Pi Zero 2W Display System    ║\n");
-    fprintf(stdout, "║         Powered by Flipper Zero Integration       ║\n");
+    fprintf(stdout, "║     Loki - Portable Linux SBC Display System      ║\n");
+    fprintf(stdout, "║  Default profile: Raspberry Pi Zero W (runtime)   ║\n");
     fprintf(stdout, "╚════════════════════════════════════════════════════╝\n\n");
 
     /* Initialize logging system */
     log_init();
     
-#ifdef DEBUG
-    log_set_level(LOG_DEBUG);
-    LOG_DEBUG("Debug mode enabled");
-#else
     log_set_level(LOG_INFO);
-    LOG_INFO("Release mode");
-#endif
+
+    if (loki_config_load_or_create(config_path, &runtime_config, &created_default) != HAL_OK) {
+        LOG_WARN("Failed to use config path '%s', falling back to '%s'",
+                 config_path, LOKI_CONFIG_PATH_FALLBACK);
+        config_path = LOKI_CONFIG_PATH_FALLBACK;
+        if (loki_config_load_or_create(config_path, &runtime_config, &created_default) != HAL_OK) {
+            LOG_CRITICAL("Unable to load/create runtime config");
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (created_default || runtime_config.device.first_boot) {
+        if (loki_setup_wizard_run(config_path, &runtime_config) != HAL_OK) {
+            LOG_CRITICAL("Initial setup failed");
+            return EXIT_FAILURE;
+        }
+    }
+
+    log_set_level(log_level_from_string(runtime_config.logging.level));
+    LOG_INFO("Using runtime config: %s", config_path);
+    LOG_INFO("Board profile selected: %s", runtime_config.device.board_profile);
 
     /* Set up signal handlers for graceful shutdown */
     signal(SIGINT, handle_signal);
@@ -184,6 +238,9 @@ int main(int argc, char *argv[])
         LOG_CRITICAL("System initialization failed!");
         return EXIT_FAILURE;
     }
+
+    tft_set_rotation(runtime_config.ui.rotation);
+    tft_set_brightness(runtime_config.ui.brightness);
 
     /* Run hardware tests */
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

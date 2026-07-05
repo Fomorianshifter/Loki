@@ -2,8 +2,9 @@
 #define PINOUT_H
 
 /**
- * Orange Pi Zero 2W Loki Board Pinout Definitions
- * Based on official wiring guide for complete system integration
+ * Loki SBC pinout defaults.
+ * These defaults match the reference Raspberry Pi Zero W profile and may be
+ * overridden by board-specific pinout headers in future profiles.
  */
 
 /* ===== GPIO PIN DEFINITIONS ===== */

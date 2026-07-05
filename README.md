@@ -1,6 +1,6 @@
-# 🔥 Loki - Orange Pi Zero 2W Interactive Embedded System
+# 🔥 Loki - Portable Linux SBC Interactive Embedded System
 
-> **A production-ready embedded systems framework for Orange Pi, Raspberry Pi, ESP32, and Flipper Zero**
+> **A production-ready embedded systems framework for Raspberry Pi, Orange Pi, ESP32, and Flipper Zero**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
@@ -82,7 +82,16 @@
 
 ## 🖥️ Supported Platforms
 
-### Orange Pi Zero 2W ⭐ (Primary Target)
+### Raspberry Pi Zero W ⭐ (Primary Target)
+
+- **Processor**: ARM1176JZF-S (1 GHz, ARMv6)
+- **RAM**: 512 MB
+- **GPIO**: 40-pin header, full SPI/I2C/UART support
+- **OS**: Raspberry Pi OS Lite
+- **Build**: `make` or `build.ps1` / `build.bat` on Windows
+- **Runtime Profile**: `raspberry_pi_zero_w` (default)
+
+### Orange Pi Zero 2W
 
 - **Processor**: ARMv7 Cortex-A7 (1.5 GHz)
 - **RAM**: 512 MB DDR3
@@ -461,23 +470,23 @@ build.bat release orange-pi.local pi --install
 
 ## 🚀 Quick Start Guides
 
-### Orange Pi Zero 2W (Recommended Primary Platform)
+### Raspberry Pi Zero W (Recommended Primary Platform)
 
-#### 1. Flash Armbian OS
+#### 1. Flash Raspberry Pi OS Lite
 ```bash
-# Download Armbian for Orange Pi Zero 2W from:
-# https://www.armbian.com/orange-pi-zero-2w/
+# Download from:
+# https://www.raspberrypi.com/software/
 
 # Flash to microSD card (Linux/Mac):
-sudo dd if=Armbian_xxx.img of=/dev/sdX bs=4M status=progress
+sudo dd if=2024-03-15-raspios-bookworm-armhf.img of=/dev/sdX bs=4M status=progress
 
 # Or use Balena Etcher (GUI) for all platforms
 ```
 
-#### 2. Initial Orange Pi Setup
+#### 2. Initial Raspberry Pi Setup
 ```bash
-# Login via SSH (default: pi/1234)
-ssh pi@orange-pi.local
+# Login via SSH
+ssh pi@raspberrypi.local
 
 # Or use IP address if hostname doesn't resolve
 ssh pi@192.168.1.100
@@ -490,8 +499,8 @@ sudo apt-get update
 sudo apt-get upgrade -y
 
 # Enable SPI (if not already enabled)
-sudo armbian-config
-# → System → Hardware → Enable SPI0
+sudo raspi-config
+# → Interface Options → SPI → Enable
 ```
 
 #### 3. Cross-Compile on Your Computer
@@ -505,11 +514,11 @@ cd Loki
 # Build release binary
 make DEBUG=0
 
-# Deploy to Orange Pi
-make install CROSS_HOST=orange-pi.local CROSS_USER=pi
+# Deploy to Raspberry Pi Zero W
+make install CROSS_HOST=raspberrypi.local CROSS_USER=pi
 
-# Run on Orange Pi
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+# Run on Raspberry Pi
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 ```
 
 **On Windows:**
@@ -518,16 +527,16 @@ ssh pi@orange-pi.local "sudo /tmp/loki_app"
 cd C:\Users\YourName\Desktop\Loki
 
 # Build and deploy in one command
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 
 # Or manually run after building
-scp build\release\loki_app pi@orange-pi.local:/tmp/
-ssh pi@orange-pi.local "chmod +x /tmp/loki_app; sudo /tmp/loki_app"
+scp build\release\loki_app pi@raspberrypi.local:/tmp/
+ssh pi@raspberrypi.local "chmod +x /tmp/loki_app; sudo /tmp/loki_app"
 ```
 
 #### 4. Persistent Execution (systemd)
 
-**Create service file** on Orange Pi:
+**Create service file** on Raspberry Pi:
 ```bash
 sudo nano /etc/systemd/system/loki.service
 ```
@@ -1103,52 +1112,23 @@ void handle_flipper_commands(void)
 
 ## 🔧 Configuration
 
-### Pinout Configuration (config/pinout.h)
+### Master Runtime Configuration (single source of truth)
 
-Each GPIO pin is defined:
-```c
-#define GPIO_PIN_2      2      // SPI0: MOSI
-#define GPIO_PIN_3      3      // I2C0: SDA
-#define GPIO_PIN_4      4      // 5V Power
-#define GPIO_PIN_18     18     // TFT Data/Command
-#define GPIO_PIN_22     22     // TFT Reset
+- Main runtime config: `/etc/loki/loki.conf` (override with `LOKI_CONFIG_PATH`)
+- Example in repo: `loki.conf.example`
+- Runtime loader/saver/validator: `runtime_config.[ch]`
+- First-boot setup scaffold: `setup_wizard.[ch]`
 
-// ... and 36 more pins
-```
+This runtime config is for user-facing and deployment settings (personality, UI,
+behavior, logging, profile selection, data/log paths).
 
-**To change pin assignments for a different board:**
-1. Open `config/pinout.h`
-2. Identify which pins your hardware uses
-3. Update the `#define` values
-4. Recompile: `make clean && make DEBUG=0`
+### Board Profiles and Safety Defaults
 
-### Board Configuration (config/board_config.h)
+- Board profiles metadata: `board_profile.[ch]`
+- Fixed low-level defaults: `board_config.h` and `pinout.h`
 
-System-level settings:
-```c
-// Voltage specifications
-#define VOLTAGE_LOGIC   3.3f   // GPIO logic level
-#define VOLTAGE_USB     5.0f   // USB input
-
-// Bus speeds
-#define SPI0_SPEED_HZ   40000000   // 40 MHz for TFT
-#define SPI1_SPEED_HZ   25000000   // 25 MHz for SD
-#define I2C_SPEED_HZ    100000     // 100 kHz for EEPROM
-#define UART_BAUD       115200     // Flipper Zero
-
-// Timing
-#define DEBOUNCE_MS     20         // GPIO debounce
-#define SPI_TIMEOUT_MS  1000       // SPI operation timeout
-#define I2C_TIMEOUT_MS  1000       // I2C operation timeout
-
-// Memory
-#define MAX_ALLOCATIONS 256        // Leak detection table size
-```
-
-**To customize for your hardware:**
-1. Open `config/board_config.h`
-2. Adjust values as needed
-3. Recompile: `make clean && make DEBUG=0`
+Keep hard electrical and bus safety constraints in board defaults. Use runtime
+config for non-dangerous app/runtime behavior.
 
 ---
 

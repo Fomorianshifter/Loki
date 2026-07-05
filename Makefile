@@ -1,4 +1,4 @@
-# Loki Build Configuration for Orange Pi Zero 2W
+# Loki Build Configuration for Linux SBCs (Raspberry Pi Zero W default)
 # 
 # PLATFORM NOTES:
 # - Linux/Mac: Use this Makefile directly with `make` command
@@ -26,7 +26,7 @@ endif
  
 ## Cross-compiler target (customize for your setup)
 CROSS_USER ?= pi
-CROSS_HOST ?= orange-pi.local
+CROSS_HOST ?= raspberrypi.local
 CROSS_PATH ?= /tmp
  
 ## Project Structure
