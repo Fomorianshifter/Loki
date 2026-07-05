@@ -262,7 +262,8 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
 
     if (state->last_care_event == LOKI_CARE_NONE) {
         state->neglect_ticks += elapsed_s;
-        if (state->neglect_ticks % LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL == 0) {
+        if (state->neglect_ticks > 0 &&
+            (state->neglect_ticks % LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL) == 0) {
             state->traits.trust = clamp_stat((int)state->traits.trust - 1);
             state->traits.independence = clamp_stat((int)state->traits.independence + 1);
         }
@@ -289,6 +290,7 @@ void loki_autonomous_tick(loki_dragon_state_t *state, uint32_t delta_ms)
     loki_behavior_update(state, delta_ms);
 
     state->background.elapsed_ms += delta_ms;
+    /* Guard against accidental state corruption from future external state loading. */
     if (state->background.frame_count == 0) {
         state->background.frame_count = 1;
     }
