@@ -303,7 +303,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (loop_ticks >= NEGLECT_CHECK_OFFSET_TICK &&
+        if (care_event == LOKI_CARE_NONE &&
+            loop_ticks >= NEGLECT_CHECK_OFFSET_TICK &&
             ((loop_ticks - NEGLECT_CHECK_OFFSET_TICK) % NEGLECT_CHECK_PERIOD_TICKS) == 0U) {
             loki_record_care_event(&loki, LOKI_CARE_NEGLECT);
         }

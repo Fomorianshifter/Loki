@@ -3,7 +3,11 @@
 #include <stddef.h>
 
 #define LOKI_MAX_STAT 100U
-#define LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL 30U
+#define LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL 30U /* seconds without care before trust shifts */
+#define LOKI_WITHDRAWN_NEGLECT_THRESHOLD 90U
+#define LOKI_WITHDRAWN_TRUST_THRESHOLD 35U
+#define LOKI_GRUMPY_HUNGER_THRESHOLD 65U
+#define LOKI_INDEPENDENCE_GROWTH_INTERVAL 15U
 
 static uint8_t clamp_stat(int value)
 {
@@ -58,7 +62,8 @@ static void choose_mood(loki_dragon_state_t *state)
 {
     if (state->hunger >= 80) {
         state->mood = LOKI_MOOD_HUNGRY;
-    } else if (state->neglect_ticks > 90 && state->traits.trust < 35) {
+    } else if (state->neglect_ticks > LOKI_WITHDRAWN_NEGLECT_THRESHOLD &&
+               state->traits.trust < LOKI_WITHDRAWN_TRUST_THRESHOLD) {
         state->mood = LOKI_MOOD_WITHDRAWN;
     } else if (state->energy < 25) {
         state->mood = LOKI_MOOD_SLEEPY;
@@ -66,7 +71,7 @@ static void choose_mood(loki_dragon_state_t *state)
         state->mood = LOKI_MOOD_PLAYFUL;
     } else if (state->traits.curiosity > 60) {
         state->mood = LOKI_MOOD_CURIOUS;
-    } else if (state->hunger > 65 || state->neglect_ticks > 150) {
+    } else if (state->hunger > LOKI_GRUMPY_HUNGER_THRESHOLD || state->neglect_ticks > 150) {
         state->mood = LOKI_MOOD_GRUMPY;
     } else {
         state->mood = LOKI_MOOD_CALM;
@@ -238,6 +243,7 @@ void loki_record_care_event(loki_dragon_state_t *state, loki_care_event_t event)
 void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
 {
     uint32_t elapsed_s;
+    uint32_t previous_age_ticks;
 
     if (state == NULL || delta_ms == 0) {
         return;
@@ -250,6 +256,7 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
     }
     state->behavior_elapsed_ms %= 1000;
 
+    previous_age_ticks = state->age_ticks;
     state->age_ticks += elapsed_s;
 
     state->hunger = clamp_stat((int)state->hunger + (int)elapsed_s + (int)state->stage);
@@ -269,7 +276,9 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
         }
     }
 
-    if (state->stage >= LOKI_LIFE_STAGE_YOUNG) {
+    if (state->stage >= LOKI_LIFE_STAGE_YOUNG &&
+        (state->age_ticks / LOKI_INDEPENDENCE_GROWTH_INTERVAL) >
+            (previous_age_ticks / LOKI_INDEPENDENCE_GROWTH_INTERVAL)) {
         state->traits.independence = clamp_stat((int)state->traits.independence + 1);
     }
 
