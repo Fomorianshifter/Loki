@@ -35,6 +35,22 @@ static uint16_t stage_growth_target(loki_life_stage_t stage)
     }
 }
 
+static uint8_t stage_hunger_rate(loki_life_stage_t stage)
+{
+    switch (stage) {
+        case LOKI_LIFE_STAGE_EGG:
+            return 0;
+        case LOKI_LIFE_STAGE_HATCHLING:
+            return 1;
+        case LOKI_LIFE_STAGE_YOUNG:
+            return 2;
+        case LOKI_LIFE_STAGE_ADULT:
+            return 3;
+        default:
+            return 1;
+    }
+}
+
 static void select_stage_background(loki_dragon_state_t *state)
 {
     switch (state->stage) {
@@ -141,6 +157,7 @@ static void choose_background_animation(loki_dragon_state_t *state)
 static void apply_growth(loki_dragon_state_t *state, uint32_t elapsed_s)
 {
     uint16_t growth_gain = 0;
+    uint16_t neglect_penalty = (elapsed_s > UINT16_MAX) ? UINT16_MAX : (uint16_t)elapsed_s;
 
     if (state->hunger < 55) {
         growth_gain += (uint16_t)(2U * elapsed_s);
@@ -149,7 +166,7 @@ static void apply_growth(loki_dragon_state_t *state, uint32_t elapsed_s)
         growth_gain += (uint16_t)elapsed_s;
     }
     if (state->neglect_ticks > 180) {
-        growth_gain = (growth_gain > elapsed_s) ? (uint16_t)(growth_gain - elapsed_s) : 0;
+        growth_gain = (growth_gain > neglect_penalty) ? (uint16_t)(growth_gain - neglect_penalty) : 0;
     }
 
     state->growth_points += growth_gain;
@@ -244,6 +261,7 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
 {
     uint32_t elapsed_s;
     uint32_t previous_age_ticks;
+    uint32_t previous_neglect_ticks;
 
     if (state == NULL || delta_ms == 0) {
         return;
@@ -257,9 +275,10 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
     state->behavior_elapsed_ms %= 1000;
 
     previous_age_ticks = state->age_ticks;
+    previous_neglect_ticks = state->neglect_ticks;
     state->age_ticks += elapsed_s;
 
-    state->hunger = clamp_stat((int)state->hunger + (int)elapsed_s + (int)state->stage);
+    state->hunger = clamp_stat((int)state->hunger + (int)elapsed_s + (int)stage_hunger_rate(state->stage));
 
     if (state->hunger > 70) {
         state->energy = clamp_stat((int)state->energy - (int)elapsed_s - 1);
@@ -269,8 +288,8 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
 
     if (state->last_care_event == LOKI_CARE_NONE) {
         state->neglect_ticks += elapsed_s;
-        if (state->neglect_ticks > 0 &&
-            (state->neglect_ticks % LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL) == 0) {
+        if ((state->neglect_ticks / LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL) >
+            (previous_neglect_ticks / LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL)) {
             state->traits.trust = clamp_stat((int)state->traits.trust - 1);
             state->traits.independence = clamp_stat((int)state->traits.independence + 1);
         }
@@ -301,7 +320,7 @@ void loki_autonomous_tick(loki_dragon_state_t *state, uint32_t delta_ms)
     state->background.elapsed_ms += delta_ms;
     /* Guard against accidental state corruption from future external state loading. */
     if (state->background.frame_count == 0) {
-        state->background.frame_count = 1;
+        select_stage_background(state);
     }
     while (state->background.elapsed_ms >= state->background.frame_time_ms) {
         state->background.elapsed_ms -= state->background.frame_time_ms;

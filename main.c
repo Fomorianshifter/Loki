@@ -25,8 +25,7 @@
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
-#define NEGLECT_CHECK_PERIOD_TICKS 9U
-#define NEGLECT_CHECK_OFFSET_TICK  8U
+#define NEGLECT_CHECK_INTERVAL_TICKS 30U
 
 /* ===== SIGNAL HANDLERS ===== */
 /**
@@ -217,6 +216,7 @@ int main(int argc, char *argv[])
 {
     loki_dragon_state_t loki = {0};
     uint32_t loop_ticks = 0;
+    uint32_t ticks_since_care = 0;
 
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
@@ -303,9 +303,15 @@ int main(int argc, char *argv[])
             }
         }
 
+        if (care_event == LOKI_CARE_NONE) {
+            ticks_since_care++;
+        } else {
+            ticks_since_care = 0;
+        }
+
         if (care_event == LOKI_CARE_NONE &&
-            loop_ticks >= NEGLECT_CHECK_OFFSET_TICK &&
-            ((loop_ticks - NEGLECT_CHECK_OFFSET_TICK) % NEGLECT_CHECK_PERIOD_TICKS) == 0U) {
+            ticks_since_care >= NEGLECT_CHECK_INTERVAL_TICKS &&
+            (ticks_since_care % NEGLECT_CHECK_INTERVAL_TICKS) == 0U) {
             loki_record_care_event(&loki, LOKI_CARE_NEGLECT);
         }
 
