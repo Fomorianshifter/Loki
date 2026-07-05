@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #define LOKI_MAX_STAT 100U
+#define LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL 30U
 
 static uint8_t clamp_stat(int value)
 {
@@ -169,6 +170,7 @@ void loki_init_state(loki_dragon_state_t *state)
     state->stage = LOKI_LIFE_STAGE_EGG;
     state->growth_points = 0;
     state->age_ticks = 0;
+    state->behavior_elapsed_ms = 0;
     state->hunger = 15;
     state->energy = 85;
     state->mood = LOKI_MOOD_CALM;
@@ -241,10 +243,12 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
         return;
     }
 
-    elapsed_s = delta_ms / 1000;
+    state->behavior_elapsed_ms += delta_ms;
+    elapsed_s = state->behavior_elapsed_ms / 1000;
     if (elapsed_s == 0) {
-        elapsed_s = 1;
+        return;
     }
+    state->behavior_elapsed_ms %= 1000;
 
     state->age_ticks += elapsed_s;
 
@@ -258,7 +262,7 @@ void loki_behavior_update(loki_dragon_state_t *state, uint32_t delta_ms)
 
     if (state->last_care_event == LOKI_CARE_NONE) {
         state->neglect_ticks += elapsed_s;
-        if (state->neglect_ticks % 30 == 0) {
+        if (state->neglect_ticks % LOKI_NEGLECT_TRAIT_UPDATE_INTERVAL == 0) {
             state->traits.trust = clamp_stat((int)state->traits.trust - 1);
             state->traits.independence = clamp_stat((int)state->traits.independence + 1);
         }
@@ -285,6 +289,9 @@ void loki_autonomous_tick(loki_dragon_state_t *state, uint32_t delta_ms)
     loki_behavior_update(state, delta_ms);
 
     state->background.elapsed_ms += delta_ms;
+    if (state->background.frame_count == 0) {
+        state->background.frame_count = 1;
+    }
     while (state->background.elapsed_ms >= state->background.frame_time_ms) {
         state->background.elapsed_ms -= state->background.frame_time_ms;
         state->background.frame = (uint8_t)((state->background.frame + 1U) % state->background.frame_count);

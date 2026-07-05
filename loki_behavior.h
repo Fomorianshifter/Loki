@@ -74,6 +74,7 @@ typedef struct {
     loki_life_stage_t stage;
     uint32_t growth_points;
     uint32_t age_ticks;
+    uint32_t behavior_elapsed_ms;
 
     uint8_t hunger;
     uint8_t energy;

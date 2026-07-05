@@ -25,6 +25,8 @@
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
+#define LOKI_NEGLECT_INTERVAL_TICKS 9U
+#define LOKI_NEGLECT_TRIGGER_TICK   8U
 
 /* ===== SIGNAL HANDLERS ===== */
 /**
@@ -301,7 +303,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if ((loop_ticks % 9U) == 8U) {
+        if ((loop_ticks % LOKI_NEGLECT_INTERVAL_TICKS) == LOKI_NEGLECT_TRIGGER_TICK) {
             loki_record_care_event(&loki, LOKI_CARE_NEGLECT);
         }
 
