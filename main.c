@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
     fprintf(stdout, "║     Loki - Portable Linux SBC Display System      ║\n");
-    fprintf(stdout, "║  Default profile: Raspberry Pi Zero W (runtime)   ║\n");
+    fprintf(stdout, "║       Runtime board profile loaded from config     ║\n");
     fprintf(stdout, "╚════════════════════════════════════════════════════╝\n\n");
 
     /* Initialize logging system */

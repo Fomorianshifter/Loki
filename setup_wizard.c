@@ -51,8 +51,11 @@ hal_status_t loki_setup_wizard_run(const char *config_path, loki_runtime_config_
 
         prompt_text("Device name [Loki]: ", config->device.name, sizeof(config->device.name));
         prompt_text("Theme [default]: ", config->device.theme, sizeof(config->device.theme));
-        prompt_text("Board profile [raspberry_pi_zero_w/orange_pi_zero_2w/generic_linux_sbc]: ",
-                    config->device.board_profile, sizeof(config->device.board_profile));
+        {
+            char prompt[192];
+            snprintf(prompt, sizeof(prompt), "Board profile [%s]: ", LOKI_BOARD_PROFILE_CHOICES);
+            prompt_text(prompt, config->device.board_profile, sizeof(config->device.board_profile));
+        }
 
         if (!loki_board_profile_is_supported(config->device.board_profile)) {
             strncpy(config->device.board_profile, default_profile->id, sizeof(config->device.board_profile) - 1);

@@ -69,6 +69,25 @@ static int parse_bool(const char *value, uint8_t *out)
     return 0;
 }
 
+static int parse_long_checked(const char *value, long *out)
+{
+    char *end = NULL;
+    long n;
+
+    if (value == NULL || out == NULL) {
+        return 0;
+    }
+
+    errno = 0;
+    n = strtol(value, &end, 10);
+    if (errno != 0 || end == value || (end != NULL && *trim(end) != '\0')) {
+        return 0;
+    }
+
+    *out = n;
+    return 1;
+}
+
 static void set_string_field(const char *section, const char *key, const char *value, loki_runtime_config_t *config)
 {
     if (strcmp(section, "device") == 0 && strcmp(key, "name") == 0) {
@@ -99,7 +118,8 @@ static void set_string_field(const char *section, const char *key, const char *v
 static void set_numeric_or_bool_field(const char *section, const char *key, const char *value, loki_runtime_config_t *config)
 {
     uint8_t bool_value = 0;
-    long n = strtol(value, NULL, 10);
+    long n = 0;
+    int has_number = parse_long_checked(value, &n);
 
     if (strcmp(section, "device") == 0 && strcmp(key, "first_boot") == 0) {
         if (parse_bool(value, &bool_value)) {
@@ -109,17 +129,17 @@ static void set_numeric_or_bool_field(const char *section, const char *key, cons
         if (parse_bool(value, &bool_value)) {
             config->personality.mood_enabled = bool_value;
         }
-    } else if (strcmp(section, "personality") == 0 && strcmp(key, "mood_decay_rate") == 0) {
+    } else if (strcmp(section, "personality") == 0 && strcmp(key, "mood_decay_rate") == 0 && has_number) {
         config->personality.mood_decay_rate = (uint8_t)n;
-    } else if (strcmp(section, "personality") == 0 && strcmp(key, "friendliness") == 0) {
+    } else if (strcmp(section, "personality") == 0 && strcmp(key, "friendliness") == 0 && has_number) {
         config->personality.friendliness = (uint8_t)n;
-    } else if (strcmp(section, "personality") == 0 && strcmp(key, "mischief") == 0) {
+    } else if (strcmp(section, "personality") == 0 && strcmp(key, "mischief") == 0 && has_number) {
         config->personality.mischief = (uint8_t)n;
-    } else if (strcmp(section, "personality") == 0 && strcmp(key, "energy") == 0) {
+    } else if (strcmp(section, "personality") == 0 && strcmp(key, "energy") == 0 && has_number) {
         config->personality.energy = (uint8_t)n;
-    } else if (strcmp(section, "ui") == 0 && strcmp(key, "brightness") == 0) {
+    } else if (strcmp(section, "ui") == 0 && strcmp(key, "brightness") == 0 && has_number) {
         config->ui.brightness = (uint8_t)n;
-    } else if (strcmp(section, "ui") == 0 && strcmp(key, "rotation") == 0) {
+    } else if (strcmp(section, "ui") == 0 && strcmp(key, "rotation") == 0 && has_number) {
         config->ui.rotation = (uint8_t)n;
     } else if (strcmp(section, "ui") == 0 && strcmp(key, "show_stats") == 0) {
         if (parse_bool(value, &bool_value)) {
@@ -141,13 +161,13 @@ static void set_numeric_or_bool_field(const char *section, const char *key, cons
         if (parse_bool(value, &bool_value)) {
             config->behavior.sound_enabled = bool_value;
         }
-    } else if (strcmp(section, "behavior") == 0 && strcmp(key, "interaction_timeout_sec") == 0) {
+    } else if (strcmp(section, "behavior") == 0 && strcmp(key, "interaction_timeout_sec") == 0 && has_number) {
         config->behavior.interaction_timeout_sec = (uint16_t)n;
     } else if (strcmp(section, "credits") == 0 && strcmp(key, "credits_enabled") == 0) {
         if (parse_bool(value, &bool_value)) {
             config->credits.credits_enabled = bool_value;
         }
-    } else if (strcmp(section, "credits") == 0 && strcmp(key, "starting_balance") == 0) {
+    } else if (strcmp(section, "credits") == 0 && strcmp(key, "starting_balance") == 0 && has_number) {
         config->credits.starting_balance = (uint32_t)n;
     } else if (strcmp(section, "credits") == 0 && strcmp(key, "allow_write") == 0) {
         if (parse_bool(value, &bool_value)) {
@@ -161,13 +181,13 @@ static void set_numeric_or_bool_field(const char *section, const char *key, cons
         if (parse_bool(value, &bool_value)) {
             config->logging.error_logging = bool_value;
         }
-    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "spi_freq_tft") == 0) {
+    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "spi_freq_tft") == 0 && has_number) {
         config->hardware_overrides.spi_freq_tft = (uint32_t)n;
-    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "spi_freq_flash") == 0) {
+    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "spi_freq_flash") == 0 && has_number) {
         config->hardware_overrides.spi_freq_flash = (uint32_t)n;
-    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "i2c_freq") == 0) {
+    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "i2c_freq") == 0 && has_number) {
         config->hardware_overrides.i2c_freq = (uint32_t)n;
-    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "uart_baud") == 0) {
+    } else if (strcmp(section, "hardware_overrides") == 0 && strcmp(key, "uart_baud") == 0 && has_number) {
         config->hardware_overrides.uart_baud = (uint32_t)n;
     }
 }
@@ -190,7 +210,7 @@ static hal_status_t ensure_parent_dir(const char *path)
 
     *slash = '\0';
 
-    if (mkdir(parent, 0755) == 0 || errno == EEXIST) {
+    if (mkdir(parent, 0750) == 0 || errno == EEXIST) {
         return HAL_OK;
     }
 

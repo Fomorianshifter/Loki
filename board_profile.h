@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #define LOKI_DEFAULT_BOARD_PROFILE_ID "raspberry_pi_zero_w"
+#define LOKI_BOARD_PROFILE_CHOICES "raspberry_pi_zero_w/orange_pi_zero_2w/generic_linux_sbc"
 
 typedef struct {
     const char *id;
