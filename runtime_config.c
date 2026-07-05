@@ -205,6 +205,7 @@ static void set_numeric_or_bool_field(const char *section, const char *key, cons
 static hal_status_t ensure_parent_dir(const char *path)
 {
     char parent[256];
+    char *p;
     char *slash;
 
     if (path == NULL) {
@@ -220,11 +221,21 @@ static hal_status_t ensure_parent_dir(const char *path)
 
     *slash = '\0';
 
-    if (mkdir(parent, 0750) == 0 || errno == EEXIST) {
-        return HAL_OK;
+    for (p = parent + 1; *p != '\0'; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(parent, 0750) != 0 && errno != EEXIST) {
+                return HAL_ERROR;
+            }
+            *p = '/';
+        }
     }
 
-    return HAL_ERROR;
+    if (mkdir(parent, 0750) != 0 && errno != EEXIST) {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
 }
 
 void loki_config_set_defaults(loki_runtime_config_t *config)
