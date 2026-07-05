@@ -1,13 +1,6 @@
 # 📋 Loki Project - Complete Documentation Index
 
-## 🚨 You Had an Issue
-```
-make : The term 'make' is not recognized
-Exit Code 1
-```
-✅ **FIXED** - See below for solution
-
----
+## Documentation Index
 
 ## 🚀 Where to Start (Pick Your Path)
 
@@ -23,7 +16,7 @@ Exit Code 1
 3. **Deploy**: `make DEBUG=0 install`
 4. **Reference**: Use `Makefile` directly
 
-### 👤 I'm Deploying to Production
+### 👤 I'm Deploying to a Target Device
 1. Read [**DEPLOYMENT.md**](DEPLOYMENT.md)
 2. Follow deployment checklist
 3. Set up systemd service
@@ -44,7 +37,7 @@ Exit Code 1
 |----------|---------|-----------|
 | [**QUICKSTART_WINDOWS.md**](QUICKSTART_WINDOWS.md) | Windows setup guide | 10 min |
 | [**QUICK_REFERENCE.md**](QUICK_REFERENCE.md) | Command cheat sheet | 5 min |
-| [**README.md**](README.md) | Project overview & API docs | 15 min |
+| [**README.md**](README.md) | Project vision and current-state overview | 15 min |
 
 ### Building & Deployment
 | Document | Purpose | Read Time |
@@ -54,7 +47,7 @@ Exit Code 1
 | [**Makefile**](Makefile) | Linux/Mac builder | N/A |
 | [**BUILD.md**](BUILD.md) | Build system guide | 15 min |
 | [**BUILD_WINDOWS.md**](BUILD_WINDOWS.md) | Windows platform guide | 10 min |
-| [**DEPLOYMENT.md**](DEPLOYMENT.md) | Production deployment | 20 min |
+| [**DEPLOYMENT.md**](DEPLOYMENT.md) | Deployment guide | 20 min |
 
 ### Code & Architecture
 | Document | Purpose | Read Time |
@@ -264,7 +257,7 @@ A: Check Orange Pi is on, try `ping orange-pi.local`, or use IP address
 A: Yes! Use the standard `make` command
 
 **Q: Can I use this in production?**
-A: Yes! Follow [DEPLOYMENT.md](DEPLOYMENT.md) for systemd setup
+A: Treat the project as evolving. Use [DEPLOYMENT.md](DEPLOYMENT.md) as a baseline and validate reliability/security for your environment.
 
 ---
 

@@ -1,137 +1,75 @@
 # Loki
 
-Loki is an embedded C project for a dragon-themed interactive device that runs on a single-board computer and talks to attached hardware such as a TFT display, SD card, flash memory, EEPROM, and a Flipper Zero over UART.
+Loki is an embedded C codebase centered on a dragon-themed hardware project for Linux-capable single-board computers.
 
-## What this repository teaches
+This repository is best treated as a **learning and experimentation project**: it demonstrates practical patterns for hardware-oriented C software, while still evolving toward a more complete product.
 
-This repo is most useful if you want to learn how to build a hardware-oriented C project with:
+## Project vision
 
-- a small hardware abstraction layer
-- separate device drivers for SPI, I2C, UART, GPIO, and PWM devices
-- structured logging instead of `printf`
-- safer dynamic memory helpers
-- retry logic for unreliable bus operations
-- a simple top-level startup and shutdown flow
+Loki aims to become a reusable base for interactive hardware applications that combine:
 
-## What is in the codebase
+- board-level I/O (GPIO, SPI, I2C, UART, PWM)
+- peripheral drivers (display, storage, EEPROM, external device link)
+- clear startup/shutdown control flow
+- safer logging, memory, and retry practices
 
-Main source files in the current root-level layout include:
+## Current state (realistic summary)
 
-- `main.c` — program entry point, signal handling, and example hardware tests
-- `system.c` / `system.h` — system startup, subsystem initialization, and shutdown
-- `log.c` / `log.h` — leveled logging macros and logger implementation
-- `memory.c` / `memory.h` — tracked allocation helpers such as `malloc_safe()` and `free_safe()`
-- `retry.c` / `retry.h` — retry strategies for transient hardware failures
-- `gpio.c` / `gpio.h` — GPIO abstraction
-- `spi.c` / `spi.h` — SPI abstraction
-- `i2c.c` / `i2c.h` — I2C abstraction
-- `uart.c` / `uart.h` — UART abstraction
-- `pwm.c` / `pwm.h` — PWM abstraction
-- `tft_driver.c` / `tft_driver.h` — TFT display driver
-- `sdcard_driver.c` / `sdcard_driver.h` — SD card driver
-- `flash_driver.c` / `flash_driver.h` — flash memory driver
-- `eeprom_driver.c` / `eeprom_driver.h` — EEPROM driver
-- `flipper_uart.c` / `flipper_uart.h` — Flipper Zero UART protocol support
-- `board_config.h` — board-level settings such as frequencies and timing
-- `pinout.h` — pin mappings used by the project
+What the codebase currently provides:
 
-## How the program flows
+- a root-level C project with a `Makefile` build flow
+- ARM cross-compilation defaults (`arm-linux-gnueabihf-gcc`)
+- a runnable app entry (`main.c`) with initialization and teardown paths
+- reusable support modules for logging (`log.*`), memory (`memory.*`), and retries (`retry.*`)
+- hardware abstraction and device-oriented modules (`gpio.*`, `spi.*`, `i2c.*`, `uart.*`, `pwm.*`, and driver files)
 
-At a high level, `main.c` shows a teachable embedded application structure:
+What to verify for your setup:
 
-1. print a startup banner
-2. initialize logging
-3. install signal handlers for graceful shutdown
-4. call `system_init()`
-5. run sample hardware tests
-6. enter a loop waiting for Flipper messages
-7. call `system_shutdown()` before exit
+- actual pin mappings and bus assignments in `pinout.h` and `board_config.h`
+- target board capabilities and Linux device availability
+- deployment/security model for any long-running use
 
-That pattern is a good starting point for your own SBC or hardware-control application.
+## What this repository teaches well
 
-## Concepts worth learning from Loki
+- layering HAL-style interfaces and higher-level drivers
+- reducing noisy `printf` debugging with leveled logging macros
+- safer heap usage with explicit allocation/free helpers
+- wrapping transient I/O failures with retry strategies
+- structuring embedded-Linux startup and graceful shutdown
 
-### 1. Layered design
+## Build and development commands
 
-The project separates responsibilities:
-
-- low-level bus access lives in HAL-style modules like GPIO, SPI, I2C, UART, and PWM
-- chip or peripheral behavior lives in driver files
-- app behavior stays in `main.c` and `system.c`
-
-This makes the code easier to debug and extend.
-
-### 2. Logging discipline
-
-The logging system gives you levels such as:
-
-- `LOG_CRITICAL()`
-- `LOG_ERROR()`
-- `LOG_WARN()`
-- `LOG_INFO()`
-- `LOG_DEBUG()`
-
-That is much better than scattering raw prints everywhere because it keeps diagnostics consistent.
-
-### 3. Safer memory usage
-
-The memory helpers encourage patterns like:
-
-- allocate with `malloc_safe()`
-- release with `free_safe()`
-- report memory usage in debug workflows
-
-That is a practical pattern for learning C without losing track of heap allocations.
-
-### 4. Retry logic for hardware work
-
-Hardware communication can fail temporarily. The retry helpers show how to wrap operations like SPI, I2C, or EEPROM access with a reusable retry policy instead of duplicating error-handling code.
-
-### 5. Graceful shutdown
-
-The signal handling in `main.c` demonstrates a clean exit path. That matters for embedded Linux software that may be stopped through SSH, a service manager, or a terminal.
-
-## Build basics
-
-Common commands documented in this repo are:
-
-```bash name=build-commands.sh
-make
-make DEBUG=1
-make DEBUG=0
-make test
-make analyze
-make docs
+```bash
+make                 # default debug build
+make DEBUG=1         # explicit debug build
+make DEBUG=0         # release build
+make test            # mock-hardware local run target
+make install         # copy binary to configured target over SSH
+make run             # install + run on configured target
+make analyze         # cppcheck static analysis
+make docs            # generate Doxygen docs
 make clean
+make clean-all
 ```
 
-If your environment is missing the ARM cross-compiler, builds that depend on `arm-linux-gnueabihf-gcc` will fail until the toolchain is installed.
+If `arm-linux-gnueabihf-gcc` is not installed, build targets will fail until the cross toolchain is available.
 
-## Good ways to study this project
-
-If you are learning from this repo, a strong reading order is:
+## Recommended reading order
 
 1. `README.md`
 2. `main.c`
-3. `system.c` and `system.h`
-4. `log.*`, `memory.*`, and `retry.*`
-5. `spi.*`, `i2c.*`, `uart.*`, `gpio.*`, and `pwm.*`
-6. the device drivers
+3. `system.c` / `system.h`
+4. `log.*`, `memory.*`, `retry.*`
+5. HAL modules (`gpio.*`, `spi.*`, `i2c.*`, `uart.*`, `pwm.*`)
+6. device driver modules (`*_driver.*`, `flipper_uart.*`)
 7. `BUILD.md` and `DEPLOYMENT.md`
 
-## Hardware focus
+## Related docs
 
-The repository was originally documented around Orange Pi Zero 2W hardware, and much of the current checked-in code and documentation still reflects that. The code also includes Raspberry Pi and Flipper-related intent in various places, so treat board assumptions as something to verify before wiring real hardware.
-
-## Important note
-
-This README now focuses only on the most teachable and durable information. For deeper platform setup, deployment details, troubleshooting, and build workflow notes, use the companion docs already in the repository such as:
-
-- `BUILD.md`
-- `BUILD_WINDOWS.md`
-- `DEPLOYMENT.md`
-- `CONTRIBUTING.md`
-- `QUICK_REFERENCE.md`
+- `BUILD.md` — concise build and toolchain guide
+- `BUILD_WINDOWS.md` — Windows build flow
+- `DEPLOYMENT.md` — practical deployment checklist and service setup baseline
+- `CONTRIBUTING.md` — contribution and code standards
 
 ## License
 
