@@ -147,6 +147,9 @@ typedef struct {
 /** Egg wiggle threshold: show wiggle when this close to hatching */
 #define LOKI_EGG_WIGGLE_MARGIN  10u
 
+/** Energy recovery multiplier while Loki is sleeping (vs normal drain rate) */
+#define LOKI_ENERGY_RECOVERY_MULT  3u
+
 
 /* ===================================================================
  * API

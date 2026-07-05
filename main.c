@@ -207,12 +207,12 @@ static void demo_loki_lifecycle(void)
 
     /* --- Phase 3: Grow through young stage --- */
     LOG_INFO("--- Phase 3: Growing toward YOUNG stage (200 gp) ---");
-    uint8_t i;
-    for (i = 0; i < 8; i++) {
+    /* 8 cycles of feed+interact+tick to accumulate gp toward the 200-gp threshold */
+    for (uint8_t cycle = 0; cycle < 8; cycle++) {
         loki_feed(&loki, LOKI_FOOD_TASTY);
         loki_interact(&loki);
         loki_interact(&loki);
-        loki_tick(&loki, 120);  /* 2 minutes per iteration */
+        loki_tick(&loki, 120);  /* 2 minutes per cycle */
     }
     loki_feed(&loki, LOKI_FOOD_SPECIAL);
     loki_feed(&loki, LOKI_FOOD_SPECIAL);
@@ -221,10 +221,11 @@ static void demo_loki_lifecycle(void)
 
     /* --- Phase 4: Grow toward adult --- */
     LOG_INFO("--- Phase 4: Growing toward ADULT stage (500 gp) ---");
-    for (i = 0; i < 12; i++) {
+    /* 12 cycles with special treats to cross the 500-gp adult threshold */
+    for (uint8_t cycle = 0; cycle < 12; cycle++) {
         loki_feed(&loki, LOKI_FOOD_SPECIAL);
         loki_interact(&loki);
-        loki_tick(&loki, 180);  /* 3 minutes per iteration */
+        loki_tick(&loki, 180);  /* 3 minutes per cycle */
     }
 
     loki_print_status(&loki);

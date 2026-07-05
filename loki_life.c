@@ -170,9 +170,10 @@ void loki_tick(loki_state_t *state, uint32_t delta_seconds)
 
     /* --- Energy drains over time (unless sleeping restores it) --- */
     if (state->mood == LOKI_MOOD_SLEEPY) {
-        /* While Loki is sleeping, energy recovers instead of draining */
+        /* While Loki is sleeping, energy recovers at LOKI_ENERGY_RECOVERY_MULT
+         * times the normal drain rate */
         uint32_t energy_rec = accumulate_rate(&energy_rem, delta_seconds,
-                                               LOKI_ENERGY_DRAIN * 3u);
+                                               LOKI_ENERGY_DRAIN * LOKI_ENERGY_RECOVERY_MULT);
         state->energy = clamp100((int32_t)state->energy + (int32_t)energy_rec);
     } else {
         uint32_t energy_dec = accumulate_rate(&energy_rem, delta_seconds,
