@@ -78,7 +78,8 @@ Check your HAT's datasheet for exact wiring.
 
 ## 5. RS-485 mode selection
 
-The Loki UART HAL supports three control paths (option 3 — both):
+The Loki UART HAL supports RS-485 through multiple control methods, with kernel
+auto-direction attempted first and GPIO DE toggle as a fallback:
 
 ### Option A: Kernel auto-direction (preferred)
 

@@ -360,6 +360,8 @@ static void rs485_de_assert(uart_context_t *ctx)
     }
 #endif
     if (ctx->rs485_gpio_val_fd >= 0) {
+        /* Rewind to byte 0 before each sysfs write to avoid EINVAL on some kernels */
+        lseek(ctx->rs485_gpio_val_fd, 0, SEEK_SET);
         (void)write(ctx->rs485_gpio_val_fd, "1", 1);
     }
 }
@@ -374,6 +376,7 @@ static void rs485_de_deassert(uart_context_t *ctx)
     }
 #endif
     if (ctx->rs485_gpio_val_fd >= 0) {
+        lseek(ctx->rs485_gpio_val_fd, 0, SEEK_SET);
         (void)write(ctx->rs485_gpio_val_fd, "0", 1);
     }
 }
@@ -560,7 +563,7 @@ hal_status_t uart_send(uart_port_t port, const uint8_t *data, uint32_t length)
 
     /* Write loop — handle partial writes and EINTR */
     const uint8_t *ptr       = data;
-    uint32_t       remaining = length;
+    size_t         remaining = (size_t)length;
 
     while (remaining > 0) {
         ssize_t n = write(ctx->fd, ptr, remaining);
@@ -574,8 +577,8 @@ hal_status_t uart_send(uart_port_t port, const uint8_t *data, uint32_t length)
             }
             return HAL_ERROR;
         }
-        ptr       += (uint32_t)n;
-        remaining -= (uint32_t)n;
+        ptr       += (size_t)n;
+        remaining -= (size_t)n;
     }
 
     /* Wait for all bytes to leave the hardware FIFO */
@@ -644,12 +647,12 @@ hal_status_t uart_receive(uart_port_t port, uint8_t *data, uint32_t length,
         }
 
         /* Wait for more data */
-        int rc;
         if (!use_deadline) {
-            rc = pthread_cond_wait(&ctx->rx_cond, &ctx->mutex);
-            (void)rc;
+            if (pthread_cond_wait(&ctx->rx_cond, &ctx->mutex) != 0) {
+                /* Spurious wake or error — loop and re-check */
+            }
         } else {
-            rc = pthread_cond_timedwait(&ctx->rx_cond, &ctx->mutex, &deadline);
+            int rc = pthread_cond_timedwait(&ctx->rx_cond, &ctx->mutex, &deadline);
             if (rc == ETIMEDOUT) {
                 pthread_mutex_unlock(&ctx->mutex);
                 return HAL_TIMEOUT;
@@ -726,6 +729,9 @@ hal_status_t uart_deinit(uart_port_t port)
         return HAL_OK;
     }
 
+    /* Mark uninitialized first so concurrent API callers return HAL_NOT_READY */
+    ctx->initialized = 0;
+
     /* Signal RX thread to stop and wait for it to exit */
     ctx->rx_thread_stop = 1;
     if (ctx->rx_thread_started) {
@@ -748,6 +754,5 @@ hal_status_t uart_deinit(uart_port_t port)
     pthread_mutex_destroy(&ctx->mutex);
     pthread_cond_destroy(&ctx->rx_cond);
 
-    ctx->initialized = 0;
     return HAL_OK;
 }
