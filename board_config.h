@@ -45,13 +45,30 @@
 #define EEPROM_I2C_ADDR   0x50  /* I2C 7-bit address */
 #define EEPROM_I2C_FREQ   100000    /* 100 kHz standard mode */
 
-/* ===== UART FLIPPER CONFIGURATION ===== */
-#define UART1_BAUD_RATE  115200   /* Standard Flipper UART rate */
-#define UART1_DATA_BITS  8
-#define UART1_STOP_BITS  1
-#define UART1_PARITY     UART_PARITY_NONE
+/* ===== UART CONFIGURATION ===== */
+#define UART1_BAUD_RATE       115200          /* Standard baud rate              */
+#define UART1_DATA_BITS       8
+#define UART1_STOP_BITS       1
+#define UART1_PARITY          UART_PARITY_NONE
 #define UART1_RX_BUFFER_SIZE  256
 #define UART1_TX_BUFFER_SIZE  256
+
+/* Device path — /dev/serial0 is the Pi's primary UART (symlink)            */
+/* Override at compile time: make CFLAGS+=-DUART1_DEVICE_PATH='"/dev/ttyS0"' */
+#ifndef UART1_DEVICE_PATH
+#define UART1_DEVICE_PATH     "/dev/serial0"
+#endif
+
+/* RS-485 mode (0 = disabled; set to 1 to enable for RS-485 HAT)            */
+#define UART1_RS485_ENABLED          0
+
+/* BCM GPIO pin used as DE/RE when kernel auto-direction is unavailable.     */
+/* Set rs485_de_gpio_fallback = 1 in uart_config_t to activate.             */
+/* Common HAT wiring: GPIO4 (pin 7) or GPIO18 (pin 12) — verify your HAT.  */
+#define UART1_RS485_DE_GPIO          RS485_DE_GPIO
+
+/* Microseconds between tcdrain() and DE de-assertion (0 = none)            */
+#define UART1_RS485_TURNAROUND_US    0
 
 /* ===== DECOUPLING CAPACITOR VALUES ===== */
 #define DECAP_BULK_UF     10    /* 10 µF bulk capacitors */

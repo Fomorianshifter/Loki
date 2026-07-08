@@ -2,15 +2,22 @@
 #define UART_H
 
 /**
- * UART Hardware Abstraction Layer for Orange Pi Zero 2W
- * Supports UART1 for Flipper Zero communication
+ * UART Hardware Abstraction Layer
+ * Linux SBC (Raspberry Pi) — production implementation
+ *
+ * RS-485 is supported in two modes (option 3):
+ *   1. Kernel auto-direction via TIOCSRS485 ioctl (preferred)
+ *   2. Manual GPIO DE toggle via sysfs / libgpiod fallback
+ *
+ * Set uart_config_t.rs485_enabled = 1 to activate.
+ * Set rs485_de_gpio_fallback = 1 and rs485_de_gpio_pin to enable GPIO path.
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== UART DEFINITIONS ===== */
 typedef enum {
-    UART_PORT_1 = 1,  /* Flipper Zero communication */
+    UART_PORT_1   = 1,  /* Primary UART (RS-485 HAT / Flipper Zero) */
     UART_PORT_COUNT = 1,
 } uart_port_t;
 

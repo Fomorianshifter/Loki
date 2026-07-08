@@ -76,6 +76,12 @@ typedef struct {
     uart_data_bits_t data_bits;
     uart_stop_bits_t stop_bits;
     uart_parity_t parity;
+    /* RS-485 and device options — zero-initialised fields keep legacy behaviour */
+    const char *device_path;         /* NULL = use compile-time UART_DEFAULT_DEVICE  */
+    uint8_t rs485_enabled;           /* 1 = enable RS-485 mode                       */
+    uint8_t rs485_de_gpio_fallback;  /* 1 = allow GPIO DE fallback when ioctl fails   */
+    int rs485_de_gpio_pin;           /* BCM GPIO for DE pin; -1 = unset               */
+    uint32_t rs485_turnaround_us;    /* TX→RX turnaround delay in microseconds        */
 } uart_config_t;
 
 /* ===== GPIO CONFIGURATION ===== */
