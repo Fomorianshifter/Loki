@@ -107,6 +107,43 @@ make clean
 
 If your environment is missing the ARM cross-compiler, builds that depend on `arm-linux-gnueabihf-gcc` will fail until the toolchain is installed.
 
+## Raspberry Pi Zero W installation (step-by-step)
+
+Use this path if you want to run Loki directly on a Raspberry Pi Zero W.
+
+1. Prepare the board with **Raspberry Pi OS Lite (32-bit)**, enable SSH, and connect it to Wi-Fi.
+2. SSH into the Pi:
+   ```bash
+   ssh pi@raspberrypi.local
+   ```
+3. Install build dependencies on the Pi:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git make gcc
+   ```
+4. Clone the repository and enter it:
+   ```bash
+   git clone https://github.com/Fomorianshifter/Loki.git
+   cd Loki
+   ```
+5. Build natively for Pi Zero W (ARMv6):
+   ```bash
+   make clean
+   make DEBUG=1 CC=gcc CFLAGS="-Wall -Wextra -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard -I."
+   ```
+6. Run the binary:
+   ```bash
+   sudo ./build/debug/loki_app
+   ```
+7. For an optimized release build:
+   ```bash
+   make clean
+   make DEBUG=0 CC=gcc CFLAGS="-Wall -Wextra -march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard -I."
+   sudo ./build/release/loki_app
+   ```
+
+If you cross-compile from another machine, ensure your compile flags target ARMv6, not the default ARMv7 settings in this repository's Makefile.
+
 ## Good ways to study this project
 
 If you are learning from this repo, a strong reading order is:
