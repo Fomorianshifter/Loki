@@ -126,7 +126,7 @@ make clean-all
 make DEBUG=0
 
 # Verify binary was created
-ls -lah loki_app
+ls -lah build/release/loki_app
 ```
 
 ### Step 4: Run Static Analysis (Optional)
@@ -155,7 +155,7 @@ open docs/html/index.html
 make install CROSS_USER=pi CROSS_HOST=raspberrypi.local
 
 # Behind a proxy? Use explicit SSH:
-scp loki_app pi@raspberrypi.local:/home/pi/
+scp build/release/loki_app pi@raspberrypi.local:/home/pi/loki_app
 
 # Verify transfer
 ssh pi@raspberrypi.local ls -la loki_app
@@ -428,7 +428,7 @@ Install and enable:
 
 ```bash
 # Copy binary to system location
-sudo cp loki_app /usr/local/bin/
+sudo cp build/release/loki_app /usr/local/bin/loki_app
 sudo chmod +x /usr/local/bin/loki_app
 
 # Copy service file
@@ -615,4 +615,3 @@ Once deployment is successful:
 **Last Updated**: February 2026  
 **Deployment Version**: v1.0  
 **Status**: Ready for production
-
