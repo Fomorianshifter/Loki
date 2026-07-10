@@ -17,16 +17,27 @@ CONFIG_TOML := config.toml
 CONFIG_HDRS := board_config.h pinout.h config.h
 
 ## Compiler Settings
-## Prefer ARM cross-compiler for Raspberry Pi target; fall back to native gcc.
-ifneq ($(shell which arm-linux-gnueabihf-gcc 2>/dev/null),)
-    CC     := arm-linux-gnueabihf-gcc
-    CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
+## On ARM hosts (e.g. Raspberry Pi), build natively with safe defaults.
+## On non-ARM hosts, prefer the ARM cross-compiler when available.
+HOST_ARCH := $(shell uname -m)
+USING_CROSS := 0
+ifeq ($(filter arm% aarch64%,$(HOST_ARCH)),)
+    ifneq ($(shell which arm-linux-gnueabihf-gcc 2>/dev/null),)
+        CC          := arm-linux-gnueabihf-gcc
+        BASE_CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
+        USING_CROSS := 1
+    else
+        CC          := gcc
+        BASE_CFLAGS := -Wall -Wextra
+        $(info [WARN] arm-linux-gnueabihf-gcc not found, using native gcc)
+    endif
 else
-    CC     := gcc
-    CFLAGS := -Wall -Wextra
-    $(info [WARN] arm-linux-gnueabihf-gcc not found, using native gcc)
+    CC          := gcc
+    BASE_CFLAGS := -Wall -Wextra
+    $(info [INFO] Native ARM host detected ($(HOST_ARCH)); using gcc defaults)
 endif
-CFLAGS += -I.
+
+CFLAGS := $(BASE_CFLAGS) -I.
  
 ## Debug/Release Build Modes
 DEBUG ?= 1
@@ -54,6 +65,14 @@ TARGET := loki_app
  
 ## Linker Settings
 LDFLAGS := -lm -lpthread
+
+ifeq ($(USING_CROSS),1)
+    SIZE_TOOL := arm-linux-gnueabihf-size
+    NM_TOOL   := arm-linux-gnueabihf-nm
+else
+    SIZE_TOOL := size
+    NM_TOOL   := nm
+endif
 
 ## Optional: libgpiod for RS-485 GPIO DE control (replaces sysfs fallback)
 ## Install:  sudo apt-get install libgpiod-dev
@@ -134,8 +153,8 @@ analyze:
 ## Size report
 size: $(BUILD_DIR)/$(TARGET)
 	@echo "[→] Binary size breakdown:"
-	arm-linux-gnueabihf-size $(BUILD_DIR)/$(TARGET)
-	arm-linux-gnueabihf-nm -tS $(BUILD_DIR)/$(TARGET) | head -20
+	$(SIZE_TOOL) $(BUILD_DIR)/$(TARGET)
+	$(NM_TOOL) -tS $(BUILD_DIR)/$(TARGET) | head -20
  
 ## Print configuration
 info:
