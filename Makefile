@@ -7,6 +7,12 @@
 # Requires: arm-linux-gnueabihf-gcc cross-compiler
 # Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf
 
+## Config generation (single source of truth: config.toml)
+PYTHON     ?= python3
+CONFIG_GEN  := tools/gen_config.py
+CONFIG_TOML := config.toml
+CONFIG_HDRS := board_config.h pinout.h config.h
+
 ## Compiler Settings
 CC := arm-linux-gnueabihf-gcc
 CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
@@ -39,8 +45,15 @@ TARGET := loki_app
 ## Linker Settings
 LDFLAGS := -lm -lpthread
  
-## Build Rules
-all: $(BUILD_DIR)/$(TARGET)
+## Generated config headers — regenerated whenever config.toml or the script changes
+$(CONFIG_HDRS): $(CONFIG_TOML) $(CONFIG_GEN)
+	$(PYTHON) $(CONFIG_GEN)
+
+## Convenience target to regenerate headers without building
+config: $(CONFIG_HDRS)
+
+## Build Rules — generated headers must exist before any .c is compiled
+all: $(CONFIG_HDRS) $(BUILD_DIR)/$(TARGET)
  
 $(BUILD_DIR)/$(TARGET): $(OBJECTS)
 	@mkdir -p $(BUILD_DIR)
@@ -116,4 +129,4 @@ info:
 	@echo "║ Target path: $(CROSS_PATH)"
 	@echo "╚════════════════════════════════════════╝"
  
-.PHONY: all clean clean-all install run test docs analyze size info
+.PHONY: all config clean clean-all install run test docs analyze size info
