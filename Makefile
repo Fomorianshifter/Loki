@@ -10,6 +10,8 @@
 # Native build (when running directly on the Pi):
 #   make  (will use gcc if cross-compiler is absent)
 
+.DEFAULT_GOAL := all
+
 ## Config generation (single source of truth: config.toml)
 PYTHON      ?= python3
 CONFIG_GEN  := tools/gen_config.py
