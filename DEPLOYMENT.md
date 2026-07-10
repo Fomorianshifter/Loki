@@ -1,12 +1,12 @@
 # Loki Deployment Guide
 
-Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
+Complete instructions for deploying Loki to Raspberry Pi hardware.
 
 ## Version Information
 
-- **Project**: Loki Orange Pi Zero 2W Embedded System
-- **Target Hardware**: Orange Pi Zero 2W (ARMv7 Cortex-A7)
-- **OS**: Armbian or Orange Pi OS (Linux-based)
+- **Project**: Loki Raspberry Pi Embedded System
+- **Target Hardware**: Raspberry Pi (ARMv7 Cortex-A7)
+- **OS**: Armbian or Raspberry Pi OS (Linux-based)
 - **Status**: Ready for deployment (v1.0)
 - **Updated**: February 2026
 
@@ -36,19 +36,19 @@ Complete instructions for deploying Loki to Orange Pi Zero 2W hardware.
   sudo apt-get install cppcheck
   ```
 
-### ✅ Orange Pi Zero 2W Hardware Setup
-- [ ] Orange Pi running Armbian or Orange Pi OS
+### ✅ Raspberry Pi Hardware Setup
+- [ ] Raspberry Pi running Armbian or Raspberry Pi OS
 - [ ] SSH access enabled and working
   ```bash
   # Test SSH connection
-  ssh pi@orange-pi.local
+  ssh pi@raspberrypi.local
 
   # Or if DHCP not working, use IP address from router
   ssh pi@192.168.1.XXX
   ```
-- [ ] Development tools available on Orange Pi:
+- [ ] Development tools available on Raspberry Pi:
   ```bash
-  # On Orange Pi - install cross-compilation runtime support
+  # On Raspberry Pi - install cross-compilation runtime support
   sudo apt-get update
   sudo apt-get install libc6-armhf-cross
 
@@ -100,7 +100,7 @@ cd Loki
 
 ### Step 2: Verify Cross-Compiler Configuration
 
-Edit **Makefile** and verify cross-compiler path and Orange Pi hostname:
+Edit **Makefile** and verify cross-compiler path and Raspberry Pi hostname:
 
 ```makefile
 # Makefile (lines ~10-15)
@@ -109,9 +109,9 @@ ARM_CROSS_COMPILE ?= arm-linux-gnueabihf-
 # Check your cross-compiler
 which arm-linux-gnueabihf-gcc  # Should show path
 
-# Verify Orange Pi hostname/IP
+# Verify Raspberry Pi hostname/IP
 # Change CROSS_HOST if needed:
-CROSS_HOST ?= orange-pi.local
+CROSS_HOST ?= raspberrypi.local
 # Or use IP address:
 CROSS_HOST ?= 192.168.1.100
 ```
@@ -148,38 +148,38 @@ make docs
 open docs/html/index.html
 ```
 
-### Step 6: Deploy Binary to Orange Pi
+### Step 6: Deploy Binary to Raspberry Pi
 
 ```bash
-# Copy binary to Orange Pi home directory
-make install CROSS_USER=pi CROSS_HOST=orange-pi.local
+# Copy binary to Raspberry Pi home directory
+make install CROSS_USER=pi CROSS_HOST=raspberrypi.local
 
 # Behind a proxy? Use explicit SSH:
-scp loki_app pi@orange-pi.local:/home/pi/
+scp loki_app pi@raspberrypi.local:/home/pi/
 
 # Verify transfer
-ssh pi@orange-pi.local ls -la loki_app
+ssh pi@raspberrypi.local ls -la loki_app
 ```
 
 ### Step 7: Set Executable Permissions
 
 ```bash
 # On development machine:
-ssh pi@orange-pi.local chmod +x /home/pi/loki_app
+ssh pi@raspberrypi.local chmod +x /home/pi/loki_app
 
 # Verify
-ssh pi@orange-pi.local ls -la loki_app
+ssh pi@raspberrypi.local ls -la loki_app
 # Should show: -rwxr-xr-x (755)
 ```
 
-### Step 8: Run Application on Orange Pi
+### Step 8: Run Application on Raspberry Pi
 
 ```bash
 # Option 1: Via remote SSH (from dev machine)
-ssh pi@orange-pi.local "cd ~ && sudo ./loki_app"
+ssh pi@raspberrypi.local "cd ~ && sudo ./loki_app"
 
-# Option 2: SSH into Orange Pi then run
-ssh pi@orange-pi.local
+# Option 2: SSH into Raspberry Pi then run
+ssh pi@raspberrypi.local
 cd ~
 sudo ./loki_app
 
@@ -245,9 +245,9 @@ ls -la *.o   # Should have gpio.o, spi.o, i2c.o, etc.
 
 #### SSH connection refused
 ```bash
-ssh: connect to host orange-pi.local port 22: Connection refused
+ssh: connect to host raspberrypi.local port 22: Connection refused
 
-# Solution 1: Find Orange Pi IP address
+# Solution 1: Find Raspberry Pi IP address
 # From router admin page or use nmap:
 nmap -p 22 192.168.1.0/24
 
@@ -255,12 +255,12 @@ nmap -p 22 192.168.1.0/24
 make install CROSS_HOST=192.168.1.100
 ```
 
-#### Permission denied on Orange Pi
+#### Permission denied on Raspberry Pi
 ```bash
-pi@orange-pi: permission denied: ./loki_app
+pi@raspberrypi: permission denied: ./loki_app
 
 # Solution: Ensure execute permission
-ssh pi@orange-pi.local chmod +x ~/loki_app
+ssh pi@raspberrypi.local chmod +x ~/loki_app
 ```
 
 #### GPIO/SPI/I2C permission errors
@@ -289,7 +289,7 @@ sudo ./loki_app
 # Check 2: SPI bus permissions
 sudo cat /dev/spidev0.0  # Should work with sudo
 
-# Check 3: Enable SPI in Orange Pi
+# Check 3: Enable SPI in Raspberry Pi
 sudo raspi-config  # Or equivalent config tool
 # Enable SPI interface
 ```
@@ -304,7 +304,7 @@ sudo raspi-config  # Or equivalent config tool
 - Verify power: 3.3V to SD module
 
 # Check 2: Card status
-ssh pi@orange-pi.local "cat /proc/cmdline | grep -i sd"
+ssh pi@raspberrypi.local "cat /proc/cmdline | grep -i sd"
 
 # Check 3: Try with debug logging
 make DEBUG=1
@@ -318,12 +318,12 @@ make DEBUG=1
 # Check 1: Wiring
 - Verify UART pins: 8 (TX), 10 (RX)
 - Verify Flipper is powered and connected
-- TX on Orange Pi → RX on Flipper
-- RX on Orange Pi → TX on Flipper
+- TX on Raspberry Pi → RX on Flipper
+- RX on Raspberry Pi → TX on Flipper
 
 # Check 2: UART configuration
 # Verify /dev/ttyS1 exists:
-ssh pi@orange-pi.local "ls -la /dev/ttyS1"
+ssh pi@raspberrypi.local "ls -la /dev/ttyS1"
 
 # Check 3: Baud rate
 # 115200 baud is correct, verify in flipper_uart.h
@@ -336,19 +336,19 @@ Segmentation fault (core dumped)
 # Enable debugging symbols
 make DEBUG=1  # Recompile with debuggable binary
 
-# Option 1: Run under gdb on Orange Pi
-ssh pi@orange-pi.local
+# Option 1: Run under gdb on Raspberry Pi
+ssh pi@raspberrypi.local
 sudo gdb ~/loki_app
 (gdb) run
 # Will show crash location
 
 # Option 2: Use gdbserver for remote debugging
-# On Orange Pi:
+# On Raspberry Pi:
 sudo gdbserver :5005 ~/loki_app
 
 # On dev machine:
 arm-linux-gnueabihf-gdb loki_app
-(gdb) target remote orange-pi.local:5005
+(gdb) target remote raspberrypi.local:5005
 (gdb) list
 (gdb) backtrace  # Show crash stack
 ```
@@ -358,12 +358,12 @@ arm-linux-gnueabihf-gdb loki_app
 #### Application runs too slowly
 ```bash
 # Check clock speed
-ssh pi@orange-pi.local "cat /proc/cpuinfo | grep MHz"
+ssh pi@raspberrypi.local "cat /proc/cpuinfo | grep MHz"
 
 # Profile application with perf
-ssh pi@orange-pi.local "sudo apt-get install linux-tools"
-ssh pi@orange-pi.local "sudo perf record ~/loki_app"
-ssh pi@orange-pi.local "sudo perf report"
+ssh pi@raspberrypi.local "sudo apt-get install linux-tools"
+ssh pi@raspberrypi.local "sudo perf record ~/loki_app"
+ssh pi@raspberrypi.local "sudo perf report"
 ```
 
 #### Display refresh too slow
@@ -380,8 +380,8 @@ make install  # Redeploy
 
 #### Memory usage too high
 ```bash
-# Check memory usage on Orange Pi
-ssh pi@orange-pi.local "free -h"
+# Check memory usage on Raspberry Pi
+ssh pi@raspberrypi.local "free -h"
 
 # Enable memory leak detection
 make DEBUG=1  # Recompile
@@ -395,7 +395,7 @@ make DEBUG=1  # Recompile
 
 ## Persistent Deployment
 
-For production, you want Loki to run automatically on Orange Pi boot:
+For production, you want Loki to run automatically on Raspberry Pi boot:
 
 ### Using systemd Service
 
@@ -403,7 +403,7 @@ Create `/etc/systemd/system/loki.service`:
 
 ```ini
 [Unit]
-Description=Loki Orange Pi Zero 2W System
+Description=Loki Raspberry Pi System
 After=network.target
 
 [Service]
@@ -507,7 +507,7 @@ make clean && make DEBUG=0
 Identify bottlenecks:
 
 ```bash
-# On Orange Pi, compile with profiling
+# On Raspberry Pi, compile with profiling
 make DEBUG=0 CFLAGS+="-pg"
 
 # Run application
@@ -525,10 +525,10 @@ If deployment fails and you need to revert:
 
 ```bash
 # Stop current application
-ssh pi@orange-pi.local "sudo killall loki_app"
+ssh pi@raspberrypi.local "sudo killall loki_app"
 
 # Revert to previous version
-ssh pi@orange-pi.local "cp ~/loki_app.backup ~/loki_app"
+ssh pi@raspberrypi.local "cp ~/loki_app.backup ~/loki_app"
 
 # Or redeploy from dev machine with previous build
 git checkout v0.9
@@ -543,27 +543,27 @@ make install
 ### Monitor Logs
 ```bash
 # Real-time log monitoring
-ssh pi@orange-pi.local "sudo journalctl -u loki.service -f"
+ssh pi@raspberrypi.local "sudo journalctl -u loki.service -f"
 
 # Check for errors
-ssh pi@orange-pi.local "dmesg | tail -20"
+ssh pi@raspberrypi.local "dmesg | tail -20"
 ```
 
 ### Check Hardware Health
 ```bash
-# Orange Pi system status
-ssh pi@orange-pi.local "cat /proc/cpuinfo"
-ssh pi@orange-pi.local "cat /proc/meminfo"
-ssh pi@orange-pi.local "cat /proc/uptime"
+# Raspberry Pi system status
+ssh pi@raspberrypi.local "cat /proc/cpuinfo"
+ssh pi@raspberrypi.local "cat /proc/meminfo"
+ssh pi@raspberrypi.local "cat /proc/uptime"
 
 # Temperature
-ssh pi@orange-pi.local "sudo cat /sys/class/thermal/thermal_zone0/temp"
+ssh pi@raspberrypi.local "sudo cat /sys/class/thermal/thermal_zone0/temp"
 ```
 
 ### Update Firmware
 ```bash
-# Keep Orange Pi OS updated
-ssh pi@orange-pi.local "sudo apt-get update && sudo apt-get upgrade"
+# Keep Raspberry Pi OS updated
+ssh pi@raspberrypi.local "sudo apt-get update && sudo apt-get upgrade"
 
 # Recompile Loki if kernel changed
 make clean
@@ -586,7 +586,7 @@ After deployment, verify:
 - [ ] Logging output shows correct timestamps
 - [ ] No memory leaks displayed at shutdown
 - [ ] Application survives 1-hour stress test
-- [ ] Orange Pi temperature stays below 70°C under load
+- [ ] Raspberry Pi temperature stays below 70°C under load
 
 ---
 
@@ -599,7 +599,7 @@ Once deployment is successful:
 3. **Testing**: Integration testing with Flipper Zero hardware
 4. **Documentation**: Document deployment procedure for your team
 5. **Monitoring**: Set up monitoring for production deployments
-6. **Scaling**: Plan for multiple Orange Pi devices if needed
+6. **Scaling**: Plan for multiple Raspberry Pi devices if needed
 
 ---
 
@@ -615,3 +615,4 @@ Once deployment is successful:
 **Last Updated**: February 2026  
 **Deployment Version**: v1.0  
 **Status**: Ready for production
+

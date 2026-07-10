@@ -24,7 +24,7 @@ The original Makefile was minimal and only supported basic compilation. A produc
   - `DEBUG=0`: Optimized for size/speed with assertions disabled
 - **12 Build Targets**:
   - `all` - Default compilation
-  - `install` - Deploy compiled binary to Orange Pi
+  - `install` - Deploy compiled binary to Raspberry Pi
   - `run` - Build and execute on target
   - `test` - Compile with test flags enabled
   - `docs` - Generate Doxygen API documentation (HTML)
@@ -51,7 +51,7 @@ endif
 
 # Installation variables
 CROSS_USER ?= pi
-CROSS_HOST ?= orange-pi.local
+CROSS_HOST ?= raspberrypi.local
 
 # Build targets
 install:
@@ -66,7 +66,7 @@ analyze:
 
 #### Benefits
 - ✅ Developers can quickly toggle between debug/release builds
-- ✅ Easy remote deployment to Orange Pi
+- ✅ Easy remote deployment to Raspberry Pi
 - ✅ Automated documentation generation
 - ✅ Code quality analysis integrated into build
 - ✅ Binary size optimization visibility
@@ -551,7 +551,7 @@ WARNINGS            = YES
 # Appearance
 HTML_DYNAMIC_SECTIONS = YES
 SEARCHENGINE        = YES
-PROJECT_NAME        = "Loki Orange Pi Zero 2W"
+PROJECT_NAME        = "Loki Raspberry Pi"
 PROJECT_BRIEF       = "Professional HAL and Device Drivers"
 
 # Advanced
@@ -854,5 +854,6 @@ These 8 improvements transform the Loki project from a basic embedded systems fo
 - ✅ Developer guides (BUILD.md, CONTRIBUTING.md)
 - ✅ Code quality assurance (static analysis, size reporting)
 
-The codebase is now ready for deployment to Orange Pi Zero 2W hardware with confidence that it will behave reliably and that future developers can maintain and extend it effectively.
+The codebase is now ready for deployment to Raspberry Pi hardware with confidence that it will behave reliably and that future developers can maintain and extend it effectively.
+
 

@@ -4,7 +4,7 @@
 param(
     [string]$Mode = "debug",
     [switch]$Install = $false,
-    [string]$HostName = "orange-pi.local",
+    [string]$HostName = "raspberrypi.local",
     [string]$User = "pi"
 )
 
@@ -158,9 +158,9 @@ if ($Install) {
     if ($LASTEXITCODE -ne 0 -or $ssh_check -notlike "*OK*") {
         Write-Host "[X] SSH connection failed to $User@$HostName" -ForegroundColor Red
         Write-Host "[!] Ensure:" -ForegroundColor Yellow
-        Write-Host "    1. Orange Pi is powered on" -ForegroundColor Yellow
+        Write-Host "    1. Raspberry Pi is powered on" -ForegroundColor Yellow
         Write-Host "    2. You can ping: ping $HostName" -ForegroundColor Yellow
-        Write-Host "    3. SSH is enabled on Orange Pi" -ForegroundColor Yellow
+        Write-Host "    3. SSH is enabled on Raspberry Pi" -ForegroundColor Yellow
         Write-Host "    4. Correct credentials (user: $User)" -ForegroundColor Yellow
         exit 1
     }
@@ -185,7 +185,8 @@ if ($Install) {
     Write-Host "[+] Build successful" -ForegroundColor Green
     Write-Host "[!] To deploy: add -Install flag" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Example: .\build.ps1 -Mode release -Install -HostName orange-pi.local" -ForegroundColor Cyan
+    Write-Host "Example: .\build.ps1 -Mode release -Install -HostName raspberrypi.local" -ForegroundColor Cyan
 }
 
 Write-Host ""
+

@@ -1,13 +1,13 @@
 /**
  * TFT Display Driver Implementation for ILI9488
- * Orange Pi Zero 2W - SPI0 Interface
+ * Raspberry Pi - SPI0 Interface
  */
 
 #include "tft_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../hal/pwm/pwm.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "pwm.h"
+#include "config.h"
 #include <stdio.h>
 #include <unistd.h>
 

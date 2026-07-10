@@ -107,6 +107,22 @@ make clean
 
 If your environment is missing the ARM cross-compiler, builds that depend on `arm-linux-gnueabihf-gcc` will fail until the toolchain is installed.
 
+## Master configuration (`config.toml`)
+
+Loki now uses a single master `config.toml` with a runtime-first structure inspired by Pwnagotchi:
+
+- `[main]`, `[main.auth]`, `[main.network]`
+- `[main.plugins.*]` including plugin loader settings
+- `[ui]`, `[ui.web]`, `[ui.display]`
+
+Build-time C macros are generated from `[build.board]` and `[build.pinout]` by:
+
+```bash
+python3 tools/gen_config.py
+```
+
+The generated files are `board_config.h`, `pinout.h`, and `config.h`.
+
 ## Good ways to study this project
 
 If you are learning from this repo, a strong reading order is:
@@ -121,7 +137,7 @@ If you are learning from this repo, a strong reading order is:
 
 ## Hardware focus
 
-The repository was originally documented around Orange Pi Zero 2W hardware, and much of the current checked-in code and documentation still reflects that. The code also includes Raspberry Pi and Flipper-related intent in various places, so treat board assumptions as something to verify before wiring real hardware.
+The repository was originally documented around Raspberry Pi hardware, and much of the current checked-in code and documentation still reflects that. The code also includes Raspberry Pi and Flipper-related intent in various places, so treat board assumptions as something to verify before wiring real hardware.
 
 ## Important note
 
@@ -136,3 +152,4 @@ This README now focuses only on the most teachable and durable information. For 
 ## License
 
 MIT License. See `LICENSE`.
+

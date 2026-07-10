@@ -2,7 +2,7 @@
 
 ## Your Issue
 
-You ran: `make install CROSS_HOST=orange-pi.local`
+You ran: `make install CROSS_HOST=raspberrypi.local`
 
 **Error**: `make : The term 'make' is not recognized` (Exit Code 1)
 
@@ -17,12 +17,12 @@ You ran: `make install CROSS_HOST=orange-pi.local`
 #### 🟦 PowerShell Script (Recommended for Windows 10/11)
 ```powershell
 # Build and deploy in one command
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 #### 🟪 Batch Script (For CMD.exe)
 ```batch
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
 ### 2. Your Options Now
@@ -52,7 +52,7 @@ build.bat release orange-pi.local pi --install
 
 #### Build AND Deploy in One Command
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 ---
@@ -111,7 +111,7 @@ cd C:\Users\nlane\Desktop\Loki
 
 ### Step 4: Deploy
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local
 ```
 
 ---
@@ -173,7 +173,7 @@ make analyze                          # Code analysis
 |---|---|
 | **Build on Windows** | [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md) |
 | **Understand the project** | [README.md](README.md) |
-| **Deploy to Orange Pi** | [DEPLOYMENT.md](DEPLOYMENT.md) |
+| **Deploy to Raspberry Pi** | [DEPLOYMENT.md](DEPLOYMENT.md) |
 | **Write code** | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | **Find a file** | [FILE_REFERENCE.md](FILE_REFERENCE.md) |
 | **Learn improvements** | [IMPROVEMENTS.md](IMPROVEMENTS.md) |
@@ -203,7 +203,7 @@ make analyze                          # Code analysis
 2. Creates build directories
 3. Compiles all source files (.c → .o)
 4. Links the binary
-5. (Optional) Deploys to Orange Pi via SSH/SCP
+5. (Optional) Deploys to Raspberry Pi via SSH/SCP
 
 ### What's in build/
 
@@ -220,7 +220,7 @@ build/release/
 └── utils/log.o
 ```
 
-The `loki_app` binary is ready to deploy to Orange Pi!
+The `loki_app` binary is ready to deploy to Raspberry Pi!
 
 ---
 
@@ -255,3 +255,4 @@ The `loki_app` binary is ready to deploy to Orange Pi!
 ✅ **Status**: Fixed and ready to use!
 
 🚀 **Ready to build?** Start here: [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md)
+

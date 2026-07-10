@@ -1,12 +1,12 @@
 /**
  * SD Card Driver Implementation for push-pull 6-pin module
- * Orange Pi Zero 2W - SPI1 Interface
+ * Raspberry Pi - SPI1 Interface
  */
 
 #include "sdcard_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "config.h"
 #include <string.h>
 
 /* ===== SD CARD COMMANDS ===== */

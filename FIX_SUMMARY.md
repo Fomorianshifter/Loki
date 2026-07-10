@@ -23,7 +23,7 @@ Created **3 new build tools** for Windows developers:
 **Usage**:
 ```powershell
 .\build.ps1 -Mode debug
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 ### 2. Batch Build Script (`build.bat`)
@@ -35,12 +35,12 @@ Created **3 new build tools** for Windows developers:
 **Usage**:
 ```batch
 build.bat debug
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
 ### 3. Windows Quick Start Guide (`QUICKSTART_WINDOWS.md`)
 - Step-by-step ARM toolchain installation
-- SSH setup for Orange Pi
+- SSH setup for Raspberry Pi
 - Build instructions
 - Troubleshooting guide
 - Common commands reference
@@ -90,7 +90,7 @@ build/
     └── hal/**/*.o
 ```
 
-## Deployment Flow (Windows → Orange Pi)
+## Deployment Flow (Windows → Raspberry Pi)
 
 ```
 1. Windows Machine
@@ -99,11 +99,11 @@ build/
    └── Builds: build\release\loki_app
 
 2. SSH Connection
-   ├── Verify: ssh pi@orange-pi.local
+   ├── Verify: ssh pi@raspberrypi.local
    └── Connect: GitHub-compatible SSH keys or password
 
 3. SCPDeploy
-   ├── Copy: scp build\release\loki_app pi@orange-pi.local:/tmp/
+   ├── Copy: scp build\release\loki_app pi@raspberrypi.local:/tmp/
    ├── Make executable: chmod +x /tmp/loki_app
    └── Run: sudo /tmp/loki_app
 ```
@@ -125,7 +125,7 @@ Output: `build/release/loki_app` (50% smaller, optimized)
 
 ### Build and Deploy in One Command
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 Automatically:
@@ -230,4 +230,5 @@ All scripts have been:
 ---
 
 **Status**: ✅ Fixed - Windows build system fully operational
-**Ready for**: Immediate deployment to Orange Pi Zero 2W
+**Ready for**: Immediate deployment to Raspberry Pi
+

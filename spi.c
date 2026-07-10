@@ -1,6 +1,6 @@
 /**
  * SPI Hardware Abstraction Layer Implementation
- * Orange Pi Zero 2W
+ * Raspberry Pi
  */
 
 #include "spi.h"
@@ -46,7 +46,7 @@ static hal_status_t spi_validate_bus(spi_bus_t bus)
  */
 static const char* spi_get_device_path(spi_bus_t bus)
 {
-    /* Orange Pi Zero 2W SPI device mapping */
+    /* Raspberry Pi SPI device mapping */
     switch (bus) {
         case SPI_BUS_0: return "/dev/spidev0.0";
         case SPI_BUS_1: return "/dev/spidev1.0";

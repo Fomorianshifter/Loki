@@ -2,11 +2,11 @@
 #define PWM_H
 
 /**
- * PWM Hardware Abstraction Layer for Orange Pi Zero 2W
+ * PWM Hardware Abstraction Layer for Raspberry Pi
  * Used for TFT backlight brightness control
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== PWM DEFINITIONS ===== */
 typedef enum {

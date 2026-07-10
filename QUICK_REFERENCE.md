@@ -2,7 +2,7 @@
 
 ## The Problem You Had
 ```
-C:\Users\nlane\Desktop\Loki> make install CROSS_HOST=orange-pi.local
+C:\Users\nlane\Desktop\Loki> make install CROSS_HOST=raspberrypi.local
 make : The term 'make' is not recognized
 ```
 
@@ -30,9 +30,9 @@ cd C:\Users\nlane\Desktop\Loki
 .\build.ps1 -Mode release
 ```
 
-### Build and Deploy to Orange Pi
+### Build and Deploy to Raspberry Pi
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local
 ```
 
 ### Deploy to Specific IP
@@ -57,9 +57,9 @@ If this fails, download from: https://developer.arm.com
 
 ✅ **Check 2: SSH Works**
 ```powershell
-ssh pi@orange-pi.local
+ssh pi@raspberrypi.local
 ```
-If this fails, check Orange Pi is powered on and SSH is enabled
+If this fails, check Raspberry Pi is powered on and SSH is enabled
 
 ---
 
@@ -72,13 +72,13 @@ If this fails, check Orange Pi is powered on and SSH is enabled
     ↓
 [2] Links .o files → loki_app binary
     ↓
-[3] Checks SSH connection to Orange Pi
+[3] Checks SSH connection to Raspberry Pi
     ↓
-[4] Copies loki_app to Orange Pi
+[4] Copies loki_app to Raspberry Pi
     ↓
 [5] Makes it executable (chmod +x)
     ↓
-✓ Ready to run: ssh pi@orange-pi.local "sudo /tmp/loki_app"
+✓ Ready to run: ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 ```
 
 ---
@@ -118,8 +118,8 @@ Configuration:
 | Problem | Solution |
 |---------|----------|
 | `arm-linux-gnueabihf-gcc not found` | Download toolchain from https://developer.arm.com |
-| `SSH connection failed` | Make sure Orange Pi is on, try: `ping orange-pi.local` |
-| `Permission denied` | Use: `ssh pi@orange-pi.local "sudo /tmp/loki_app"` |
+| `SSH connection failed` | Make sure Raspberry Pi is on, try: `ping raspberrypi.local` |
+| `Permission denied` | Use: `ssh pi@raspberrypi.local "sudo /tmp/loki_app"` |
 | `Cannot overwrite variable` | Use `build.ps1` not PowerShell param named `Host` |
 
 ---
@@ -144,12 +144,12 @@ C:\Users\nlane\Desktop\Loki\
 
 ### Way 2: Manual SCP
 ```powershell
-scp build\release\loki_app pi@orange-pi.local:/tmp/
+scp build\release\loki_app pi@raspberrypi.local:/tmp/
 ```
 
 ### Way 3: Use Batch Script
 ```batch
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
 ---
@@ -158,10 +158,10 @@ build.bat release orange-pi.local pi --install
 
 ```powershell
 # Option A: Run remotely
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 
 # Option B: SSH in, then run
-ssh pi@orange-pi.local
+ssh pi@raspberrypi.local
 sudo /tmp/loki_app
 ```
 
@@ -182,12 +182,12 @@ Output should show:
 3. Check ARM compiler: `arm-linux-gnueabihf-gcc --version`
 
 ### If deployment fails:
-1. Test SSH: `ssh pi@orange-pi.local`
-2. Check Orange Pi is on: `ping orange-pi.local`
+1. Test SSH: `ssh pi@raspberrypi.local`
+2. Check Raspberry Pi is on: `ping raspberrypi.local`
 3. See [DEPLOYMENT.md](DEPLOYMENT.md) for details
 
 ### If run fails:
-1. Make it executable: `ssh pi@orange-pi.local "chmod +x /tmp/loki_app"`
+1. Make it executable: `ssh pi@raspberrypi.local "chmod +x /tmp/loki_app"`
 2. Run with sudo: `... sudo /tmp/loki_app`
 3. Check logs: See [README.md](README.md) for expected output
 
@@ -207,7 +207,7 @@ Output should show:
 | Platform | Command |
 |----------|---------|
 | Windows | `.\build.ps1 -Mode release -Install` |
-| Windows (CMD) | `build.bat release orange-pi.local pi --install` |
+| Windows (CMD) | `build.bat release raspberrypi.local pi --install` |
 | Mac/Linux | `make DEBUG=0 install` |
 | WSL | `make DEBUG=0 install` |
 
@@ -216,3 +216,4 @@ Output should show:
 **Need help?** See [FIX_SUMMARY.md](FIX_SUMMARY.md) for what was fixed.
 
 **Ready?** Run: `.\build.ps1 -Mode debug`
+

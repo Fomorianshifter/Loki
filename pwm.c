@@ -1,6 +1,6 @@
 /**
  * PWM Hardware Abstraction Layer Implementation
- * Orange Pi Zero 2W - TFT Backlight Control
+ * Raspberry Pi - TFT Backlight Control
  */
 
 #include "pwm.h"

@@ -9,7 +9,7 @@
  * operations that may fail transiently.
  */
 
-#include "../includes/types.h"
+#include "types.h"
 
 /* ===== RETRY CONFIGURATION ===== */
 

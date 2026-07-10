@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @brief Loki - Orange Pi Zero 2W Interactive Display System
+ * @brief Loki - Raspberry Pi Interactive Display System
  * 
  * Main entry point and example usage of the Loki board system.
  * Demonstrates hardware initialization, device testing, and communication.
@@ -12,15 +12,15 @@
 #include <signal.h>
 #include <string.h>
 
-#include "core/system.h"
-#include "drivers/tft/tft_driver.h"
-#include "drivers/sdcard/sdcard_driver.h"
-#include "drivers/flash/flash_driver.h"
-#include "drivers/eeprom/eeprom_driver.h"
-#include "drivers/flipper_uart/flipper_uart.h"
-#include "utils/log.h"
-#include "utils/memory.h"
-#include "utils/retry.h"
+#include "system.h"
+#include "tft_driver.h"
+#include "sdcard_driver.h"
+#include "flash_driver.h"
+#include "eeprom_driver.h"
+#include "flipper_uart.h"
+#include "log.h"
+#include "memory.h"
+#include "retry.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 {
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
-    fprintf(stdout, "║        Loki - Orange Pi Zero 2W Display System    ║\n");
+    fprintf(stdout, "║         Loki - Raspberry Pi Display System        ║\n");
     fprintf(stdout, "║         Powered by Flipper Zero Integration       ║\n");
     fprintf(stdout, "╚════════════════════════════════════════════════════╝\n\n");
 

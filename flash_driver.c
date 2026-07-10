@@ -1,12 +1,12 @@
 /**
  * SPI Flash Driver Implementation for W25Q40
- * Orange Pi Zero 2W - SPI2 Interface
+ * Raspberry Pi - SPI2 Interface
  */
 
 #include "flash_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "config.h"
 #include <string.h>
 #include <unistd.h>
 

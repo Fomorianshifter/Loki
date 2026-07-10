@@ -15,12 +15,12 @@ make DEBUG=0
 make
 ```
 
-### Cross-Compilation for Orange Pi
+### Cross-Compilation for Raspberry Pi
 
 ```bash
 # Set your cross-compiler target
 export CROSS_USER=pi                    # SSH username
-export CROSS_HOST=orange-pi.local       # Hostname or IP
+export CROSS_HOST=raspberrypi.local     # Hostname or IP
 export CROSS_PATH=/tmp                  # Target directory
 
 # Build and install to target
@@ -45,7 +45,7 @@ make test   # Compiles with MOCK_HARDWARE flag and runs locally
 | Target | Purpose |
 |--------|---------|
 | `make` / `make all` | Compile project (Debug mode default) |
-| `make install` | Upload binary to Orange Pi via SCP |
+| `make install` | Upload binary to Raspberry Pi via SCP |
 | `make run` | Install and execute on target |
 | `make test` | Local test build with mock hardware |
 | `make docs` | Generate Doxygen documentation |
@@ -295,8 +295,8 @@ make DEBUG=1 && make run
 ### Debugging on Target
 
 ```bash
-# SSH into Orange Pi and run with GDB
-ssh pi@orange-pi
+# SSH into Raspberry Pi and run with GDB
+ssh pi@raspberrypi
 sudo gdb /tmp/loki_app
 
 (gdb) run
@@ -366,17 +366,17 @@ export PATH="/usr/arm-linux-gnueabihf/bin:$PATH"
 arm-linux-gnueabihf-gcc --version
 ```
 
-### Installation Fails: Cannot SSH to Orange Pi
+### Installation Fails: Cannot SSH to Raspberry Pi
 
 Ensure SSH is configured and working:
 
 ```bash
 # Test SSH connection
-ssh pi@orange-pi hostname
+ssh pi@raspberrypi hostname
 
 # If fails, check:
-# 1. Orange Pi is on network
-# 2. SSH enabled on Orange Pi
+# 1. Raspberry Pi is on network
+# 2. SSH enabled on Raspberry Pi
 # 3. Correct hostname/IP in Makefile
 # 4. SSH key installed (optional but recommended)
 ```
@@ -411,7 +411,7 @@ LOG_DEBUG("This message should appear");
 ```bash
 DEBUG=1                    # Enable debug build
 CROSS_USER=pi             # SSH user for cross-compilation
-CROSS_HOST=192.168.1.100  # Orange Pi hostname or IP
+CROSS_HOST=192.168.1.100  # Raspberry Pi hostname or IP
 CROSS_PATH=/tmp           # Target installation path
 CC=arm-linux-gnueabihf-gcc # Override compiler
 CFLAGS="-O3 -march=armv8"  # Override compiler flags
@@ -420,3 +420,4 @@ CFLAGS="-O3 -march=armv8"  # Override compiler flags
 ---
 
 For more information, see [README.md](README.md) and generated Doxygen documentation.
+

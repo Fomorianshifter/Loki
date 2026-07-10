@@ -84,16 +84,16 @@ This guide provides detailed instructions for setting up and running the Loki ap
 
 ---
 
-## Orange Pi Configuration  
-1. **Connect the Orange Pi**  
-   - Physically connect your Orange Pi to the network and power it on.  
-2. **Access the Orange Pi via SSH**  
+## Raspberry Pi Configuration  
+1. **Connect the Raspberry Pi**  
+   - Physically connect your Raspberry Pi to the network and power it on.  
+2. **Access the Raspberry Pi via SSH**  
    - Open a terminal and run:  
      ```bash  
      ssh orangepi@<Orange_Pi_IP_Address>  
      ```  
 3. **Deploy the Application**  
-   - Transfer the built application to the Orange Pi:
+   - Transfer the built application to the Raspberry Pi:
      ```bash  
      scp ./loki orangepi@<Orange_Pi_IP_Address>:/path/to/deploy/  
      ```  
@@ -111,7 +111,7 @@ This guide provides detailed instructions for setting up and running the Loki ap
 - Ensure all dependencies are installed.
 
 ### SSH Connection Issues  
-- Confirm the Orange Pi is powered on and connected to the network.  
+- Confirm the Raspberry Pi is powered on and connected to the network.  
 - Check the IP address and your SSH configuration.
 
 ### Hardware Detection Problems  

@@ -1,6 +1,6 @@
 /**
  * I2C Hardware Abstraction Layer Implementation
- * Orange Pi Zero 2W
+ * Raspberry Pi
  */
 
 #include "i2c.h"

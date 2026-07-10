@@ -1,11 +1,11 @@
 /**
  * EEPROM Driver Implementation for FT24C02A
- * Orange Pi Zero 2W - I2C0 Interface
+ * Raspberry Pi - I2C0 Interface
  */
 
 #include "eeprom_driver.h"
-#include "../../hal/i2c/i2c.h"
-#include "../../config/pinout.h"
+#include "i2c.h"
+#include "config.h"
 #include <string.h>
 #include <unistd.h>
 

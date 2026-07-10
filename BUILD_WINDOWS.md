@@ -18,8 +18,8 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 # Release build
 .\build.ps1 -Mode release
 
-# Build and install to Orange Pi
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+# Build and install to Raspberry Pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 **Advantages**: Color-coded output, easier to read, modern PowerShell features
@@ -33,7 +33,7 @@ REM Release build
 build.bat release
 
 REM Build and install
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
 **Advantages**: Works in standard CMD even if PowerShell is unavailable
@@ -49,7 +49,7 @@ make
 make DEBUG=0
 
 # Build and install
-make DEBUG=0 install CROSS_HOST=orange-pi.local CROSS_USER=pi
+make DEBUG=0 install CROSS_HOST=raspberrypi.local CROSS_USER=pi
 
 # Run on target
 make run
@@ -122,12 +122,12 @@ Use for: Production deployment, performance-critical applications
 
 ---
 
-## Deployment to Orange Pi
+## Deployment to Raspberry Pi
 
 ### From Windows PowerShell
 ```powershell
 # Build release and deploy
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 
 # With custom IP
 .\build.ps1 -Mode release -Install -HostName 192.168.1.100 -User pi
@@ -135,7 +135,7 @@ Use for: Production deployment, performance-critical applications
 
 ### From Windows CMD
 ```batch
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
 ### From Mac/Linux
@@ -167,13 +167,13 @@ brew install arm-none-eabi-gcc
 
 ### SSH connection fails during install
 ```
-[ERROR] SSH connection failed to orange-pi.local
+[ERROR] SSH connection failed to raspberrypi.local
 ```
 
 **Solutions**:
-1. Check Orange Pi is powered on: `ping orange-pi.local`
+1. Check Raspberry Pi is powered on: `ping raspberrypi.local`
 2. Use IP address instead: `.\build.ps1 -Host 192.168.1.100`
-3. Verify SSH is enabled on Orange Pi
+3. Verify SSH is enabled on Raspberry Pi
 4. Check username (default: `pi`)
 
 ### PowerShell script execution blocked
@@ -232,3 +232,4 @@ For full feature set, use Linux/Mac with Makefile or use WSL on Windows.
 
 **Last Updated**: February 2026  
 **Status**: All platforms supported
+

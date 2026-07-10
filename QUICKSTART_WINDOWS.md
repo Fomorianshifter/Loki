@@ -2,7 +2,7 @@
 
 ## Quick Overview
 
-The Loki project is ready to build and deploy to Orange Pi Zero 2W. Since you're on Windows, follow these steps:
+The Loki project is ready to build and deploy to Raspberry Pi. Since you're on Windows, follow these steps:
 
 ## Step 1: Install ARM Cross-Compiler
 
@@ -29,11 +29,11 @@ choco install gcc-arm-none-eabi
 
 ## Step 2: Verify SSH Connectivity
 
-Before building, test SSH to your Orange Pi:
+Before building, test SSH to your Raspberry Pi:
 
 ```powershell
 # Test SSH connection
-ssh pi@orange-pi.local
+ssh pi@raspberrypi.local
 
 # Or with IP address
 ssh pi@192.168.1.100
@@ -43,9 +43,9 @@ ssh pi@192.168.1.100
 ```
 
 If SSH fails:
-- Make sure Orange Pi is powered on
+- Make sure Raspberry Pi is powered on
 - Find IP address from your router
-- Check that SSH is enabled on Orange Pi
+- Check that SSH is enabled on Raspberry Pi
 
 ## Step 3: Build the Project
 
@@ -61,8 +61,8 @@ cd C:\Users\nlane\Desktop\Loki
 # Release build (optimized for size/speed)
 .\build.ps1 -Mode release
 
-# Build and immediately install to Orange Pi
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+# Build and immediately install to Raspberry Pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 
 ### Using CMD.exe (Alternative)
@@ -77,30 +77,30 @@ REM Release build
 build.bat release
 
 REM Build and install
-build.bat release orange-pi.local pi --install
+build.bat release raspberrypi.local pi --install
 ```
 
-## Step 4: Deploy to Orange Pi
+## Step 4: Deploy to Raspberry Pi
 
 After a successful build, deploy the binary:
 
 ```powershell
 # Recommended: Build and install in one command
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 
 # Or deploy manually after building
-scp build\release\loki_app pi@orange-pi.local:/tmp/
-ssh pi@orange-pi.local "chmod +x /tmp/loki_app"
+scp build\release\loki_app pi@raspberrypi.local:/tmp/
+ssh pi@raspberrypi.local "chmod +x /tmp/loki_app"
 ```
 
-## Step 5: Run on Orange Pi
+## Step 5: Run on Raspberry Pi
 
 ```powershell
 # Run remotely
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 
 # Or SSH in and run locally
-ssh pi@orange-pi.local
+ssh pi@raspberrypi.local
 sudo /tmp/loki_app
 ```
 
@@ -125,11 +125,11 @@ You should see output like:
 
 ### "SSH connection failed"
 
-**Solution**: Verify Orange Pi connectivity
+**Solution**: Verify Raspberry Pi connectivity
 
 ```powershell
-# Check if Orange Pi is reachable
-ping orange-pi.local
+# Check if Raspberry Pi is reachable
+ping raspberrypi.local
 
 # If that fails, find IP address:
 # 1. Check your router's DHCP client list
@@ -143,19 +143,19 @@ nmap -p 22 192.168.1.0/24
 ### Build succeeds but deploy fails
 
 **SSH Issues**:
-- Ensure SSH is enabled on Orange Pi
-- Try: `ssh pi@orange-pi.local` (should work)
+- Ensure SSH is enabled on Raspberry Pi
+- Try: `ssh pi@raspberrypi.local` (should work)
 - Default password: `1234`
 
 **Permissions**:
-- Make sure you have permissions to /tmp on Orange Pi
+- Make sure you have permissions to /tmp on Raspberry Pi
 - Or use a different path: `/home/pi/`
 
 ### "Permission denied" when running
 
 **Solution**: Use `sudo`
 ```
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 ```
 
 GPIO/SPI/I2C access requires root privileges.
@@ -198,7 +198,7 @@ Loki/
 
 ### Option 1: One-Command Build & Deploy (Easiest)
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local -User pi
 ```
 Builds and deploys in one command.
 
@@ -208,13 +208,13 @@ Builds and deploys in one command.
 .\build.ps1 -Mode release
 
 # Test locally or redeploy multiple times
-scp build\release\loki_app pi@orange-pi.local:/tmp/
+scp build\release\loki_app pi@raspberrypi.local:/tmp/
 ```
 
 ### Option 3: Keep in Service
-Create systemd service on Orange Pi (see [DEPLOYMENT.md](DEPLOYMENT.md)):
+Create systemd service on Raspberry Pi (see [DEPLOYMENT.md](DEPLOYMENT.md)):
 ```bash
-# On Orange Pi, create /etc/systemd/system/loki.service
+# On Raspberry Pi, create /etc/systemd/system/loki.service
 # Then enable auto-start on boot
 sudo systemctl enable loki
 ```
@@ -237,35 +237,35 @@ sudo systemctl enable loki
 .\build.ps1 -Mode release
 
 # Build and deploy
-.\build.ps1 -Mode release -Install -HostName orange-pi.local
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local
 
 # Deploy to specific IP
 .\build.ps1 -Mode release -Install -HostName 192.168.1.50 -User pi
 
-# SSH into Orange Pi
-ssh pi@orange-pi.local
+# SSH into Raspberry Pi
+ssh pi@raspberrypi.local
 
-# Copy file to Orange Pi
-scp myfile.txt pi@orange-pi.local:/tmp/
+# Copy file to Raspberry Pi
+scp myfile.txt pi@raspberrypi.local:/tmp/
 
 # Run application
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 
-# View Orange Pi system info
-ssh pi@orange-pi.local "cat /proc/cpuinfo"
+# View Raspberry Pi system info
+ssh pi@raspberrypi.local "cat /proc/cpuinfo"
 ```
 
 ## Getting Help
 
 - **Build errors**: See the script output for compiler/linker errors
-- **SSH errors**: Test `ssh pi@orange-pi.local` directly
+- **SSH errors**: Test `ssh pi@raspberrypi.local` directly
 - **Runtime errors**: Check [DEPLOYMENT.md](DEPLOYMENT.md) troubleshooting
 - **Code questions**: Review [README.md](README.md) API documentation
 
 ## Hardware Requirements
 
-- Orange Pi Zero 2W (or compatible)
-- Armbian or Orange Pi OS installed
+- Raspberry Pi (or compatible)
+- Armbian or Raspberry Pi OS installed
 - SSH enabled
 - All hardware wiring complete (see [README.md](README.md) wiring reference)
 
@@ -290,3 +290,4 @@ The Loki project includes:
 ```
 
 Need help? Check [BUILD_WINDOWS.md](BUILD_WINDOWS.md) for detailed platform-specific guide.
+

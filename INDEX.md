@@ -88,10 +88,10 @@ cd C:\Users\nlane\Desktop\Loki
 
 ### Step 3: Deploy
 ```powershell
-.\build.ps1 -Mode release -Install -HostName orange-pi.local
+.\build.ps1 -Mode release -Install -HostName raspberrypi.local
 ```
 
-✅ **Done!** Your app is deployed to Orange Pi
+✅ **Done!** Your app is deployed to Raspberry Pi
 
 ---
 
@@ -182,7 +182,7 @@ make analyze                             # Code analysis
 
 ## ✨ Features
 
-- ✅ Complete HAL for Orange Pi Zero 2W
+- ✅ Complete HAL for Raspberry Pi
 - ✅ Professional logging system (5 levels)
 - ✅ Memory safety with leak detection  
 - ✅ Automatic error recovery
@@ -209,26 +209,26 @@ make analyze                             # Code analysis
 ```
 **Output**: `build/release/loki_app` (optimized, smaller)
 
-### Task: Deploy to Orange Pi
+### Task: Deploy to Raspberry Pi
 ```powershell
 .\build.ps1 -Mode release -Install
 ```
 **Does**: Build → Verify SSH → Copy → Make executable
 
-### Task: SSH into Orange Pi
+### Task: SSH into Raspberry Pi
 ```powershell
-ssh pi@orange-pi.local
+ssh pi@raspberrypi.local
 ```
 **Or**: `ssh pi@192.168.1.100` (if DHCP fails)
 
-### Task: Run App on Orange Pi
+### Task: Run App on Raspberry Pi
 ```powershell
-ssh pi@orange-pi.local "sudo /tmp/loki_app"
+ssh pi@raspberrypi.local "sudo /tmp/loki_app"
 ```
 
 ### Task: View Live Logs
 ```bash
-# On Orange Pi
+# On Raspberry Pi
 tail -f /tmp/loki_app.log
 
 # Or in systemd
@@ -246,7 +246,7 @@ make docs
 ## ❓ FAQ
 
 **Q: Why do I need ARM toolchain?**
-A: Orange Pi runs ARM CPU, so you need ARM compiler to compile for it.
+A: Raspberry Pi runs ARM CPU, so you need ARM compiler to compile for it.
 
 **Q: Where do I get the ARM toolchain?**
 A: https://developer.arm.com - Look for "GNU Toolchain"
@@ -258,7 +258,7 @@ A: Yes! Use `build.ps1` or `build.bat` (new Windows support added)
 A: Use `.\build.ps1 -Install` or `make install` to copy binary via SSH
 
 **Q: What if SSH fails?**
-A: Check Orange Pi is on, try `ping orange-pi.local`, or use IP address
+A: Check Raspberry Pi is on, try `ping raspberrypi.local`, or use IP address
 
 **Q: Will it work on my macOS?**
 A: Yes! Use the standard `make` command
@@ -273,8 +273,8 @@ A: Yes! Follow [DEPLOYMENT.md](DEPLOYMENT.md) for systemd setup
 | Resource | Purpose |
 |----------|---------|
 | [ARM Developer](https://developer.arm.com) | Get cross-compiler |
-| [Orange Pi](http://orangepi.org) | Hardware info |
-| [Armbian](https://www.armbian.com) | Orange Pi OS |
+| [Raspberry Pi](http://orangepi.org) | Hardware info |
+| [Armbian](https://www.armbian.com) | Raspberry Pi OS |
 | [Flipper Zero](https://flipperzero.one) | Target device |
 
 ---
@@ -317,3 +317,4 @@ A: Yes! Follow [DEPLOYMENT.md](DEPLOYMENT.md) for systemd setup
 **Last Updated**: February 2026
 **Status**: ✅ Production Ready
 **Next Action**: Start with [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md)
+

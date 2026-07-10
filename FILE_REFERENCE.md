@@ -1,11 +1,11 @@
 # Loki Project File Reference
 
-Complete inventory of all files in the Loki Orange Pi Zero 2W embedded systems project.
+Complete inventory of all files in the Loki Raspberry Pi embedded systems project.
 
 ## Configuration Files
 
 ### [config/pinout.h](config/pinout.h)
-**Orange Pi Zero 2W GPIO Pin Definitions**
+**Raspberry Pi GPIO Pin Definitions**
 - All 40 GPIO pins with hardware pin numbers
 - SPI0/1/2 bus pin assignments (SCK, MOSI, MISO, CS)
 - I2C0 pin definitions (SDA, SCL)
@@ -238,7 +238,7 @@ Complete inventory of all files in the Loki Orange Pi Zero 2W embedded systems p
 - `make` (all) - Compile debug build
 - `make DEBUG=0` - Compile release/optimized build
 - `make DEBUG=1` - Compile debug build with all features
-- `make install` - Copy binary to Orange Pi via SCP
+- `make install` - Copy binary to Raspberry Pi via SCP
 - `make run` - Build and execute on target
 - `make test` - Compile with test flags enabled
 - `make docs` - Generate Doxygen HTML documentation
@@ -265,7 +265,7 @@ Cross-compilation setup:
   - Dependency diagrams
   - Full-text search
   - Mobile-responsive layout
-- Project name: "Loki Orange Pi Zero 2W"
+- Project name: "Loki Raspberry Pi"
 - Generate navigation tree and search engine
 
 ---
@@ -289,7 +289,7 @@ Cross-compilation setup:
 ### [BUILD.md](BUILD.md)
 **Comprehensive Build and Development Guide**
 - Build system overview
-- Cross-compilation setup for Orange Pi
+- Cross-compilation setup for Raspberry Pi
 - Logging system documentation with examples
 - Memory management and leak detection usage
 - Retry logic strategies and examples
@@ -386,7 +386,7 @@ Core System (system.h/c)
 └─────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────┐
-│    Orange Pi Zero 2W Hardware       │
+│    Raspberry Pi Hardware       │
 │ ARM Cortex-A7 + peripherals         │
 └─────────────────────────────────────┘
 
@@ -410,7 +410,7 @@ Shared Types (includes/types.h)
 2. **Review README.md**: Overview and API reference
 3. **Review BUILD.md**: Build instructions and system setup
 4. **Compile**: `make` to create debug build
-5. **Deploy**: `make install` to copy to Orange Pi
+5. **Deploy**: `make install` to copy to Raspberry Pi
 6. **Test**: `make run` to execute on target
 7. **Extend**: Follow CONTRIBUTING.md when adding features
 
@@ -437,3 +437,4 @@ Shared Types (includes/types.h)
 **Project Status**: ✅ Production Ready  
 **Total Files**: 39  
 **Estimated LOC**: 6,400
+

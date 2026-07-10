@@ -8,7 +8,7 @@ set MODE=%1
 if "%MODE%"=="" set MODE=debug
 
 set HOST=%2
-if "%HOST%"=="" set HOST=orange-pi.local
+if "%HOST%"=="" set HOST=raspberrypi.local
 
 set USER=%3
 if "%USER%"=="" set USER=pi
@@ -159,9 +159,9 @@ if "%4"=="--install" (
     if errorlevel 1 (
         echo [ERROR] SSH connection failed to %USER%@%HOST%
         echo [WARN] Ensure:
-        echo   1. Orange Pi is powered on
+        echo   1. Raspberry Pi is powered on
         echo   2. Host can reach %HOST%
-        echo   3. SSH is enabled on Orange Pi
+        echo   3. SSH is enabled on Raspberry Pi
         echo   4. Credentials: user=%USER%
         exit /b 1
     )
@@ -175,12 +175,12 @@ if "%4"=="--install" (
     echo [OK] Installation complete
     echo [INFO] To run: ssh %USER%@%HOST% "sudo /tmp/loki_app"
 ) else (
-    echo [INFO] Build complete. Use --install to deploy to Orange Pi
+    echo [INFO] Build complete. Use --install to deploy to Raspberry Pi
     echo.
     echo Usage:
     echo   build.bat debug
     echo   build.bat release
-    echo   build.bat debug orange-pi.local pi --install
+    echo   build.bat debug raspberrypi.local pi --install
 )
 
 exit /b 0
@@ -188,3 +188,4 @@ exit /b 0
 :compile_error
 echo [ERROR] Compilation failed
 exit /b 1
+

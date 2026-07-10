@@ -2,11 +2,11 @@
 #define SPI_H
 
 /**
- * SPI Hardware Abstraction Layer for Orange Pi Zero 2W
+ * SPI Hardware Abstraction Layer for Raspberry Pi
  * Supports SPI0 (TFT), SPI1 (SD Card), and SPI2 (Flash)
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== SPI BUS DEFINITIONS ===== */
 typedef enum {

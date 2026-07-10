@@ -10,6 +10,12 @@
 # Native build (when running directly on the Pi):
 #   make  (will use gcc if cross-compiler is absent)
 
+## Config generation (single source of truth: config.toml)
+PYTHON      ?= python3
+CONFIG_GEN  := tools/gen_config.py
+CONFIG_TOML := config.toml
+CONFIG_HDRS := board_config.h pinout.h config.h
+
 ## Compiler Settings
 ## Prefer ARM cross-compiler for Raspberry Pi target; fall back to native gcc.
 ifneq ($(shell which arm-linux-gnueabihf-gcc 2>/dev/null),)
@@ -36,7 +42,7 @@ endif
  
 ## Cross-compiler target (customize for your setup)
 CROSS_USER ?= pi
-CROSS_HOST ?= orange-pi.local
+CROSS_HOST ?= raspberrypi.local
 CROSS_PATH ?= /tmp
  
 ## Project Structure
@@ -59,8 +65,15 @@ ifeq ($(HAVE_LIBGPIOD), 1)
     $(info [INFO] libgpiod enabled for RS-485 GPIO DE control)
 endif
  
+## Generated config headers — regenerated whenever config.toml or the script changes.
+$(CONFIG_HDRS): $(CONFIG_TOML) $(CONFIG_GEN)
+	$(PYTHON) $(CONFIG_GEN)
+
+## Regenerate config headers only.
+config: $(CONFIG_HDRS)
+
 ## Build Rules
-all: $(BUILD_DIR)/$(TARGET)
+all: $(CONFIG_HDRS) $(BUILD_DIR)/$(TARGET)
  
 $(BUILD_DIR)/$(TARGET): $(OBJECTS)
 	@mkdir -p $(BUILD_DIR)
@@ -136,4 +149,4 @@ info:
 	@echo "║ Target path: $(CROSS_PATH)"
 	@echo "╚════════════════════════════════════════╝"
  
-.PHONY: all clean clean-all install run test docs analyze size info
+.PHONY: all config clean clean-all install run test docs analyze size info
