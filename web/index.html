@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loki - AI Dragon System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🔥 Loki</h1>
+            <p class="subtitle">Orange Pi Zero 2W Interactive System</p>
+        </div>
+        <div class="header-status">
+            <span class="status-dot" id="connection-dot"></span>
+            <span id="connection-label">Online</span>
+        </div>
+    </header>
+
+    <main class="main-grid">
+
+        <!-- Dragon Character Panel -->
+        <section class="panel dragon-panel" id="dragon-panel">
+            <div class="dragon-stage" id="dragon-stage">
+
+                <!-- EGG STAGE -->
+                <div class="dragon-form" id="stage-egg">
+                    <svg class="dragon-svg" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Egg body -->
+                        <ellipse cx="100" cy="130" rx="62" ry="80" fill="#2a2a4a" stroke="#4a4aaa" stroke-width="3"/>
+                        <!-- Egg shine -->
+                        <ellipse cx="80" cy="90" rx="18" ry="28" fill="rgba(120,120,255,0.18)" transform="rotate(-20,80,90)"/>
+                        <!-- Crack lines -->
+                        <polyline points="100,80 95,100 105,115 98,135" stroke="#6060cc" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                        <polyline points="115,95 108,108 118,120" stroke="#6060cc" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                        <!-- Glowing rune -->
+                        <text x="100" y="148" text-anchor="middle" font-size="28" fill="#8888ff" opacity="0.8" class="rune-glow">ᛚ</text>
+                    </svg>
+                    <p class="stage-label">Egg</p>
+                </div>
+
+                <!-- BABY STAGE -->
+                <div class="dragon-form hidden" id="stage-baby">
+                    <svg class="dragon-svg" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Body -->
+                        <ellipse cx="100" cy="150" rx="52" ry="60" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="3"/>
+                        <!-- Neck -->
+                        <ellipse cx="100" cy="95" rx="22" ry="28" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="2"/>
+                        <!-- Head -->
+                        <ellipse cx="100" cy="68" rx="34" ry="30" fill="#1e4a1e" stroke="#2a6a2a" stroke-width="2.5"/>
+                        <!-- Horns -->
+                        <polygon points="82,42 74,18 90,40" fill="#3a7a3a" stroke="#2a6a2a" stroke-width="1"/>
+                        <polygon points="118,42 126,18 110,40" fill="#3a7a3a" stroke="#2a6a2a" stroke-width="1"/>
+                        <!-- Eyes (neutral) -->
+                        <ellipse cx="87" cy="65" rx="7" ry="7" fill="#00cc44" id="baby-eye-left"/>
+                        <ellipse cx="113" cy="65" rx="7" ry="7" fill="#00cc44" id="baby-eye-right"/>
+                        <circle cx="87" cy="65" r="3.5" fill="#001a0a" id="baby-pupil-left"/>
+                        <circle cx="113" cy="65" r="3.5" fill="#001a0a" id="baby-pupil-right"/>
+                        <!-- Nostrils -->
+                        <ellipse cx="96" cy="76" rx="3" ry="2" fill="#0a2a0a"/>
+                        <ellipse cx="104" cy="76" rx="3" ry="2" fill="#0a2a0a"/>
+                        <!-- Mouth (neutral) -->
+                        <path d="M 88 84 Q 100 90 112 84" stroke="#0a3a0a" stroke-width="2.5" fill="none" id="baby-mouth" stroke-linecap="round"/>
+                        <!-- Small wings -->
+                        <path d="M 52 130 Q 30 100 45 145 Q 60 160 70 150" fill="#2a5a2a" stroke="#1a4a1a" stroke-width="1.5"/>
+                        <path d="M 148 130 Q 170 100 155 145 Q 140 160 130 150" fill="#2a5a2a" stroke="#1a4a1a" stroke-width="1.5"/>
+                        <!-- Belly scales -->
+                        <ellipse cx="100" cy="155" rx="30" ry="38" fill="#0a2a0a" opacity="0.5"/>
+                        <!-- Tail -->
+                        <path d="M 90 200 Q 80 220 65 230 Q 55 235 60 228 Q 70 218 78 208" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="1.5"/>
+                    </svg>
+                    <p class="stage-label">Baby Dragon</p>
+                </div>
+
+                <!-- ADULT STAGE -->
+                <div class="dragon-form hidden" id="stage-adult">
+                    <svg class="dragon-svg dragon-adult" viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Body -->
+                        <ellipse cx="100" cy="160" rx="62" ry="68" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="3"/>
+                        <!-- Neck -->
+                        <path d="M 82 115 Q 76 95 84 80 Q 100 72 116 80 Q 124 95 118 115" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="2"/>
+                        <!-- Head -->
+                        <ellipse cx="100" cy="60" rx="42" ry="36" fill="#1e4a1e" stroke="#2a6a2a" stroke-width="2.5"/>
+                        <!-- Horns -->
+                        <polygon points="78,32 66,4 88,30" fill="#4a8a4a" stroke="#2a6a2a" stroke-width="1.5"/>
+                        <polygon points="122,32 134,4 112,30" fill="#4a8a4a" stroke="#2a6a2a" stroke-width="1.5"/>
+                        <!-- Spine spikes on neck -->
+                        <polygon points="100,72 96,56 104,56" fill="#3a7a3a"/>
+                        <polygon points="106,78 104,62 110,64" fill="#3a7a3a"/>
+                        <polygon points="94,78 96,62 90,64" fill="#3a7a3a"/>
+                        <!-- Eyes (neutral) -->
+                        <ellipse cx="84" cy="57" rx="9" ry="9" fill="#00dd55" id="adult-eye-left"/>
+                        <ellipse cx="116" cy="57" rx="9" ry="9" fill="#00dd55" id="adult-eye-right"/>
+                        <circle cx="84" cy="57" r="5" fill="#001a0a" id="adult-pupil-left"/>
+                        <circle cx="116" cy="57" r="5" fill="#001a0a" id="adult-pupil-right"/>
+                        <!-- Eye shine -->
+                        <circle cx="81" cy="54" r="2" fill="rgba(255,255,255,0.6)"/>
+                        <circle cx="113" cy="54" r="2" fill="rgba(255,255,255,0.6)"/>
+                        <!-- Nostrils -->
+                        <ellipse cx="95" cy="70" rx="3.5" ry="2.5" fill="#0a2a0a"/>
+                        <ellipse cx="105" cy="70" rx="3.5" ry="2.5" fill="#0a2a0a"/>
+                        <!-- Mouth (neutral) -->
+                        <path d="M 82 80 Q 100 88 118 80" stroke="#0a3a0a" stroke-width="3" fill="none" id="adult-mouth" stroke-linecap="round"/>
+                        <!-- Teeth hint -->
+                        <path d="M 88 80 L 88 85 M 94 82 L 94 87 M 100 83 L 100 88 M 106 82 L 106 87 M 112 80 L 112 85" stroke="#c8e8c8" stroke-width="1.5" opacity="0.7"/>
+                        <!-- Large wings -->
+                        <path d="M 42 140 Q 10 90 28 150 Q 46 200 68 178" fill="#2a5a2a" stroke="#1a4a1a" stroke-width="2" id="wing-left"/>
+                        <path d="M 158 140 Q 190 90 172 150 Q 154 200 132 178" fill="#2a5a2a" stroke="#1a4a1a" stroke-width="2" id="wing-right"/>
+                        <!-- Wing membrane lines -->
+                        <path d="M 42 140 Q 22 125 28 150" stroke="#1e4e1e" stroke-width="1" fill="none"/>
+                        <path d="M 158 140 Q 178 125 172 150" stroke="#1e4e1e" stroke-width="1" fill="none"/>
+                        <!-- Belly/chest scales -->
+                        <ellipse cx="100" cy="165" rx="38" ry="46" fill="#0a2a0a" opacity="0.55"/>
+                        <!-- Scale pattern -->
+                        <path d="M 76 140 Q 82 133 88 140 M 88 140 Q 94 133 100 140 M 100 140 Q 106 133 112 140 M 112 140 Q 118 133 124 140" stroke="#2a5a2a" stroke-width="1.5" fill="none" opacity="0.8"/>
+                        <path d="M 80 155 Q 86 148 92 155 M 92 155 Q 98 148 104 155 M 104 155 Q 110 148 116 155 M 116 155 Q 122 148 128 155" stroke="#2a5a2a" stroke-width="1.5" fill="none" opacity="0.8"/>
+                        <!-- Claws -->
+                        <path d="M 62 215 L 55 230 M 68 218 L 64 234 M 74 220 L 72 236" stroke="#3a7a3a" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M 138 215 L 145 230 M 132 218 L 136 234 M 126 220 L 128 236" stroke="#3a7a3a" stroke-width="2.5" stroke-linecap="round"/>
+                        <!-- Tail -->
+                        <path d="M 88 222 Q 74 238 56 242 Q 44 244 50 236 Q 62 228 76 220" fill="#1a3a1a" stroke="#2a6a2a" stroke-width="2"/>
+                        <!-- Tail spike -->
+                        <polygon points="50,236 38,248 54,240" fill="#3a7a3a" stroke="#2a6a2a" stroke-width="1"/>
+                        <!-- Fire breath glow (hidden by default, shown on happy) -->
+                        <g id="fire-breath" opacity="0">
+                            <ellipse cx="100" cy="96" rx="16" ry="8" fill="#ff6600" opacity="0.7"/>
+                            <ellipse cx="100" cy="104" rx="10" ry="5" fill="#ffaa00" opacity="0.9"/>
+                        </g>
+                    </svg>
+                    <p class="stage-label">Adult Dragon</p>
+                </div>
+
+            </div><!-- /dragon-stage -->
+
+            <!-- Mood indicator bar -->
+            <div class="mood-bar">
+                <span class="mood-icon" id="mood-icon">😐</span>
+                <span class="mood-text" id="mood-text">Neutral</span>
+            </div>
+
+            <!-- Growth controls -->
+            <div class="growth-controls">
+                <button class="btn btn-sm" onclick="setStage('egg')" title="Egg stage">🥚</button>
+                <button class="btn btn-sm" onclick="setStage('baby')" title="Baby stage">🐉</button>
+                <button class="btn btn-sm" onclick="setStage('adult')" title="Adult stage">🔥</button>
+            </div>
+        </section>
+
+        <!-- System Status Panel -->
+        <section class="panel status-panel">
+            <h2>System Status</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <label>Core System</label>
+                    <span class="badge badge-ok" id="status-core">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>TFT Display</label>
+                    <span class="badge badge-ok" id="status-tft">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>SD Card</label>
+                    <span class="badge badge-ok" id="status-sdcard">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>Flash Memory</label>
+                    <span class="badge badge-ok" id="status-flash">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>EEPROM</label>
+                    <span class="badge badge-ok" id="status-eeprom">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>Flipper UART</label>
+                    <span class="badge badge-warn" id="status-flipper">Idle</span>
+                </div>
+                <div class="status-item">
+                    <label>GPIO</label>
+                    <span class="badge badge-ok" id="status-gpio">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>SPI Bus</label>
+                    <span class="badge badge-ok" id="status-spi">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>I2C Bus</label>
+                    <span class="badge badge-ok" id="status-i2c">OK</span>
+                </div>
+                <div class="status-item">
+                    <label>PWM</label>
+                    <span class="badge badge-ok" id="status-pwm">OK</span>
+                </div>
+            </div>
+            <div class="uptime-row">
+                <span>Uptime:</span>
+                <span id="uptime-display">00:00:00</span>
+            </div>
+        </section>
+
+        <!-- Controls Panel -->
+        <section class="panel controls-panel">
+            <h2>Controls</h2>
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="runHardwareTest('tft')">
+                    🖥️ Test TFT Display
+                </button>
+                <button class="btn btn-primary" onclick="runHardwareTest('eeprom')">
+                    💾 Test EEPROM
+                </button>
+                <button class="btn btn-primary" onclick="runHardwareTest('flash')">
+                    ⚡ Test Flash Memory
+                </button>
+                <button class="btn btn-primary" onclick="runHardwareTest('flipper')">
+                    🐬 Test Flipper UART
+                </button>
+                <button class="btn btn-primary" onclick="runHardwareTest('gpio')">
+                    📌 Test GPIO
+                </button>
+                <button class="btn btn-primary" onclick="runHardwareTest('all')">
+                    🔬 Run All Tests
+                </button>
+                <button class="btn btn-success" onclick="triggerHappy()">
+                    😊 Happy Mode
+                </button>
+                <button class="btn btn-danger" onclick="triggerMean()">
+                    😡 Mean Mode
+                </button>
+                <button class="btn btn-secondary" onclick="resetMood()">
+                    😐 Reset Mood
+                </button>
+            </div>
+        </section>
+
+        <!-- Activity Log Panel -->
+        <section class="panel log-panel">
+            <h2>Activity Log <button class="btn btn-sm btn-secondary" onclick="clearLog()">Clear</button></h2>
+            <div class="log-output" id="log-output">
+                <div class="log-entry log-info">System initializing...</div>
+            </div>
+        </section>
+
+        <!-- Vending Machine Panel -->
+        <section class="panel vending-panel">
+            <h2>🎰 Vending Machine</h2>
+            <p class="panel-desc">Dragon-dispensed rewards for completed operations</p>
+            <div class="vending-grid">
+                <div class="vending-item" onclick="vendItem('fire_token')">
+                    <span class="vending-icon">🔥</span>
+                    <span class="vending-label">Fire Token</span>
+                    <span class="vending-count" id="vend-fire">×12</span>
+                </div>
+                <div class="vending-item" onclick="vendItem('scale')">
+                    <span class="vending-icon">🐉</span>
+                    <span class="vending-label">Dragon Scale</span>
+                    <span class="vending-count" id="vend-scale">×5</span>
+                </div>
+                <div class="vending-item" onclick="vendItem('gem')">
+                    <span class="vending-icon">💎</span>
+                    <span class="vending-label">Loki Gem</span>
+                    <span class="vending-count" id="vend-gem">×3</span>
+                </div>
+                <div class="vending-item" onclick="vendItem('rune')">
+                    <span class="vending-icon">ᛚ</span>
+                    <span class="vending-label">Loki Rune</span>
+                    <span class="vending-count" id="vend-rune">×8</span>
+                </div>
+            </div>
+            <div class="vending-status" id="vending-status">Select an item to dispense</div>
+        </section>
+
+        <!-- Credits Panel -->
+        <section class="panel credits-panel">
+            <h2>Credits</h2>
+            <div class="credits-list">
+                <div class="credit-entry">
+                    <span class="credit-role">System Architect</span>
+                    <span class="credit-name">Fomorianshifter</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">Hardware Platform</span>
+                    <span class="credit-name">Orange Pi Zero 2W</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">Integration Partner</span>
+                    <span class="credit-name">Flipper Zero</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">Display Driver</span>
+                    <span class="credit-name">ST7789 TFT</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">Storage</span>
+                    <span class="credit-name">W25Q40 Flash + EEPROM</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">HAL Layer</span>
+                    <span class="credit-name">Loki Embedded Framework</span>
+                </div>
+                <div class="credit-entry">
+                    <span class="credit-role">Web UI</span>
+                    <span class="credit-name">Loki Dragon Interface v1.0</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
