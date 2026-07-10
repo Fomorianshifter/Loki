@@ -1,0 +1,66 @@
+name: CI – Build & Test
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]   # releases are handled by release.yml
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }} / ${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 32-bit ARMv7 – Raspberry Pi 2, older Orange Pi boards
+          - platform: armv7
+            mode: debug
+            packages: gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+            artifact: false
+          - platform: armv7
+            mode: release
+            packages: gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+            artifact: true
+          # 64-bit ARMv8 – Raspberry Pi 3/4/5, Orange Pi Zero 2W
+          - platform: armv8
+            mode: debug
+            packages: gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            artifact: false
+          - platform: armv8
+            mode: release
+            packages: gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            artifact: true
+          # Native host build with MOCK_HARDWARE – compile/sanity check on CI runner
+          - platform: native
+            mode: debug
+            packages: ""
+            artifact: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cross-compiler
+        if: matrix.packages != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Build
+        run: |
+          DEBUG=$( [ "${{ matrix.mode }}" = "release" ] && echo 0 || echo 1 )
+          make PLATFORM=${{ matrix.platform }} DEBUG=${DEBUG}
+
+      - name: Upload release binary as artifact
+        if: matrix.artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loki_app-${{ matrix.platform }}-release
+          path: build/${{ matrix.platform }}/release/loki_app
+          if-no-files-found: error
