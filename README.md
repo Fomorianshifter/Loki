@@ -105,7 +105,16 @@ make docs
 make clean
 ```
 
-If your environment is missing the ARM cross-compiler, builds that depend on `arm-linux-gnueabihf-gcc` will fail until the toolchain is installed.
+By default the Makefile prefers `arm-linux-gnueabihf-gcc` when it is installed, and otherwise falls back to native `gcc` for on-device builds such as a Raspberry Pi.
+
+## Pi Zero 2 W Quick Start
+
+If you want the easiest Raspberry Pi onboarding path, start with:
+
+- `./setup_pi.sh` for the interactive wizard
+- `./install_loki_pi.sh --auto --enable-service` for the one-command installer
+
+The full beginner guide lives in [`docs/PI_QUICKSTART.md`](docs/PI_QUICKSTART.md) and covers SD card imaging, headless SSH, safe defaults, service management, logs, and the intentional opt-in flow for unsafe credit-write behavior.
 
 ## Raspberry Pi Zero W installation (step-by-step)
 

@@ -4,8 +4,8 @@
  */
 
 #include "eeprom_driver.h"
-#include "../../hal/i2c/i2c.h"
-#include "../../config/pinout.h"
+#include "i2c.h"
+#include "pinout.h"
 #include <string.h>
 #include <unistd.h>
 

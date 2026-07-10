@@ -74,7 +74,7 @@ log_level_t log_get_level(void);
  * @def LOG_DEBUG
  * Log debug message (only in DEBUG builds)
  */
-#ifdef DEBUG
+#if DEBUG
 #define LOG_DEBUG(fmt, ...) \
     log_message(LOG_DEBUG, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #else

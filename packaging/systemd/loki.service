@@ -1,0 +1,24 @@
+# Render this template with setup_pi.sh or install_loki_pi.sh.
+# Manual installation example:
+#   sudo install -m 0644 packaging/systemd/loki.service /etc/systemd/system/loki.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now loki.service
+
+[Unit]
+Description=Loki runtime service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__LOKI_USER__
+WorkingDirectory=__LOKI_WORKDIR__
+EnvironmentFile=__LOKI_ENV_FILE__
+ExecStart=__LOKI_RUNNER__
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

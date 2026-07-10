@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file="${LOKI_CONFIG_FILE:-}"
+
+if [ -z "${config_file}" ]; then
+    for candidate in "/etc/loki/loki.env" "${XDG_CONFIG_HOME:-${HOME}/.config}/loki/loki.env"; do
+        if [ -f "${candidate}" ]; then
+            config_file="${candidate}"
+            break
+        fi
+    done
+fi
+
+if [ -n "${config_file}" ] && [ -f "${config_file}" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "${config_file}"
+    set +a
+fi
+
+: "${LOKI_BIN:?Set LOKI_BIN in your Loki environment file before starting Loki.}"
+
+if [ ! -x "${LOKI_BIN}" ]; then
+    printf 'Loki executable not found or not executable: %s\n' "${LOKI_BIN}" >&2
+    exit 1
+fi
+
+exec "${LOKI_BIN}"

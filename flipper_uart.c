@@ -4,8 +4,10 @@
  */
 
 #include "flipper_uart.h"
-#include "../../hal/uart/uart.h"
-#include "../../config/pinout.h"
+#include "uart.h"
+#include "pinout.h"
+
+#include <stdlib.h>
 #include <string.h>
 
 /* ===== FLIPPER UART STATE ===== */

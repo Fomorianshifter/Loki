@@ -4,13 +4,17 @@
 # - Linux/Mac: Use this Makefile directly with `make` command
 # - Windows: Use build.bat or build.ps1 script instead
 #
-# Requires: arm-linux-gnueabihf-gcc cross-compiler
-# Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf
+# Requires: gcc or arm-linux-gnueabihf-gcc
+# Install on Ubuntu/Debian: sudo apt-get install build-essential gcc-arm-linux-gnueabihf
 
 ## Compiler Settings
-CC := arm-linux-gnueabihf-gcc
-CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
-CFLAGS += -I. 
+CC ?= $(if $(shell command -v arm-linux-gnueabihf-gcc 2>/dev/null),arm-linux-gnueabihf-gcc,gcc)
+CFLAGS := -Wall -Wextra -I.
+ifeq ($(findstring arm-linux-gnueabihf,$(notdir $(CC))),arm-linux-gnueabihf)
+    CFLAGS += -march=armv7-a -mtune=cortex-a7
+endif
+SIZE_TOOL ?= $(if $(findstring arm-linux-gnueabihf,$(notdir $(CC))),arm-linux-gnueabihf-size,size)
+NM_TOOL ?= $(if $(findstring arm-linux-gnueabihf,$(notdir $(CC))),arm-linux-gnueabihf-nm,nm)
  
 ## Debug/Release Build Modes
 DEBUG ?= 1
@@ -101,8 +105,8 @@ analyze:
 ## Size report
 size: $(BUILD_DIR)/$(TARGET)
 	@echo "[→] Binary size breakdown:"
-	arm-linux-gnueabihf-size $(BUILD_DIR)/$(TARGET)
-	arm-linux-gnueabihf-nm -tS $(BUILD_DIR)/$(TARGET) | head -20
+	$(SIZE_TOOL) $(BUILD_DIR)/$(TARGET)
+	$(NM_TOOL) -tS $(BUILD_DIR)/$(TARGET) | head -20
  
 ## Print configuration
 info:

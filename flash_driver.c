@@ -4,9 +4,9 @@
  */
 
 #include "flash_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "pinout.h"
 #include <string.h>
 #include <unistd.h>
 
@@ -40,7 +40,7 @@ static flash_context_t flash_ctx = {
  */
 static hal_status_t flash_wait_ready(void)
 {
-    uint8_t status;
+
     uint32_t timeout = 10000;
 
     while (timeout-- > 0) {
