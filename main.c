@@ -21,9 +21,13 @@
 #include "utils/log.h"
 #include "utils/memory.h"
 #include "utils/retry.h"
+#include "loki_life.h"
 
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
+
+/** Global Loki life-cycle state — initialised in main() */
+static loki_state_t loki;
 
 /* ===== SIGNAL HANDLERS ===== */
 /**
@@ -146,6 +150,111 @@ static void test_flipper_communication(void)
     }
 }
 
+/* ===== LOKI LIFECYCLE DEMO ===== */
+/**
+ * @brief Demonstrate Loki's life-cycle: egg → hatchling → young → adult.
+ *
+ * This function walks through feeding, interaction, time progression, and
+ * stage transitions so you can see every subsystem working together.
+ * On real hardware the same calls happen in response to user input and
+ * elapsed real time; here we use simulated seconds so it runs quickly.
+ */
+static void demo_loki_lifecycle(void)
+{
+    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    LOG_INFO("Loki Life-Cycle Demo");
+    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    /* --- Phase 1: Egg stage --- */
+    LOG_INFO("--- Phase 1: Egg ---");
+    loki_print_status(&loki);
+
+    LOG_INFO("Feeding Loki basic food x3...");
+    loki_feed(&loki, LOKI_FOOD_BASIC);
+    loki_feed(&loki, LOKI_FOOD_BASIC);
+    loki_feed(&loki, LOKI_FOOD_BASIC);
+
+    LOG_INFO("Interacting with the egg x5...");
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_interact(&loki);
+
+    LOG_INFO("Feeding a special treat...");
+    loki_feed(&loki, LOKI_FOOD_SPECIAL);
+
+    /* Simulate 10 minutes passing — hunger and energy drift */
+    LOG_INFO("Simulating 10 minutes of time...");
+    loki_tick(&loki, 600);
+
+    LOG_INFO("Animation state: %s", loki_anim_name(loki_get_animation_state(&loki)));
+    loki_print_status(&loki);
+
+    /* --- Phase 2: Push past hatchling threshold --- */
+    LOG_INFO("--- Phase 2: Reaching hatchling threshold (50 gp) ---");
+    /* Feed tasty meals to accumulate more growth points */
+    loki_feed(&loki, LOKI_FOOD_TASTY);
+    loki_feed(&loki, LOKI_FOOD_TASTY);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_feed(&loki, LOKI_FOOD_SPECIAL);
+
+    LOG_INFO("Animation state after hatching zone: %s",
+             loki_anim_name(loki_get_animation_state(&loki)));
+    loki_print_status(&loki);
+
+    /* --- Phase 3: Grow through young stage --- */
+    LOG_INFO("--- Phase 3: Growing toward YOUNG stage (200 gp) ---");
+    /* 8 cycles of feed+interact+tick to accumulate gp toward the 200-gp threshold */
+    for (uint8_t cycle = 0; cycle < 8; cycle++) {
+        loki_feed(&loki, LOKI_FOOD_TASTY);
+        loki_interact(&loki);
+        loki_interact(&loki);
+        loki_tick(&loki, 120);  /* 2 minutes per cycle */
+    }
+    loki_feed(&loki, LOKI_FOOD_SPECIAL);
+    loki_feed(&loki, LOKI_FOOD_SPECIAL);
+
+    loki_print_status(&loki);
+
+    /* --- Phase 4: Grow toward adult --- */
+    LOG_INFO("--- Phase 4: Growing toward ADULT stage (500 gp) ---");
+    /* 12 cycles with special treats to cross the 500-gp adult threshold */
+    for (uint8_t cycle = 0; cycle < 12; cycle++) {
+        loki_feed(&loki, LOKI_FOOD_SPECIAL);
+        loki_interact(&loki);
+        loki_tick(&loki, 180);  /* 3 minutes per cycle */
+    }
+
+    loki_print_status(&loki);
+
+    /* --- Phase 5: Demonstrate mood transitions --- */
+    LOG_INFO("--- Phase 5: Mood demonstration ---");
+
+    /* Let hunger build up by simulating a long idle period */
+    LOG_INFO("Simulating 2 hours of neglect...");
+    loki_tick(&loki, 7200);
+    LOG_INFO("Mood after neglect: %s", loki_mood_name(loki.mood));
+    LOG_INFO("Animation: %s", loki_anim_name(loki_get_animation_state(&loki)));
+
+    /* Feed and play to restore mood */
+    LOG_INFO("Feeding and playing to restore happiness...");
+    loki_feed(&loki, LOKI_FOOD_SPECIAL);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    loki_interact(&loki);
+    LOG_INFO("Mood after care: %s", loki_mood_name(loki.mood));
+    LOG_INFO("Animation: %s", loki_anim_name(loki_get_animation_state(&loki)));
+
+    loki_print_status(&loki);
+
+    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    LOG_INFO("Life-cycle demo complete.");
+    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+}
+
 /* ===== MAIN APPLICATION ===== */
 /**
  * @brief Main application entry point
@@ -185,6 +294,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    /* Initialize Loki life-cycle system */
+    loki_init(&loki);
+
     /* Run hardware tests */
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     LOG_INFO("Running hardware tests...");
@@ -204,11 +316,17 @@ int main(int argc, char *argv[])
 
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
+    /* Run Loki life-cycle demonstration */
+    demo_loki_lifecycle();
+
     /* Main loop */
     LOG_INFO("Entering main loop. Press Ctrl+C to exit.");
     LOG_INFO("Waiting for Flipper commands...\n");
 
     while (!should_exit) {
+        /* Advance Loki's clock by one second each loop iteration */
+        loki_tick(&loki, 1);
+
         /* Check for Flipper messages */
         if (flipper_available() > 0) {
             flipper_message_t msg = {0};
@@ -216,6 +334,30 @@ int main(int argc, char *argv[])
             if (flipper_receive_message(&msg, 100) == HAL_OK) {
                 LOG_INFO("Received Flipper command: 0x%02X (length: %d)", 
                         msg.cmd, msg.length);
+
+                /*
+                 * Route Flipper commands to Loki actions.
+                 * Extend this switch as more commands are defined.
+                 */
+                switch (msg.cmd) {
+                    case 0x10:  /* FEED_BASIC   */
+                        loki_feed(&loki, LOKI_FOOD_BASIC);
+                        break;
+                    case 0x11:  /* FEED_TASTY   */
+                        loki_feed(&loki, LOKI_FOOD_TASTY);
+                        break;
+                    case 0x12:  /* FEED_SPECIAL */
+                        loki_feed(&loki, LOKI_FOOD_SPECIAL);
+                        break;
+                    case 0x20:  /* INTERACT     */
+                        loki_interact(&loki);
+                        break;
+                    case 0x30:  /* STATUS       */
+                        loki_print_status(&loki);
+                        break;
+                    default:
+                        break;
+                }
 
                 /* Send acknowledgment */
                 flipper_message_t ack = {
