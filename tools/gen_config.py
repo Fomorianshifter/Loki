@@ -25,7 +25,7 @@ try:
     import tomllib
 except ModuleNotFoundError:
     print(
-        "ERROR: Python 3.11+ is required (tomllib not found).\n"
+        "ERROR: Python 3.11+ is required (tomllib not found). "
         "On older Python you can install 'tomli' and import it instead.",
         file=sys.stderr,
     )
