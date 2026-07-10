@@ -34,9 +34,16 @@
 #define I2C0_SDA          3     /* I2C Data */
 #define I2C0_SCL          5     /* I2C Clock */
 
-/* ===== UART1 PINS (Flipper Zero) ===== */
-#define UART1_TX          8     /* UART1 Transmit to Flipper RX */
-#define UART1_RX          10    /* UART1 Receive from Flipper TX */
+/* ===== UART1 PINS (Primary UART / RS-485 HAT) ===== */
+#define UART1_TX          8     /* UART TX (Pi pin 8 / BCM14) */
+#define UART1_RX          10    /* UART RX (Pi pin 10 / BCM15) */
+
+/* ===== RS-485 HAT DE/RE CONTROL PIN ===== */
+/* Many RS-485 HATs auto-route DE/RE via the kernel driver — no GPIO needed.  */
+/* If your HAT requires a manual DE pin, set rs485_de_gpio_pin in the         */
+/* uart_config_t and enable rs485_de_gpio_fallback.  Verify the BCM number    */
+/* with your HAT datasheet; GPIO4 and GPIO18 are common choices.              */
+#define RS485_DE_GPIO     4     /* BCM GPIO4 (Pi pin 7) — adjust as needed    */
 
 /* ===== POWER PINS ===== */
 #define PIN_5V_IN         2     /* 5V Input from Flipper USB (Pin 2 or 4) */

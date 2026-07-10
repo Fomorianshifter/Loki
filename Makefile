@@ -1,16 +1,26 @@
-# Loki Build Configuration for Orange Pi Zero 2W
-# 
+# Loki Build Configuration
+#
 # PLATFORM NOTES:
+# - Target: Raspberry Pi (ARM) with RS-485 HAT
 # - Linux/Mac: Use this Makefile directly with `make` command
 # - Windows: Use build.bat or build.ps1 script instead
 #
-# Requires: arm-linux-gnueabihf-gcc cross-compiler
-# Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf
+# Cross-compiler install (Ubuntu/Debian):
+#   sudo apt-get install gcc-arm-linux-gnueabihf
+# Native build (when running directly on the Pi):
+#   make  (will use gcc if cross-compiler is absent)
 
 ## Compiler Settings
-CC := arm-linux-gnueabihf-gcc
-CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
-CFLAGS += -I. 
+## Prefer ARM cross-compiler for Raspberry Pi target; fall back to native gcc.
+ifneq ($(shell which arm-linux-gnueabihf-gcc 2>/dev/null),)
+    CC     := arm-linux-gnueabihf-gcc
+    CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
+else
+    CC     := gcc
+    CFLAGS := -Wall -Wextra
+    $(info [WARN] arm-linux-gnueabihf-gcc not found, using native gcc)
+endif
+CFLAGS += -I.
  
 ## Debug/Release Build Modes
 DEBUG ?= 1
@@ -38,6 +48,16 @@ TARGET := loki_app
  
 ## Linker Settings
 LDFLAGS := -lm -lpthread
+
+## Optional: libgpiod for RS-485 GPIO DE control (replaces sysfs fallback)
+## Install:  sudo apt-get install libgpiod-dev
+## Enable:   make HAVE_LIBGPIOD=1
+HAVE_LIBGPIOD ?= 0
+ifeq ($(HAVE_LIBGPIOD), 1)
+    CFLAGS  += -DHAVE_LIBGPIOD
+    LDFLAGS += -lgpiod
+    $(info [INFO] libgpiod enabled for RS-485 GPIO DE control)
+endif
  
 ## Build Rules
 all: $(BUILD_DIR)/$(TARGET)
