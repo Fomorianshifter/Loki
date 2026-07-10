@@ -4,9 +4,9 @@
  */
 
 #include "sdcard_driver.h"
-#include "../../hal/spi/spi.h"
-#include "../../hal/gpio/gpio.h"
-#include "../../config/pinout.h"
+#include "spi.h"
+#include "gpio.h"
+#include "config.h"
 #include <string.h>
 
 /* ===== SD CARD COMMANDS ===== */

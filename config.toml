@@ -1,0 +1,143 @@
+# Loki Master Configuration — single source of truth
+# Edit this file, then regenerate headers with: python3 tools/gen_config.py
+# DO NOT edit board_config.h, pinout.h, or config.h directly.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [board] — Board identification, frequencies, sizes, timing.
+#   Integer and float fields are emitted as numeric C literals.
+#   String fields are emitted as quoted C string literals.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[board]
+# Board identification
+BOARD_NAME    = "Orange Pi Zero 2W Loki"
+BOARD_VERSION = "1.0"
+BOARD_MODEL   = "OPI_ZERO_2W"
+
+# Power configuration
+POWER_INPUT_VOLTAGE  = 5.0   # 5 V USB input from Flipper
+POWER_LOGIC_VOLTAGE  = 3.3   # 3.3 V logic level
+LDO_ENABLE_DELAY_MS  = 10    # LDO startup delay (ms)
+
+# TFT display configuration
+TFT_WIDTH        = 480
+TFT_HEIGHT       = 320
+TFT_SPI_FREQ     = 40000000  # 40 MHz
+TFT_TYPE         = "ILI9488"
+TFT_COLOR_DEPTH  = 16        # bits per pixel
+TFT_ROTATION     = 0         # 0=Normal 1=90° 2=180° 3=270°
+TFT_BRIGHTNESS   = 100       # default brightness 0-100 %
+
+# SD card configuration
+SD_SPI_FREQ    = 25000000    # 25 MHz
+SD_SECTOR_SIZE = 512         # bytes
+SD_FAST_MODE   = 1           # enable fast SPI after init
+
+# Loki Credits Flash configuration (W25Q40)
+FLASH_IC_TYPE     = "W25Q40"
+FLASH_CAPACITY    = 524288   # 512 KiB in bytes
+FLASH_PAGE_SIZE   = 256      # bytes
+FLASH_SECTOR_SIZE = 4096     # bytes
+FLASH_SPI_FREQ    = 20000000 # 20 MHz
+
+# EEPROM configuration (FT24C02A)
+EEPROM_IC_TYPE  = "FT24C02A"
+EEPROM_CAPACITY = 256        # bytes
+EEPROM_PAGE_SIZE = 8         # bytes
+EEPROM_I2C_FREQ = 100000     # 100 kHz standard mode
+
+# UART Flipper configuration
+UART1_BAUD_RATE      = 115200
+UART1_DATA_BITS      = 8
+UART1_STOP_BITS      = 1
+UART1_RX_BUFFER_SIZE = 256
+UART1_TX_BUFFER_SIZE = 256
+
+# Decoupling capacitor values
+DECAP_BULK_UF    = 10    # 10 µF bulk
+DECAP_CERAMIC_UF = 0.1   # 0.1 µF ceramic
+
+# Pull-up resistors
+I2C_PULLUP_OHM = 4700    # 4.7 kΩ for I2C SDA/SCL
+
+# Error handling
+ENABLE_ERROR_LOGGING  = 1
+ERROR_LOG_BUFFER_SIZE = 256
+
+# Timing constants (ms)
+INIT_DELAY_TFT    = 100
+INIT_DELAY_FLASH  = 10
+INIT_DELAY_EEPROM = 5
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [board.hex] — Integer values emitted as 0x… hex literals in C.
+#   TOML hex syntax (0x…) is used here for clarity; values are still integers.
+# ─────────────────────────────────────────────────────────────────────────────
+[board.hex]
+FLASH_JEDEC_ID  = 0xEF4013   # W25Q40 JEDEC ID
+EEPROM_I2C_ADDR = 0x50       # FT24C02A I2C 7-bit address
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [board.raw] — Values emitted as raw C identifiers/expressions (no quotes).
+# ─────────────────────────────────────────────────────────────────────────────
+[board.raw]
+UART1_PARITY = "UART_PARITY_NONE"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [pinout] — GPIO/SPI/I2C/UART pin numbers and PWM settings.
+# ─────────────────────────────────────────────────────────────────────────────
+[pinout]
+# GPIO pins
+GPIO_TFT_DC  = 18   # TFT Data/Command control
+GPIO_TFT_RST = 22   # TFT Reset
+GPIO_TFT_BL  = 7    # TFT Backlight (PWM capable)
+
+# SPI0 pins (TFT display)
+SPI0_SCK  = 23
+SPI0_MOSI = 19
+SPI0_MISO = 21
+SPI0_CS0  = 24      # Chip Select 0 (TFT)
+SPI0_CS1  = 26      # Chip Select 1 (TFT Touch, optional)
+
+# SPI1 pins (SD card)
+SPI1_SCK  = 29
+SPI1_MOSI = 31
+SPI1_MISO = 33
+SPI1_CS0  = 32      # Chip Select 0 (SD Card)
+
+# SPI2 pins (Loki Credits Flash)
+SPI2_SCK  = 13
+SPI2_MOSI = 11
+SPI2_MISO = 12
+SPI2_CS0  = 15      # Chip Select 0 (Flash)
+
+# I2C0 pins (EEPROM)
+I2C0_SDA = 3
+I2C0_SCL = 5
+
+# UART1 pins (Flipper Zero)
+UART1_TX = 8
+UART1_RX = 10
+
+# Power pins
+PIN_5V_IN   = 2
+PIN_3V3_OUT = 1
+PIN_GND     = 6
+
+# PWM
+PWM_FREQ_DEFAULT = 1000   # 1 kHz backlight PWM
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [pinout.hex] — Integer values emitted as 0x… hex literals in C.
+# ─────────────────────────────────────────────────────────────────────────────
+[pinout.hex]
+EEPROM_ADDR = 0x50   # FT24C02A EEPROM I2C address
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [pinout.raw] — Device CS/alias definitions (raw C identifiers, no quotes).
+# ─────────────────────────────────────────────────────────────────────────────
+[pinout.raw]
+TFT_CS           = "SPI0_CS0"
+SD_CS            = "SPI1_CS0"
+FLASH_CS         = "SPI2_CS0"
+PWM_TFT_BACKLIGHT = "GPIO_TFT_BL"

@@ -12,7 +12,7 @@
  * @{
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== PUBLIC API ===== */
 
