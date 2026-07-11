@@ -199,6 +199,7 @@ PWM_FREQ_DEFAULT = 1000
 EEPROM_ADDR = 0x50
 
 [build.pinout.raw]
+# SPI bus 0 chip-select for TFT: SPI0_CS0 => /dev/spidev0.0, SPI0_CS1 => /dev/spidev0.1
 TFT_CS = "SPI0_CS0"
 SD_CS = "SPI1_CS0"
 FLASH_CS = "SPI2_CS0"

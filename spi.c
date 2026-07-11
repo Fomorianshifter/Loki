@@ -5,6 +5,7 @@
 
 #include "spi.h"
 #include "log.h"
+#include "pinout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +51,12 @@ static const char* spi_get_device_path(spi_bus_t bus)
 {
     /* Raspberry Pi SPI device mapping */
     switch (bus) {
-        case SPI_BUS_0: return "/dev/spidev0.0";
+        case SPI_BUS_0:
+#if defined(TFT_CS) && defined(SPI0_CS1)
+            return (TFT_CS == SPI0_CS1) ? "/dev/spidev0.1" : "/dev/spidev0.0";
+#else
+            return "/dev/spidev0.0";
+#endif
         case SPI_BUS_1: return "/dev/spidev1.0";
         case SPI_BUS_2: return "/dev/spidev1.1";
         default: return NULL;
@@ -73,6 +79,7 @@ static hal_status_t spi_open_device(spi_bus_t bus, spi_context_t *ctx)
         return HAL_ERROR;
     }
 
+    LOG_INFO("SPI bus %d mapped to %s", bus, device_path);
     ctx->device_handle = fd;
     return HAL_OK;
 }
