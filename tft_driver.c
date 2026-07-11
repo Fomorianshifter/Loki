@@ -203,21 +203,25 @@ hal_status_t tft_init(void)
         return HAL_ERROR;
     }
 
-    /* Initialize PWM for backlight */
-    pwm_config_t pwm_cfg = {
-        .pin = GPIO_TFT_BL,
-        .frequency = PWM_FREQ_DEFAULT,
-        .duty_cycle = tft_ctx.brightness,
-    };
-    status = pwm_init(PWM_CHANNEL_0, &pwm_cfg);
-    if (status != HAL_OK) {
-        LOG_WARN("Backlight PWM init failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
+    if (GPIO_TFT_BL == 255u) {
+        LOG_INFO("Backlight control disabled (GPIO_TFT_BL=255)");
     } else {
-        status = pwm_enable(PWM_CHANNEL_0);
+        /* Initialize PWM for backlight */
+        pwm_config_t pwm_cfg = {
+            .pin = GPIO_TFT_BL,
+            .frequency = PWM_FREQ_DEFAULT,
+            .duty_cycle = tft_ctx.brightness,
+        };
+        status = pwm_init(PWM_CHANNEL_0, &pwm_cfg);
         if (status != HAL_OK) {
-            LOG_WARN("Backlight PWM enable failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
+            LOG_WARN("Backlight PWM init failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
         } else {
-            tft_ctx.backlight_ready = 1;
+            status = pwm_enable(PWM_CHANNEL_0);
+            if (status != HAL_OK) {
+                LOG_WARN("Backlight PWM enable failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
+            } else {
+                tft_ctx.backlight_ready = 1;
+            }
         }
     }
 
