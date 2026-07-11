@@ -61,7 +61,7 @@ hal_status_t system_init(void)
     system_state.gpio_ready = 1;
 
     /* Initialize TFT Display */
-    LOG_INFO("Initializing TFT Display (480×320 ILI9488)...");
+    LOG_INFO("Initializing TFT Display (%ux%u %s)...", TFT_WIDTH, TFT_HEIGHT, TFT_TYPE);
     if (tft_init() != HAL_OK) {
         LOG_WARN("TFT initialization failed (continuing without display)");
     } else {

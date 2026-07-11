@@ -124,8 +124,9 @@ uart_config_t cfg = {
 uart_init(UART_PORT_1, &cfg);
 ```
 
-**sysfs GPIO** is used by default and requires no extra libraries.
-To use **libgpiod** instead (faster, recommended for production):
+The build now auto-detects **libgpiod** (recommended on modern Raspberry Pi kernels).
+If it is not installed, it falls back to legacy **sysfs GPIO**.
+To force libgpiod support:
 
 ```bash
 sudo apt-get install libgpiod-dev

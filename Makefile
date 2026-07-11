@@ -83,11 +83,22 @@ endif
 ## Optional: libgpiod for GPIO control (TFT pins + RS-485 DE)
 ## Install:  sudo apt-get install libgpiod-dev
 ## Enable:   make HAVE_LIBGPIOD=1
-HAVE_LIBGPIOD ?= 0
+## Disable:  make HAVE_LIBGPIOD=0
+## Default:  auto-detect via pkg-config
+HAVE_LIBGPIOD ?= auto
+ifeq ($(HAVE_LIBGPIOD),auto)
+    ifneq ($(shell pkg-config --exists libgpiod && echo 1),)
+        HAVE_LIBGPIOD := 1
+    else
+        HAVE_LIBGPIOD := 0
+    endif
+endif
 ifeq ($(HAVE_LIBGPIOD), 1)
     CFLAGS  += -DHAVE_LIBGPIOD
     LDFLAGS += -lgpiod
     $(info [INFO] libgpiod enabled for GPIO (display + RS-485 DE))
+else
+    $(info [WARN] libgpiod disabled; falling back to sysfs GPIO backend)
 endif
  
 ## Generated config headers — regenerated whenever config.toml or the script changes.

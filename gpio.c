@@ -59,6 +59,9 @@ static hal_status_t gpio_export(uint32_t pin)
     close(fd);
 
     if (written < 0 && errno != EBUSY) {
+        if (errno == EINVAL) {
+            LOG_ERROR("GPIO sysfs backend rejected pin %u (kernel may have sysfs GPIO disabled); rebuild with libgpiod support", pin);
+        }
         LOG_ERROR("GPIO export failed for pin %u: %s", pin, strerror(errno));
         return HAL_ERROR;
     }
