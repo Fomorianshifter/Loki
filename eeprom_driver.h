@@ -18,6 +18,12 @@
 hal_status_t eeprom_init(void);
 
 /**
+ * Check whether EEPROM is initialized and ready.
+ * @return 1 when ready, 0 otherwise
+ */
+uint8_t eeprom_is_ready(void);
+
+/**
  * Read from EEPROM
  * @param[in] address Memory address (0-255)
  * @param[out] buffer Receive buffer

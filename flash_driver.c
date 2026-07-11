@@ -114,6 +114,11 @@ hal_status_t flash_init(void)
     return HAL_OK;
 }
 
+uint8_t flash_is_ready(void)
+{
+    return flash_ctx.initialized;
+}
+
 hal_status_t flash_read(uint32_t address, uint8_t *buffer, uint32_t length)
 {
     if (buffer == NULL || length == 0 || address + length > FLASH_CAPACITY) {

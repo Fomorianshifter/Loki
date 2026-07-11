@@ -39,8 +39,23 @@ hal_status_t eeprom_init(void)
         return HAL_ERROR;
     }
 
+    /* Probe EEPROM presence by reading one byte from address 0. */
+    {
+        uint8_t reg_addr = 0;
+        uint8_t probe = 0;
+        if (i2c_write_read(I2C_BUS_0, EEPROM_ADDR, &reg_addr, 1, &probe, 1) != HAL_OK) {
+            LOG_WARN("EEPROM probe failed at address 0x%02X", EEPROM_ADDR);
+            return HAL_ERROR;
+        }
+    }
+
     eeprom_ctx.initialized = 1;
     return HAL_OK;
+}
+
+uint8_t eeprom_is_ready(void)
+{
+    return eeprom_ctx.initialized;
 }
 
 hal_status_t eeprom_read(uint8_t address, uint8_t *buffer, uint16_t length)

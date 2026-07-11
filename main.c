@@ -206,11 +206,19 @@ int main(int argc, char *argv[])
     test_tft_display();
     sleep(1);
 
-    test_flash();
-    sleep(1);
+    if (flash_is_ready()) {
+        test_flash();
+        sleep(1);
+    } else {
+        LOG_INFO("Skipping Flash test (flash not initialized)");
+    }
 
-    test_eeprom();
-    sleep(1);
+    if (eeprom_is_ready()) {
+        test_eeprom();
+        sleep(1);
+    } else {
+        LOG_INFO("Skipping EEPROM test (EEPROM not initialized/connected)");
+    }
 
     test_flipper_communication();
     sleep(1);

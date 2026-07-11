@@ -19,6 +19,12 @@
 hal_status_t flash_init(void);
 
 /**
+ * Check whether flash is initialized and ready.
+ * @return 1 when ready, 0 otherwise
+ */
+uint8_t flash_is_ready(void);
+
+/**
  * Read from flash memory
  * @param[in] address Memory address
  * @param[out] buffer Receive buffer
