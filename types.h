@@ -38,6 +38,7 @@ typedef struct {
     uint8_t mode;            /* SPI mode (0-3) */
     uint8_t bits_per_word;   /* Usually 8 */
     spi_bit_order_t bit_order;
+    uint8_t cs_line;         /* Chip-select line index (0 or 1) — selects /dev/spidevX.Y */
 } spi_config_t;
 
 /* ===== I2C CONFIGURATION ===== */
