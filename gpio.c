@@ -17,7 +17,6 @@
 #include <gpiod.h>
 #endif
 
-static const char *GPIO_SYSFS_PATH = "/sys/class/gpio";
 static uint8_t configured_pins[256] = {0};
 
 #ifdef HAVE_LIBGPIOD
@@ -34,6 +33,8 @@ static gpio_line_state_t gpio_lines[256] = {0};
 /* ===== LOCAL FUNCTIONS ===== */
 
 #ifndef HAVE_LIBGPIOD
+static const char *GPIO_SYSFS_PATH = "/sys/class/gpio";
+
 static hal_status_t gpio_export(uint32_t pin)
 {
     char path[64];

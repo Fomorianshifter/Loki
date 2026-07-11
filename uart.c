@@ -134,29 +134,30 @@ static uart_context_t *ctx_for_port(uart_port_t port)
     if (port == UART_PORT_1) {
         return &uart_context_1;
     }
-
-    static int uart_open_first_available(const char *primary_path)
-    {
-        const char *candidates[3] = { primary_path, NULL, NULL };
-        size_t i;
-
-        if (primary_path == NULL || primary_path[0] == '\0' || strcmp(primary_path, UART_DEFAULT_DEVICE) == 0) {
-            candidates[0] = UART_DEFAULT_DEVICE;
-            candidates[1] = UART_FALLBACK_DEVICE_1;
-            candidates[2] = UART_FALLBACK_DEVICE_2;
-        }
-
-        for (i = 0; i < 3 && candidates[i] != NULL; i++) {
-            int fd = open(candidates[i], O_RDWR | O_NOCTTY | O_NONBLOCK);
-            if (fd >= 0) {
-                return fd;
-            }
-            fprintf(stderr, "[uart] open %s: %s\n", candidates[i], strerror(errno));
-        }
-
-        return -1;
-    }
     return NULL;
+}
+
+static int uart_open_first_available(const char *primary_path)
+{
+    const char *candidates[3] = { primary_path, NULL, NULL };
+    size_t i;
+
+    if (primary_path == NULL || primary_path[0] == '\0'
+            || strcmp(primary_path, UART_DEFAULT_DEVICE) == 0) {
+        candidates[0] = UART_DEFAULT_DEVICE;
+        candidates[1] = UART_FALLBACK_DEVICE_1;
+        candidates[2] = UART_FALLBACK_DEVICE_2;
+    }
+
+    for (i = 0; i < 3 && candidates[i] != NULL; i++) {
+        int fd = open(candidates[i], O_RDWR | O_NOCTTY | O_NONBLOCK);
+        if (fd >= 0) {
+            return fd;
+        }
+        fprintf(stderr, "[uart] open %s: %s\n", candidates[i], strerror(errno));
+    }
+
+    return -1;
 }
 
 /**
