@@ -25,6 +25,17 @@
 /* ===== GLOBAL STATE ===== */
 volatile sig_atomic_t should_exit = 0;
 
+static int has_flag(int argc, char *argv[], const char *flag)
+{
+    int i;
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], flag) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* ===== SIGNAL HANDLERS ===== */
 /**
  * @brief Signal handler for graceful shutdown
@@ -158,6 +169,8 @@ static void test_flipper_communication(void)
  */
 int main(int argc, char *argv[])
 {
+    int wait_for_flipper = has_flag(argc, argv, "--wait-flipper");
+
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
     fprintf(stdout, "║         Loki - Raspberry Pi Display System        ║\n");
@@ -203,6 +216,15 @@ int main(int argc, char *argv[])
     sleep(1);
 
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    if (!wait_for_flipper && flipper_available() == 0) {
+        LOG_INFO("No Flipper data detected. Exiting standalone run.");
+        LOG_INFO("Tip: run with --wait-flipper to stay in command wait mode.");
+        system_shutdown();
+        LOG_INFO("Loki system terminated successfully");
+        fprintf(stdout, "\n✓ Goodbye!\n");
+        return EXIT_SUCCESS;
+    }
 
     /* Main loop */
     LOG_INFO("Entering main loop. Press Ctrl+C to exit.");

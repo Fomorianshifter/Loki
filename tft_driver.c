@@ -8,6 +8,7 @@
 #include "gpio.h"
 #include "pwm.h"
 #include "config.h"
+#include "log.h"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -27,12 +28,14 @@ typedef struct {
     uint8_t initialized;
     uint8_t rotation;
     uint8_t brightness;
+    uint8_t backlight_ready;
 } tft_context_t;
 
 static tft_context_t tft_ctx = {
     .initialized = 0,
     .rotation = TFT_ROTATION,
     .brightness = TFT_BRIGHTNESS,
+    .backlight_ready = 0,
 };
 
 /* ===== LOCAL HELPER FUNCTIONS ===== */
@@ -175,11 +178,14 @@ hal_status_t tft_init(void)
     };
     status = pwm_init(PWM_CHANNEL_0, &pwm_cfg);
     if (status != HAL_OK) {
-        return HAL_ERROR;
-    }
-    status = pwm_enable(PWM_CHANNEL_0);
-    if (status != HAL_OK) {
-        return HAL_ERROR;
+        LOG_WARN("Backlight PWM init failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
+    } else {
+        status = pwm_enable(PWM_CHANNEL_0);
+        if (status != HAL_OK) {
+            LOG_WARN("Backlight PWM enable failed on GPIO %u; continuing without backlight control", GPIO_TFT_BL);
+        } else {
+            tft_ctx.backlight_ready = 1;
+        }
     }
 
     /* Reset display */
@@ -303,6 +309,10 @@ hal_status_t tft_set_brightness(uint8_t brightness)
     }
 
     tft_ctx.brightness = brightness;
+    if (!tft_ctx.backlight_ready) {
+        return HAL_OK;
+    }
+
     return pwm_set_duty(PWM_CHANNEL_0, brightness);
 }
 
@@ -344,8 +354,11 @@ hal_status_t tft_deinit(void)
     tft_write_command(ILI9488_DISPOFF);
 
     /* Disable backlight */
-    pwm_disable(PWM_CHANNEL_0);
-    pwm_deinit(PWM_CHANNEL_0);
+    if (tft_ctx.backlight_ready) {
+        pwm_disable(PWM_CHANNEL_0);
+        pwm_deinit(PWM_CHANNEL_0);
+        tft_ctx.backlight_ready = 0;
+    }
 
     /* Deinitialize SPI */
     spi_deinit(SPI_BUS_0);
