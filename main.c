@@ -170,6 +170,7 @@ static void test_flipper_communication(void)
 int main(int argc, char *argv[])
 {
     int wait_for_flipper = has_flag(argc, argv, "--wait-flipper");
+    int skip_tests = has_flag(argc, argv, "--skip-tests");
 
     /* Print banner */
     fprintf(stdout, "╔════════════════════════════════════════════════════╗\n");
@@ -198,32 +199,36 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    /* Run hardware tests */
-    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    LOG_INFO("Running hardware tests...");
-    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
-    test_tft_display();
-    sleep(1);
-
-    if (flash_is_ready()) {
-        test_flash();
-        sleep(1);
+    if (skip_tests) {
+        LOG_INFO("Skipping hardware tests (--skip-tests)");
     } else {
-        LOG_INFO("Skipping Flash test (flash not initialized)");
-    }
+        /* Run hardware tests */
+        LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        LOG_INFO("Running hardware tests...");
+        LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    if (eeprom_is_ready()) {
-        test_eeprom();
+        test_tft_display();
         sleep(1);
-    } else {
-        LOG_INFO("Skipping EEPROM test (EEPROM not initialized/connected)");
+
+        if (flash_is_ready()) {
+            test_flash();
+            sleep(1);
+        } else {
+            LOG_INFO("Skipping Flash test (flash not initialized)");
+        }
+
+        if (eeprom_is_ready()) {
+            test_eeprom();
+            sleep(1);
+        } else {
+            LOG_INFO("Skipping EEPROM test (EEPROM not initialized/connected)");
+        }
+
+        test_flipper_communication();
+        sleep(1);
+
+        LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     }
-
-    test_flipper_communication();
-    sleep(1);
-
-    LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     if (!wait_for_flipper && flipper_available() == 0) {
         LOG_INFO("No Flipper data detected. Exiting standalone run.");

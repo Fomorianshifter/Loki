@@ -411,7 +411,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/loki_app
+ExecStart=/usr/local/bin/loki_app --wait-flipper --skip-tests
 
 # Restart only on failures (prevents loop when app exits normally)
 Restart=on-failure
@@ -453,10 +453,10 @@ sudo systemctl status loki.service
 sudo journalctl -u loki.service -f
 ```
 
-If you want service mode to stay in command-wait state, change `ExecStart` to:
+For interactive/manual diagnostics with hardware tests enabled, run:
 
-```ini
-ExecStart=/usr/local/bin/loki_app --wait-flipper
+```bash
+/usr/local/bin/loki_app
 ```
 
 ### Using cron for Periodic Execution
