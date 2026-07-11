@@ -413,8 +413,8 @@ After=network.target
 Type=simple
 ExecStart=/usr/local/bin/loki_app
 
-# Restart on failure
-Restart=always
+# Restart only on failures (prevents loop when app exits normally)
+Restart=on-failure
 RestartSec=2
 
 # Log output
