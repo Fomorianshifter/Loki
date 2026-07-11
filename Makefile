@@ -78,7 +78,7 @@ else
     NM_TOOL   := nm
 endif
 
-## Optional: libgpiod for RS-485 GPIO DE control (replaces sysfs fallback)
+## Optional: libgpiod for GPIO control (TFT pins + RS-485 DE)
 ## Install:  sudo apt-get install libgpiod-dev
 ## Enable:   make HAVE_LIBGPIOD=1
 HAVE_LIBGPIOD ?= 0
