@@ -4,6 +4,7 @@
  */
 
 #include "spi.h"
+#include "log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,7 @@ static hal_status_t spi_open_device(spi_bus_t bus, spi_context_t *ctx)
 
     int fd = open(device_path, O_RDWR);
     if (fd < 0) {
+        LOG_ERROR("Failed to open SPI device %s: %s", device_path, strerror(errno));
         return HAL_ERROR;
     }
 
@@ -104,6 +106,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
     /* Set SPI mode */
     uint8_t mode = config->mode;
     if (ioctl(ctx->device_handle, SPI_IOC_WR_MODE, &mode) < 0) {
+        LOG_ERROR("Failed to set SPI mode on bus %d: %s", bus, strerror(errno));
         close(ctx->device_handle);
         ctx->device_handle = -1;
         return HAL_ERROR;
@@ -112,6 +115,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
     /* Set bits per word */
     uint8_t bits = config->bits_per_word;
     if (ioctl(ctx->device_handle, SPI_IOC_WR_BITS_PER_WORD, &bits) < 0) {
+        LOG_ERROR("Failed to set SPI bits-per-word on bus %d: %s", bus, strerror(errno));
         close(ctx->device_handle);
         ctx->device_handle = -1;
         return HAL_ERROR;
@@ -120,6 +124,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
     /* Set SPI clock speed */
     uint32_t speed = config->frequency;
     if (ioctl(ctx->device_handle, SPI_IOC_WR_MAX_SPEED_HZ, &speed) < 0) {
+        LOG_ERROR("Failed to set SPI speed on bus %d: %s", bus, strerror(errno));
         close(ctx->device_handle);
         ctx->device_handle = -1;
         return HAL_ERROR;
@@ -128,6 +133,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
     /* Set LSB/MSB first */
     uint8_t lsb_first = (config->bit_order == SPI_LSB_FIRST) ? 1 : 0;
     if (ioctl(ctx->device_handle, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
+        LOG_ERROR("Failed to set SPI bit order on bus %d: %s", bus, strerror(errno));
         close(ctx->device_handle);
         ctx->device_handle = -1;
         return HAL_ERROR;
@@ -164,6 +170,7 @@ hal_status_t spi_write(spi_bus_t bus, uint32_t cs_pin, const uint8_t *data, uint
     };
 
     if (ioctl(ctx->device_handle, SPI_IOC_MESSAGE(1), &tr) < 0) {
+        LOG_ERROR("SPI write failed on bus %d: %s", bus, strerror(errno));
         return HAL_ERROR;
     }
 
@@ -197,6 +204,7 @@ hal_status_t spi_read(spi_bus_t bus, uint32_t cs_pin, uint8_t *data, uint32_t le
     };
 
     if (ioctl(ctx->device_handle, SPI_IOC_MESSAGE(1), &tr) < 0) {
+        LOG_ERROR("SPI read failed on bus %d: %s", bus, strerror(errno));
         return HAL_ERROR;
     }
 
@@ -233,6 +241,7 @@ hal_status_t spi_transfer(spi_bus_t bus, uint32_t cs_pin,
         };
 
         if (ioctl(ctx->device_handle, SPI_IOC_MESSAGE(1), &tr) < 0) {
+            LOG_ERROR("SPI transfer (TX phase) failed on bus %d: %s", bus, strerror(errno));
             return HAL_ERROR;
         }
     }
@@ -248,6 +257,7 @@ hal_status_t spi_transfer(spi_bus_t bus, uint32_t cs_pin,
         };
 
         if (ioctl(ctx->device_handle, SPI_IOC_MESSAGE(1), &tr) < 0) {
+            LOG_ERROR("SPI transfer (RX phase) failed on bus %d: %s", bus, strerror(errno));
             return HAL_ERROR;
         }
     }

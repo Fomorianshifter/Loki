@@ -50,11 +50,15 @@ static hal_status_t tft_write_command(uint8_t cmd)
     /* DC pin = LOW for command */
     status = gpio_set(GPIO_TFT_DC, GPIO_LEVEL_LOW);
     if (status != HAL_OK) {
+        LOG_ERROR("TFT command phase failed: unable to set DC pin %u low", GPIO_TFT_DC);
         return status;
     }
     
     /* Send command byte */
     status = spi_write(SPI_BUS_0, SPI0_CS0, &cmd, 1);
+    if (status != HAL_OK) {
+        LOG_ERROR("TFT command write failed (cmd=0x%02X)", cmd);
+    }
     
     return status;
 }
@@ -69,11 +73,15 @@ static hal_status_t tft_write_data(const uint8_t *data, uint32_t length)
     /* DC pin = HIGH for data */
     status = gpio_set(GPIO_TFT_DC, GPIO_LEVEL_HIGH);
     if (status != HAL_OK) {
+        LOG_ERROR("TFT data phase failed: unable to set DC pin %u high", GPIO_TFT_DC);
         return status;
     }
     
     /* Send data bytes */
     status = spi_write(SPI_BUS_0, SPI0_CS0, data, length);
+    if (status != HAL_OK) {
+        LOG_ERROR("TFT data write failed (len=%u)", length);
+    }
     
     return status;
 }
@@ -146,6 +154,7 @@ hal_status_t tft_init(void)
     
     status = spi_init(SPI_BUS_0, &spi_cfg);
     if (status != HAL_OK) {
+        LOG_ERROR("TFT init failed: SPI0 init failed");
         return HAL_ERROR;
     }
 
@@ -157,6 +166,7 @@ hal_status_t tft_init(void)
     };
     status = gpio_configure(&gpio_dc);
     if (status != HAL_OK) {
+        LOG_ERROR("TFT init failed: DC GPIO %u configure failed", GPIO_TFT_DC);
         return HAL_ERROR;
     }
 
@@ -167,6 +177,7 @@ hal_status_t tft_init(void)
     };
     status = gpio_configure(&gpio_rst);
     if (status != HAL_OK) {
+        LOG_ERROR("TFT init failed: RST GPIO %u configure failed", GPIO_TFT_RST);
         return HAL_ERROR;
     }
 
@@ -195,42 +206,50 @@ hal_status_t tft_init(void)
     
     /* Software reset */
     if (tft_write_command(ILI9488_SWRESET) != HAL_OK) {
+        LOG_ERROR("TFT init failed: SWRESET command");
         return HAL_ERROR;
     }
     delay_ms(50);
 
     /* Sleep out */
     if (tft_write_command(ILI9488_SLPOUT) != HAL_OK) {
+        LOG_ERROR("TFT init failed: SLPOUT command");
         return HAL_ERROR;
     }
     delay_ms(100);
 
     /* Color mode: 16-bit RGB565 */
     if (tft_write_command(ILI9488_COLMOD) != HAL_OK) {
+        LOG_ERROR("TFT init failed: COLMOD command");
         return HAL_ERROR;
     }
     uint8_t colmod_data = 0x55;  /* 16-bit/pixel */
     if (tft_write_data(&colmod_data, 1) != HAL_OK) {
+        LOG_ERROR("TFT init failed: COLMOD payload");
         return HAL_ERROR;
     }
 
     /* Memory access control */
     if (tft_write_command(ILI9488_MADCTL) != HAL_OK) {
+        LOG_ERROR("TFT init failed: MADCTL command");
         return HAL_ERROR;
     }
     uint8_t madctl_data = 0x00;  /* Default orientation */
     if (tft_write_data(&madctl_data, 1) != HAL_OK) {
+        LOG_ERROR("TFT init failed: MADCTL payload");
         return HAL_ERROR;
     }
 
     /* Display on */
     if (tft_write_command(ILI9488_DISPON) != HAL_OK) {
+        LOG_ERROR("TFT init failed: DISPON command");
         return HAL_ERROR;
     }
     delay_ms(100);
 
     /* Clear display */
     if (tft_clear() != HAL_OK) {
+        LOG_ERROR("TFT init failed: initial clear");
         return HAL_ERROR;
     }
 
