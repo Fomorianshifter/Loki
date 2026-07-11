@@ -57,7 +57,9 @@ endif
 CROSS_USER ?= pi
 CROSS_HOST ?= raspberrypi.local
 CROSS_PATH ?= /tmp
- 
+SUDO ?= sudo
+LOCAL_INSTALL_PATH ?= /usr/local/bin
+  
 ## Project Structure
 SOURCES := $(wildcard *.c)
 HEADERS := $(wildcard *.h)
@@ -116,6 +118,12 @@ install: $(BUILD_DIR)/$(TARGET)
 	scp $(BUILD_DIR)/$(TARGET) $(CROSS_USER)@$(CROSS_HOST):$(CROSS_PATH)/
 	ssh $(CROSS_USER)@$(CROSS_HOST) 'chmod +x $(CROSS_PATH)/$(TARGET)'
 	@echo "[✓] Installation complete"
+
+## Local installation target (for running directly on this machine)
+install-local: $(BUILD_DIR)/$(TARGET)
+	@echo "[→] Installing locally to $(LOCAL_INSTALL_PATH)/$(TARGET)..."
+	$(SUDO) install -m 755 $(BUILD_DIR)/$(TARGET) $(LOCAL_INSTALL_PATH)/$(TARGET)
+	@echo "[✓] Local installation complete"
  
 ## Run on target
 run: install
@@ -170,4 +178,4 @@ info:
 	@echo "║ Target path: $(CROSS_PATH)"
 	@echo "╚════════════════════════════════════════╝"
  
-.PHONY: all config clean clean-all install run test docs analyze size info
+.PHONY: all config clean clean-all install install-local run test docs analyze size info
