@@ -40,7 +40,6 @@ static flash_context_t flash_ctx = {
  */
 static hal_status_t flash_wait_ready(void)
 {
-    uint8_t status;
     uint32_t timeout = 10000;
 
     while (timeout-- > 0) {
