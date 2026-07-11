@@ -248,12 +248,12 @@ hal_status_t tft_init(void)
     delay_ms(100);
 
     /* Clear display */
+    tft_ctx.initialized = 1;
     if (tft_clear() != HAL_OK) {
+        tft_ctx.initialized = 0;
         LOG_ERROR("TFT init failed: initial clear");
         return HAL_ERROR;
     }
-
-    tft_ctx.initialized = 1;
     return HAL_OK;
 }
 
