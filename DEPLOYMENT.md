@@ -408,13 +408,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi
-ExecStart=/usr/local/bin/loki_app
+ExecStart=/usr/local/bin/loki_app --wait-flipper
 
 # Restart on failure
-Restart=on-failure
-RestartSec=10
+Restart=always
+RestartSec=2
 
 # Log output
 StandardOutput=journal
@@ -427,6 +425,10 @@ WantedBy=multi-user.target
 Install and enable:
 
 ```bash
+# Preferred (from Loki repo on Raspberry Pi)
+make install-service HAVE_LIBGPIOD=1
+
+# Or manually:
 # Copy binary to system location
 sudo cp build/release/loki_app /usr/local/bin/loki_app
 sudo chmod +x /usr/local/bin/loki_app

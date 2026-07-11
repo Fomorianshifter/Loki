@@ -59,7 +59,9 @@ CROSS_HOST ?= raspberrypi.local
 CROSS_PATH ?= /tmp
 SUDO ?= sudo
 LOCAL_INSTALL_PATH ?= /usr/local/bin
-  
+SYSTEMD_UNIT_DIR ?= /etc/systemd/system
+SYSTEMD_SERVICE_NAME ?= loki.service
+   
 ## Project Structure
 SOURCES := $(wildcard *.c)
 HEADERS := $(wildcard *.h)
@@ -124,6 +126,20 @@ install-local: $(BUILD_DIR)/$(TARGET)
 	@echo "[→] Installing locally to $(LOCAL_INSTALL_PATH)/$(TARGET)..."
 	$(SUDO) install -m 755 $(BUILD_DIR)/$(TARGET) $(LOCAL_INSTALL_PATH)/$(TARGET)
 	@echo "[✓] Local installation complete"
+
+## Install and enable systemd service on local Linux host (e.g. Raspberry Pi)
+install-service: install-local
+	@echo "[→] Installing systemd unit $(SYSTEMD_SERVICE_NAME) to $(SYSTEMD_UNIT_DIR)..."
+	$(SUDO) install -m 644 loki.service $(SYSTEMD_UNIT_DIR)/$(SYSTEMD_SERVICE_NAME)
+	$(SUDO) systemctl daemon-reload
+	$(SUDO) systemctl enable $(SYSTEMD_SERVICE_NAME)
+	$(SUDO) systemctl restart $(SYSTEMD_SERVICE_NAME)
+	@echo "[✓] Service installed and started"
+	$(SUDO) systemctl --no-pager --full status $(SYSTEMD_SERVICE_NAME)
+
+## Follow Loki service logs
+service-logs:
+	$(SUDO) journalctl -u $(SYSTEMD_SERVICE_NAME) -f
  
 ## Run on target
 run: install
@@ -178,4 +194,4 @@ info:
 	@echo "║ Target path: $(CROSS_PATH)"
 	@echo "╚════════════════════════════════════════╝"
  
-.PHONY: all config clean clean-all install install-local run test docs analyze size info
+.PHONY: all config clean clean-all install install-local install-service service-logs run test docs analyze size info

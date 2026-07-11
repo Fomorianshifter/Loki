@@ -1,0 +1,15 @@
+[Unit]
+Description=Loki Raspberry Pi Display Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/loki_app --wait-flipper
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -214,9 +214,10 @@ scp build\release\loki_app pi@raspberrypi.local:/tmp/
 ### Option 3: Keep in Service
 Create systemd service on Raspberry Pi (see [DEPLOYMENT.md](DEPLOYMENT.md)):
 ```bash
-# On Raspberry Pi, create /etc/systemd/system/loki.service
-# Then enable auto-start on boot
-sudo systemctl enable loki
+# On Raspberry Pi in the Loki repo:
+make install-service HAVE_LIBGPIOD=1
+# Then follow logs:
+sudo journalctl -u loki.service -f
 ```
 
 ## Next Steps After Successful Build
@@ -290,4 +291,3 @@ The Loki project includes:
 ```
 
 Need help? Check [BUILD_WINDOWS.md](BUILD_WINDOWS.md) for detailed platform-specific guide.
-
