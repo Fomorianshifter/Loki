@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* ===== ILI9488 COMMANDS ===== */
 #define ILI9488_SWRESET         0x01
@@ -30,6 +31,7 @@ typedef struct {
     uint8_t rotation;
     uint8_t brightness;
     uint8_t backlight_ready;
+    uint8_t uses_18bit_pixels;
 } tft_context_t;
 
 static tft_context_t tft_ctx = {
@@ -37,6 +39,7 @@ static tft_context_t tft_ctx = {
     .rotation = TFT_ROTATION,
     .brightness = TFT_BRIGHTNESS,
     .backlight_ready = 0,
+    .uses_18bit_pixels = 0,
 };
 
 /* ===== LOCAL HELPER FUNCTIONS ===== */
@@ -105,6 +108,12 @@ static void rgb565_to_rgb666_bytes(color_t color, uint8_t *rgb)
     rgb[0] = (uint8_t)((r5 << 3) | (r5 >> 2));
     rgb[1] = (uint8_t)((g6 << 2) | (g6 >> 4));
     rgb[2] = (uint8_t)((b5 << 3) | (b5 >> 2));
+}
+
+static void rgb565_to_rgb565_bytes(color_t color, uint8_t *rgb)
+{
+    rgb[0] = (uint8_t)(color >> 8);
+    rgb[1] = (uint8_t)(color & 0xFF);
 }
 
 /**
@@ -231,12 +240,17 @@ hal_status_t tft_init(void)
     }
     delay_ms(100);
 
-    /* ILI9488 SPI mode uses 18-bit pixel data. */
+    tft_ctx.uses_18bit_pixels = (strcmp(TFT_TYPE, "ILI9488") == 0) ? 1u : 0u;
+    LOG_INFO("TFT controller profile: %s (%s pixel writes)",
+             TFT_TYPE,
+             tft_ctx.uses_18bit_pixels ? "18-bit" : "16-bit");
+
+    /* ILI9488 SPI mode uses 18-bit pixel data; common ILI9486 panels use 16-bit. */
     if (tft_write_command(ILI9488_COLMOD) != HAL_OK) {
         LOG_ERROR("TFT init failed: COLMOD command");
         return HAL_ERROR;
     }
-    uint8_t colmod_data = 0x66;  /* 18-bit/pixel */
+    uint8_t colmod_data = tft_ctx.uses_18bit_pixels ? 0x66u : 0x55u;
     if (tft_write_data(&colmod_data, 1) != HAL_OK) {
         LOG_ERROR("TFT init failed: COLMOD payload");
         return HAL_ERROR;
@@ -292,18 +306,31 @@ hal_status_t tft_write_pixels(uint16_t x, uint16_t y, uint16_t width, uint16_t h
     tft_write_command(ILI9488_RAMWR);
 
     pixel_count = (uint32_t)width * (uint32_t)height;
-    pixel_data = (uint8_t *)malloc(pixel_count * 3u);
+    if (tft_ctx.uses_18bit_pixels) {
+        pixel_data = (uint8_t *)malloc(pixel_count * 3u);
+    } else {
+        pixel_data = (uint8_t *)malloc(pixel_count * 2u);
+    }
     if (pixel_data == NULL) {
         return HAL_ERROR;
     }
 
-    for (i = 0; i < pixel_count; i++) {
-        rgb565_to_rgb666_bytes(data[i], &pixel_data[i * 3u]);
-    }
-
-    if (tft_write_data(pixel_data, pixel_count * 3u) != HAL_OK) {
-        free(pixel_data);
-        return HAL_ERROR;
+    if (tft_ctx.uses_18bit_pixels) {
+        for (i = 0; i < pixel_count; i++) {
+            rgb565_to_rgb666_bytes(data[i], &pixel_data[i * 3u]);
+        }
+        if (tft_write_data(pixel_data, pixel_count * 3u) != HAL_OK) {
+            free(pixel_data);
+            return HAL_ERROR;
+        }
+    } else {
+        for (i = 0; i < pixel_count; i++) {
+            rgb565_to_rgb565_bytes(data[i], &pixel_data[i * 2u]);
+        }
+        if (tft_write_data(pixel_data, pixel_count * 2u) != HAL_OK) {
+            free(pixel_data);
+            return HAL_ERROR;
+        }
     }
     free(pixel_data);
 
@@ -329,11 +356,15 @@ hal_status_t tft_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t heig
     /* Send color data repeatedly */
     uint32_t pixel_count = (uint32_t)width * (uint32_t)height;
     uint8_t color_bytes[3];
-    rgb565_to_rgb666_bytes(color, color_bytes);
+    if (tft_ctx.uses_18bit_pixels) {
+        rgb565_to_rgb666_bytes(color, color_bytes);
+    } else {
+        rgb565_to_rgb565_bytes(color, color_bytes);
+    }
 
     /* Write same color for all pixels */
     for (uint32_t i = 0; i < pixel_count; i++) {
-        if (tft_write_data(color_bytes, 3) != HAL_OK) {
+        if (tft_write_data(color_bytes, tft_ctx.uses_18bit_pixels ? 3u : 2u) != HAL_OK) {
             return HAL_ERROR;
         }
     }

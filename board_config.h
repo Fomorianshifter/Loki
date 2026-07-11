@@ -16,7 +16,7 @@
 #define TFT_WIDTH                    480
 #define TFT_HEIGHT                   320
 #define TFT_SPI_FREQ                 8000000
-#define TFT_TYPE                     "ILI9488"
+#define TFT_TYPE                     "ILI9486"
 #define TFT_COLOR_DEPTH              16
 #define TFT_ROTATION                 0
 #define TFT_BRIGHTNESS               100
