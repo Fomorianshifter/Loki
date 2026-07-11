@@ -4,11 +4,12 @@
  */
 
 #include "pwm.h"
-#include <stdio.h>
+#include "gpio.h"
 
 /* ===== PWM CHANNEL CONTEXT ===== */
 typedef struct {
     pwm_channel_t channel;
+    uint32_t pin;
     uint32_t frequency;
     uint8_t duty_cycle;
     uint8_t enabled;
@@ -18,6 +19,7 @@ typedef struct {
 /* PWM channel context */
 static pwm_channel_context_t pwm_channel_0 = {
     .channel = PWM_CHANNEL_0,
+    .pin = 0,
     .frequency = 1000,
     .duty_cycle = 50,
     .enabled = 0,
@@ -43,12 +45,22 @@ hal_status_t pwm_init(pwm_channel_t channel, const pwm_config_t *config)
     }
 
     /* Store configuration */
+    ctx->pin = config->pin;
     ctx->frequency = config->frequency;
     ctx->duty_cycle = config->duty_cycle;
 
-    /* Initialize PWM on Pin 7 (GPIO_TFT_BL) */
-    /* Export pin to sysfs PWM interface or direct register access */
-    /* /sys/class/pwm/pwmchip0/pwm0 */
+    gpio_config_t gpio_cfg = {
+        .pin = ctx->pin,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull = GPIO_PULL_NONE,
+    };
+
+    if (gpio_configure(&gpio_cfg) != HAL_OK) {
+        return HAL_ERROR;
+    }
+    if (gpio_set(ctx->pin, GPIO_LEVEL_LOW) != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     ctx->initialized = 1;
     return HAL_OK;
@@ -70,11 +82,13 @@ hal_status_t pwm_set_duty(pwm_channel_t channel, uint8_t duty_cycle)
         return HAL_NOT_READY;
     }
 
-    /* Set duty cycle */
     ctx->duty_cycle = duty_cycle;
-
-    /* Write to PWM duty register or sysfs */
-    /* Duty time = (duty_cycle / 100) * period */
+    if (ctx->enabled) {
+        gpio_level_t level = (ctx->duty_cycle > 0) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW;
+        if (gpio_set(ctx->pin, level) != HAL_OK) {
+            return HAL_ERROR;
+        }
+    }
 
     return HAL_OK;
 }
@@ -131,10 +145,10 @@ hal_status_t pwm_enable(pwm_channel_t channel)
         return HAL_NOT_READY;
     }
 
-    /* Enable PWM output */
-    /* Write to enable register or sysfs */
-
     ctx->enabled = 1;
+    if (gpio_set(ctx->pin, (ctx->duty_cycle > 0) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW) != HAL_OK) {
+        return HAL_ERROR;
+    }
     return HAL_OK;
 }
 
@@ -150,9 +164,9 @@ hal_status_t pwm_disable(pwm_channel_t channel)
         return HAL_NOT_READY;
     }
 
-    /* Disable PWM output */
-    /* Write to enable register or sysfs */
-
+    if (gpio_set(ctx->pin, GPIO_LEVEL_LOW) != HAL_OK) {
+        return HAL_ERROR;
+    }
     ctx->enabled = 0;
     return HAL_OK;
 }
