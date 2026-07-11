@@ -9,7 +9,7 @@
 /* ===== PINOUT CONFIGURATION ===== */
 #define GPIO_TFT_DC                  18
 #define GPIO_TFT_RST                 22
-#define GPIO_TFT_BL                  7
+#define GPIO_TFT_BL                  4
 #define SPI0_SCK                     23
 #define SPI0_MOSI                    19
 #define SPI0_MISO                    21
@@ -27,7 +27,7 @@
 #define I2C0_SCL                     5
 #define UART1_TX                     8
 #define UART1_RX                     10
-#define RS485_DE_GPIO                4
+#define RS485_DE_GPIO                17
 #define PIN_5V_IN                    2
 #define PIN_3V3_OUT                  1
 #define PIN_GND                      6

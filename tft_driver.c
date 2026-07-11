@@ -42,11 +42,16 @@ static tft_context_t tft_ctx = {
  */
 static hal_status_t tft_write_command(uint8_t cmd)
 {
+    hal_status_t status;
+
     /* DC pin = LOW for command */
-    gpio_set(GPIO_TFT_DC, GPIO_LEVEL_LOW);
+    status = gpio_set(GPIO_TFT_DC, GPIO_LEVEL_LOW);
+    if (status != HAL_OK) {
+        return status;
+    }
     
     /* Send command byte */
-    hal_status_t status = spi_write(SPI_BUS_0, SPI0_CS0, &cmd, 1);
+    status = spi_write(SPI_BUS_0, SPI0_CS0, &cmd, 1);
     
     return status;
 }
@@ -56,11 +61,16 @@ static hal_status_t tft_write_command(uint8_t cmd)
  */
 static hal_status_t tft_write_data(const uint8_t *data, uint32_t length)
 {
+    hal_status_t status;
+
     /* DC pin = HIGH for data */
-    gpio_set(GPIO_TFT_DC, GPIO_LEVEL_HIGH);
+    status = gpio_set(GPIO_TFT_DC, GPIO_LEVEL_HIGH);
+    if (status != HAL_OK) {
+        return status;
+    }
     
     /* Send data bytes */
-    hal_status_t status = spi_write(SPI_BUS_0, SPI0_CS0, data, length);
+    status = spi_write(SPI_BUS_0, SPI0_CS0, data, length);
     
     return status;
 }
@@ -79,11 +89,11 @@ static void delay_ms(uint32_t ms)
 static void tft_reset(void)
 {
     /* Pull RST low */
-    gpio_set(GPIO_TFT_RST, GPIO_LEVEL_LOW);
+    (void)gpio_set(GPIO_TFT_RST, GPIO_LEVEL_LOW);
     delay_ms(10);
     
     /* Pull RST high */
-    gpio_set(GPIO_TFT_RST, GPIO_LEVEL_HIGH);
+    (void)gpio_set(GPIO_TFT_RST, GPIO_LEVEL_HIGH);
     delay_ms(100);
 }
 
@@ -117,6 +127,8 @@ static hal_status_t tft_set_address_window(uint16_t x0, uint16_t y0, uint16_t x1
 
 hal_status_t tft_init(void)
 {
+    hal_status_t status;
+
     if (tft_ctx.initialized) {
         return HAL_OK;
     }
@@ -129,7 +141,8 @@ hal_status_t tft_init(void)
         .bit_order = SPI_MSB_FIRST,
     };
     
-    if (spi_init(SPI_BUS_0, &spi_cfg) != HAL_OK) {
+    status = spi_init(SPI_BUS_0, &spi_cfg);
+    if (status != HAL_OK) {
         return HAL_ERROR;
     }
 
@@ -139,14 +152,20 @@ hal_status_t tft_init(void)
         .mode = GPIO_MODE_OUTPUT,
         .pull = GPIO_PULL_NONE,
     };
-    gpio_configure(&gpio_dc);
+    status = gpio_configure(&gpio_dc);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     gpio_config_t gpio_rst = {
         .pin = GPIO_TFT_RST,
         .mode = GPIO_MODE_OUTPUT,
         .pull = GPIO_PULL_NONE,
     };
-    gpio_configure(&gpio_rst);
+    status = gpio_configure(&gpio_rst);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     /* Initialize PWM for backlight */
     pwm_config_t pwm_cfg = {
@@ -154,8 +173,14 @@ hal_status_t tft_init(void)
         .frequency = PWM_FREQ_DEFAULT,
         .duty_cycle = tft_ctx.brightness,
     };
-    pwm_init(PWM_CHANNEL_0, &pwm_cfg);
-    pwm_enable(PWM_CHANNEL_0);
+    status = pwm_init(PWM_CHANNEL_0, &pwm_cfg);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
+    status = pwm_enable(PWM_CHANNEL_0);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     /* Reset display */
     tft_reset();
@@ -163,29 +188,45 @@ hal_status_t tft_init(void)
     /* Initialize ILI9488 controller */
     
     /* Software reset */
-    tft_write_command(ILI9488_SWRESET);
+    if (tft_write_command(ILI9488_SWRESET) != HAL_OK) {
+        return HAL_ERROR;
+    }
     delay_ms(50);
 
     /* Sleep out */
-    tft_write_command(ILI9488_SLPOUT);
+    if (tft_write_command(ILI9488_SLPOUT) != HAL_OK) {
+        return HAL_ERROR;
+    }
     delay_ms(100);
 
     /* Color mode: 16-bit RGB565 */
-    tft_write_command(ILI9488_COLMOD);
+    if (tft_write_command(ILI9488_COLMOD) != HAL_OK) {
+        return HAL_ERROR;
+    }
     uint8_t colmod_data = 0x55;  /* 16-bit/pixel */
-    tft_write_data(&colmod_data, 1);
+    if (tft_write_data(&colmod_data, 1) != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     /* Memory access control */
-    tft_write_command(ILI9488_MADCTL);
+    if (tft_write_command(ILI9488_MADCTL) != HAL_OK) {
+        return HAL_ERROR;
+    }
     uint8_t madctl_data = 0x00;  /* Default orientation */
-    tft_write_data(&madctl_data, 1);
+    if (tft_write_data(&madctl_data, 1) != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     /* Display on */
-    tft_write_command(ILI9488_DISPON);
+    if (tft_write_command(ILI9488_DISPON) != HAL_OK) {
+        return HAL_ERROR;
+    }
     delay_ms(100);
 
     /* Clear display */
-    tft_clear();
+    if (tft_clear() != HAL_OK) {
+        return HAL_ERROR;
+    }
 
     tft_ctx.initialized = 1;
     return HAL_OK;

@@ -34,6 +34,8 @@
 
 /** Default UART device on Raspberry Pi (symlink to active UART). */
 #define UART_DEFAULT_DEVICE      "/dev/serial0"
+#define UART_FALLBACK_DEVICE_1   "/dev/ttyAMA0"
+#define UART_FALLBACK_DEVICE_2   "/dev/ttyS0"
 
 /** Ring buffer capacity — must be a power of 2. */
 #define UART_RX_BUFFER_SIZE      512u
@@ -131,6 +133,28 @@ static uart_context_t *ctx_for_port(uart_port_t port)
 {
     if (port == UART_PORT_1) {
         return &uart_context_1;
+    }
+
+    static int uart_open_first_available(const char *primary_path)
+    {
+        const char *candidates[3] = { primary_path, NULL, NULL };
+        size_t i;
+
+        if (primary_path == NULL || primary_path[0] == '\0' || strcmp(primary_path, UART_DEFAULT_DEVICE) == 0) {
+            candidates[0] = UART_DEFAULT_DEVICE;
+            candidates[1] = UART_FALLBACK_DEVICE_1;
+            candidates[2] = UART_FALLBACK_DEVICE_2;
+        }
+
+        for (i = 0; i < 3 && candidates[i] != NULL; i++) {
+            int fd = open(candidates[i], O_RDWR | O_NOCTTY | O_NONBLOCK);
+            if (fd >= 0) {
+                return fd;
+            }
+            fprintf(stderr, "[uart] open %s: %s\n", candidates[i], strerror(errno));
+        }
+
+        return -1;
     }
     return NULL;
 }
@@ -526,9 +550,8 @@ hal_status_t uart_init(uart_port_t port, const uart_config_t *config)
                        : UART_DEFAULT_DEVICE;
 
     /* Open serial device */
-    ctx->fd = open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    ctx->fd = uart_open_first_available(dev);
     if (ctx->fd < 0) {
-        fprintf(stderr, "[uart] open %s: %s\n", dev, strerror(errno));
         return HAL_ERROR;
     }
 

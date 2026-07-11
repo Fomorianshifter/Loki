@@ -33,6 +33,7 @@ static gpio_line_state_t gpio_lines[256] = {0};
 
 /* ===== LOCAL FUNCTIONS ===== */
 
+#ifndef HAVE_LIBGPIOD
 static hal_status_t gpio_export(uint32_t pin)
 {
     char path[64];
@@ -90,6 +91,7 @@ static hal_status_t gpio_unexport(uint32_t pin)
 
     return HAL_OK;
 }
+#endif
 
 #ifdef HAVE_LIBGPIOD
 static hal_status_t gpio_ensure_chip(void)
