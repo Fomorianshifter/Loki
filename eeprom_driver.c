@@ -6,6 +6,7 @@
 #include "eeprom_driver.h"
 #include "i2c.h"
 #include "config.h"
+#include "log.h"
 #include <string.h>
 #include <unistd.h>
 
@@ -27,6 +28,8 @@ hal_status_t eeprom_init(void)
     }
 
     /* Initialize I2C0 for EEPROM */
+    LOG_INFO("EEPROM interface: I2C bus %d address 0x%02X @ %u Hz",
+             I2C_BUS_0, EEPROM_ADDR, EEPROM_I2C_FREQ);
     i2c_config_t i2c_cfg = {
         .frequency = EEPROM_I2C_FREQ,
         .address_bits = 7,
