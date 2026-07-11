@@ -292,6 +292,9 @@ sudo cat /dev/spidev0.0  # Should work with sudo
 # Check 3: Enable SPI in Raspberry Pi
 sudo raspi-config  # Or equivalent config tool
 # Enable SPI interface
+
+# Note: if you enable `dtoverlay=spi1-2cs`, do not use GPIO17/GPIO18
+# for TFT control pins; those are commonly claimed by SPI1 chip-select lines.
 ```
 
 #### SD Card not detected

@@ -7,9 +7,9 @@
  */
 
 /* ===== PINOUT CONFIGURATION ===== */
-#define GPIO_TFT_DC                  18
+#define GPIO_TFT_DC                  23
 #define GPIO_TFT_RST                 22
-#define GPIO_TFT_BL                  17
+#define GPIO_TFT_BL                  26
 #define SPI0_SCK                     23
 #define SPI0_MOSI                    19
 #define SPI0_MISO                    21
