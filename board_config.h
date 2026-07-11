@@ -15,7 +15,7 @@
 #define LDO_ENABLE_DELAY_MS          10
 #define TFT_WIDTH                    480
 #define TFT_HEIGHT                   320
-#define TFT_SPI_FREQ                 40000000
+#define TFT_SPI_FREQ                 8000000
 #define TFT_TYPE                     "ILI9488"
 #define TFT_COLOR_DEPTH              16
 #define TFT_ROTATION                 0
