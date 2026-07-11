@@ -85,7 +85,7 @@ HAVE_LIBGPIOD ?= 0
 ifeq ($(HAVE_LIBGPIOD), 1)
     CFLAGS  += -DHAVE_LIBGPIOD
     LDFLAGS += -lgpiod
-    $(info [INFO] libgpiod enabled for RS-485 GPIO DE control)
+    $(info [INFO] libgpiod enabled for GPIO (display + RS-485 DE))
 endif
  
 ## Generated config headers — regenerated whenever config.toml or the script changes.

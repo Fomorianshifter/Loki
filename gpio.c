@@ -6,23 +6,25 @@
 
 #include "gpio.h"
 #include "log.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
 #ifdef HAVE_LIBGPIOD
 #include <gpiod.h>
 #endif
 
-/* Import system resources from /sys/class/gpio (Linux sysfs) */
 static const char *GPIO_SYSFS_PATH = "/sys/class/gpio";
 static uint8_t configured_pins[256] = {0};
+
 #ifdef HAVE_LIBGPIOD
 typedef struct {
     uint8_t configured;
     gpio_mode_t mode;
-    struct gpiod_line *line;
+    struct gpiod_line_request *request;
 } gpio_line_state_t;
 
 static struct gpiod_chip *gpio_chip = NULL;
@@ -31,10 +33,6 @@ static gpio_line_state_t gpio_lines[256] = {0};
 
 /* ===== LOCAL FUNCTIONS ===== */
 
-/**
- * Export GPIO pin via sysfs
- */
-#ifndef HAVE_LIBGPIOD
 static hal_status_t gpio_export(uint32_t pin)
 {
     char path[64];
@@ -66,9 +64,6 @@ static hal_status_t gpio_export(uint32_t pin)
     return HAL_OK;
 }
 
-/**
- * Unexport GPIO pin via sysfs
- */
 static hal_status_t gpio_unexport(uint32_t pin)
 {
     char path[64];
@@ -79,26 +74,6 @@ static hal_status_t gpio_unexport(uint32_t pin)
     if (pin > 255) {
         return HAL_INVALID_PARAM;
     }
-    #endif
-
-    #ifdef HAVE_LIBGPIOD
-    static hal_status_t gpio_ensure_chip(void)
-    {
-        if (gpio_chip != NULL) {
-            return HAL_OK;
-        }
-
-        gpio_chip = gpiod_chip_open_by_name("gpiochip0");
-        if (gpio_chip == NULL) {
-            gpio_chip = gpiod_chip_open_by_number(0);
-        }
-        if (gpio_chip == NULL) {
-            LOG_ERROR("Failed to open gpiochip0 for GPIO control");
-            return HAL_ERROR;
-        }
-        return HAL_OK;
-    }
-    #endif
 
     (void)snprintf(path, sizeof(path), "%s/unexport", GPIO_SYSFS_PATH);
     fd = open(path, O_WRONLY);
@@ -116,6 +91,113 @@ static hal_status_t gpio_unexport(uint32_t pin)
     return HAL_OK;
 }
 
+#ifdef HAVE_LIBGPIOD
+static hal_status_t gpio_ensure_chip(void)
+{
+    if (gpio_chip != NULL) {
+        return HAL_OK;
+    }
+
+    gpio_chip = gpiod_chip_open("/dev/gpiochip0");
+    if (gpio_chip == NULL) {
+        LOG_ERROR("Failed to open /dev/gpiochip0 for GPIO control");
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+static enum gpiod_line_bias gpio_pull_to_bias(gpio_pull_t pull)
+{
+    switch (pull) {
+        case GPIO_PULL_UP:
+            return GPIOD_LINE_BIAS_PULL_UP;
+        case GPIO_PULL_DOWN:
+            return GPIOD_LINE_BIAS_PULL_DOWN;
+        case GPIO_PULL_NONE:
+        default:
+            return GPIOD_LINE_BIAS_DISABLED;
+    }
+}
+
+static hal_status_t gpio_configure_line_libgpiod(const gpio_config_t *config)
+{
+    struct gpiod_line_settings *settings = NULL;
+    struct gpiod_line_config *line_cfg = NULL;
+    struct gpiod_request_config *req_cfg = NULL;
+    struct gpiod_line_request *request = NULL;
+    unsigned int offset = config->pin;
+    enum gpiod_line_direction direction;
+
+    if (gpio_ensure_chip() != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    if (gpio_lines[config->pin].request != NULL) {
+        gpiod_line_request_release(gpio_lines[config->pin].request);
+        gpio_lines[config->pin].request = NULL;
+    }
+
+    if (config->mode == GPIO_MODE_INPUT) {
+        direction = GPIOD_LINE_DIRECTION_INPUT;
+    } else if (config->mode == GPIO_MODE_OUTPUT) {
+        direction = GPIOD_LINE_DIRECTION_OUTPUT;
+    } else {
+        LOG_ERROR("GPIO alternate mode is not supported");
+        return HAL_NOT_SUPPORTED;
+    }
+
+    settings = gpiod_line_settings_new();
+    line_cfg = gpiod_line_config_new();
+    req_cfg = gpiod_request_config_new();
+    if (settings == NULL || line_cfg == NULL || req_cfg == NULL) {
+        LOG_ERROR("Failed to allocate libgpiod line configuration for pin %u", config->pin);
+        goto error;
+    }
+
+    if (gpiod_line_settings_set_direction(settings, direction) < 0) {
+        LOG_ERROR("Failed to set GPIO direction for pin %u", config->pin);
+        goto error;
+    }
+
+    if (gpiod_line_settings_set_bias(settings, gpio_pull_to_bias(config->pull)) < 0) {
+        LOG_ERROR("Failed to set GPIO pull for pin %u", config->pin);
+        goto error;
+    }
+
+    if (gpiod_line_config_add_line_settings(line_cfg, &offset, 1, settings) < 0) {
+        LOG_ERROR("Failed to build GPIO line config for pin %u", config->pin);
+        goto error;
+    }
+
+    gpiod_request_config_set_consumer(req_cfg, "loki-gpio");
+    request = gpiod_chip_request_lines(gpio_chip, req_cfg, line_cfg);
+    if (request == NULL) {
+        LOG_ERROR("Failed to request GPIO pin %u via libgpiod", config->pin);
+        goto error;
+    }
+
+    gpio_lines[config->pin].request = request;
+    gpio_lines[config->pin].mode = config->mode;
+    gpio_lines[config->pin].configured = 1;
+    configured_pins[config->pin] = 1;
+
+    gpiod_line_settings_free(settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+    return HAL_OK;
+
+error:
+    gpiod_line_settings_free(settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+    if (request != NULL) {
+        gpiod_line_request_release(request);
+    }
+    return HAL_ERROR;
+}
+#endif
+
 /* ===== PUBLIC IMPLEMENTATION ===== */
 
 hal_status_t gpio_init(void)
@@ -131,9 +213,7 @@ hal_status_t gpio_init(void)
 
 hal_status_t gpio_configure(const gpio_config_t *config)
 {
-#ifdef HAVE_LIBGPIOD
-    struct gpiod_line *line;
-#else
+#ifndef HAVE_LIBGPIOD
     char path[64];
     int fd;
     const char *direction;
@@ -149,49 +229,17 @@ hal_status_t gpio_configure(const gpio_config_t *config)
         return HAL_INVALID_PARAM;
     }
 
-    LOG_DEBUG("Configuring GPIO pin %u (mode=%d, pull=%d)", 
-             config->pin, config->mode, config->pull);
+    LOG_DEBUG("Configuring GPIO pin %u (mode=%d, pull=%d)",
+              config->pin, config->mode, config->pull);
 
 #ifdef HAVE_LIBGPIOD
-    if (gpio_ensure_chip() != HAL_OK) {
-        return HAL_ERROR;
-    }
-
-    line = gpiod_chip_get_line(gpio_chip, config->pin);
-    if (line == NULL) {
-        LOG_ERROR("Failed to get GPIO line %u", config->pin);
-        return HAL_ERROR;
-    }
-
-    if (config->mode == GPIO_MODE_INPUT) {
-        if (gpiod_line_request_input(line, "loki-gpio") < 0) {
-            LOG_ERROR("Failed to request GPIO %u as input", config->pin);
-            return HAL_ERROR;
-        }
-    } else if (config->mode == GPIO_MODE_OUTPUT) {
-        if (gpiod_line_request_output(line, "loki-gpio", 0) < 0) {
-            LOG_ERROR("Failed to request GPIO %u as output", config->pin);
-            return HAL_ERROR;
-        }
-    } else {
-        LOG_ERROR("GPIO alternate mode is not supported");
-        return HAL_NOT_SUPPORTED;
-    }
-
-    gpio_lines[config->pin].line = line;
-    gpio_lines[config->pin].mode = config->mode;
-    gpio_lines[config->pin].configured = 1;
-    configured_pins[config->pin] = 1;
-    return HAL_OK;
+    return gpio_configure_line_libgpiod(config);
 #else
-    /* Export the GPIO pin */
-    hal_status_t status = gpio_export(config->pin);
-    if (status != HAL_OK) {
+    if (gpio_export(config->pin) != HAL_OK) {
         LOG_ERROR("Failed to export GPIO pin %u", config->pin);
-        return status;
+        return HAL_ERROR;
     }
 
-    /* Set pin direction */
     switch (config->mode) {
         case GPIO_MODE_INPUT:
             direction = "in";
@@ -221,10 +269,7 @@ hal_status_t gpio_configure(const gpio_config_t *config)
         return HAL_ERROR;
     }
 
-    if (config->pin <= 255) {
-        configured_pins[config->pin] = 1;
-    }
-
+    configured_pins[config->pin] = 1;
     return HAL_OK;
 #endif
 }
@@ -240,13 +285,17 @@ hal_status_t gpio_set(uint32_t pin, gpio_level_t level)
     ssize_t written;
 #endif
 
+    if (pin > 255) {
+        return HAL_INVALID_PARAM;
+    }
+
     if (level > GPIO_LEVEL_HIGH) {
         LOG_ERROR("Invalid GPIO level: %d", level);
         return HAL_INVALID_PARAM;
     }
 
 #ifdef HAVE_LIBGPIOD
-    if (pin > 255 || !gpio_lines[pin].configured || gpio_lines[pin].line == NULL) {
+    if (!gpio_lines[pin].configured || gpio_lines[pin].request == NULL) {
         LOG_ERROR("GPIO pin %u is not configured", pin);
         return HAL_NOT_READY;
     }
@@ -255,7 +304,10 @@ hal_status_t gpio_set(uint32_t pin, gpio_level_t level)
         return HAL_INVALID_PARAM;
     }
 
-    result = gpiod_line_set_value(gpio_lines[pin].line, (level == GPIO_LEVEL_HIGH) ? 1 : 0);
+    result = gpiod_line_request_set_value(
+            gpio_lines[pin].request,
+            pin,
+            (level == GPIO_LEVEL_HIGH) ? GPIOD_LINE_VALUE_ACTIVE : GPIOD_LINE_VALUE_INACTIVE);
     if (result < 0) {
         LOG_ERROR("Failed to set GPIO pin %u via libgpiod", pin);
         return HAL_ERROR;
@@ -292,24 +344,28 @@ hal_status_t gpio_read(uint32_t pin, gpio_level_t *level)
     ssize_t read_bytes;
 #endif
 
+    if (pin > 255) {
+        return HAL_INVALID_PARAM;
+    }
+
     if (level == NULL) {
         LOG_ERROR("GPIO read failed: level pointer is NULL");
         return HAL_INVALID_PARAM;
     }
 
 #ifdef HAVE_LIBGPIOD
-    if (pin > 255 || !gpio_lines[pin].configured || gpio_lines[pin].line == NULL) {
+    if (!gpio_lines[pin].configured || gpio_lines[pin].request == NULL) {
         LOG_ERROR("GPIO pin %u is not configured", pin);
         return HAL_NOT_READY;
     }
 
-    value = gpiod_line_get_value(gpio_lines[pin].line);
+    value = gpiod_line_request_get_value(gpio_lines[pin].request, pin);
     if (value < 0) {
         LOG_ERROR("Failed to read GPIO pin %u via libgpiod", pin);
         return HAL_ERROR;
     }
 
-    *level = (value == 1) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW;
+    *level = (value == GPIOD_LINE_VALUE_ACTIVE) ? GPIO_LEVEL_HIGH : GPIO_LEVEL_LOW;
     return HAL_OK;
 #else
     (void)snprintf(path, sizeof(path), "%s/gpio%u/value", GPIO_SYSFS_PATH, pin);
@@ -333,17 +389,18 @@ hal_status_t gpio_read(uint32_t pin, gpio_level_t *level)
 
 hal_status_t gpio_toggle(uint32_t pin)
 {
-    LOG_DEBUG("Toggling GPIO pin %u", pin);
-    
     gpio_level_t current;
-    hal_status_t status = gpio_read(pin, &current);
+    hal_status_t status;
+
+    LOG_DEBUG("Toggling GPIO pin %u", pin);
+
+    status = gpio_read(pin, &current);
     if (status != HAL_OK) {
         LOG_ERROR("Failed to read GPIO pin %u for toggle", pin);
         return status;
     }
 
-    gpio_level_t new_level = (current == GPIO_LEVEL_HIGH) ? GPIO_LEVEL_LOW : GPIO_LEVEL_HIGH;
-    return gpio_set(pin, new_level);
+    return gpio_set(pin, (current == GPIO_LEVEL_HIGH) ? GPIO_LEVEL_LOW : GPIO_LEVEL_HIGH);
 }
 
 hal_status_t gpio_deinit(void)
@@ -352,19 +409,23 @@ hal_status_t gpio_deinit(void)
 
     LOG_INFO("Deinitializing GPIO subsystem");
     for (pin = 0; pin < 256; pin++) {
-        if (configured_pins[pin]) {
-#ifdef HAVE_LIBGPIOD
-            if (gpio_lines[pin].line != NULL) {
-                gpiod_line_release(gpio_lines[pin].line);
-                gpio_lines[pin].line = NULL;
-            }
-            gpio_lines[pin].configured = 0;
-#else
-            (void)gpio_unexport(pin);
-#endif
-            configured_pins[pin] = 0;
+        if (!configured_pins[pin]) {
+            continue;
         }
+
+#ifdef HAVE_LIBGPIOD
+        if (gpio_lines[pin].request != NULL) {
+            gpiod_line_request_release(gpio_lines[pin].request);
+            gpio_lines[pin].request = NULL;
+        }
+        gpio_lines[pin].configured = 0;
+        gpio_lines[pin].mode = GPIO_MODE_INPUT;
+#else
+        (void)gpio_unexport(pin);
+#endif
+        configured_pins[pin] = 0;
     }
+
 #ifdef HAVE_LIBGPIOD
     if (gpio_chip != NULL) {
         gpiod_chip_close(gpio_chip);

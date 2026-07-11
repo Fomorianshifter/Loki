@@ -97,7 +97,8 @@ typedef struct {
     int                  rs485_gpio_val_fd;  /* sysfs .../value fd; -1 if unused     */
 #ifdef HAVE_LIBGPIOD
     struct gpiod_chip   *gpiod_chip;
-    struct gpiod_line   *gpiod_de_line;
+    struct gpiod_line_request *gpiod_de_request;
+    unsigned int        gpiod_de_offset;
 #endif
 
     /* Thread synchronisation */
@@ -265,27 +266,75 @@ static int rs485_try_kernel(int fd)
  */
 static int rs485_init_gpio_libgpiod(uart_context_t *ctx, int gpio_pin)
 {
-    ctx->gpiod_chip = gpiod_chip_open_by_name("gpiochip0");
+    struct gpiod_line_settings *settings = NULL;
+    struct gpiod_line_config *line_cfg = NULL;
+    struct gpiod_request_config *req_cfg = NULL;
+    struct gpiod_line_request *request = NULL;
+    unsigned int offset;
+
+    if (gpio_pin < 0) {
+        return 0;
+    }
+
+    offset = (unsigned int)gpio_pin;
+    ctx->gpiod_chip = gpiod_chip_open("/dev/gpiochip0");
     if (!ctx->gpiod_chip) {
-        fprintf(stderr, "[uart] libgpiod: cannot open gpiochip0: %s\n", strerror(errno));
+        fprintf(stderr, "[uart] libgpiod: cannot open /dev/gpiochip0: %s\n", strerror(errno));
         return 0;
     }
-    ctx->gpiod_de_line = gpiod_chip_get_line(ctx->gpiod_chip, (unsigned int)gpio_pin);
-    if (!ctx->gpiod_de_line) {
-        fprintf(stderr, "[uart] libgpiod: cannot get GPIO line %d\n", gpio_pin);
-        gpiod_chip_close(ctx->gpiod_chip);
-        ctx->gpiod_chip = NULL;
-        return 0;
+
+    settings = gpiod_line_settings_new();
+    line_cfg = gpiod_line_config_new();
+    req_cfg = gpiod_request_config_new();
+    if (!settings || !line_cfg || !req_cfg) {
+        fprintf(stderr, "[uart] libgpiod: unable to allocate request objects\n");
+        goto error;
     }
-    if (gpiod_line_request_output(ctx->gpiod_de_line, "uart-rs485-de", 0) < 0) {
+
+    if (gpiod_line_settings_set_direction(settings, GPIOD_LINE_DIRECTION_OUTPUT) < 0) {
+        fprintf(stderr, "[uart] libgpiod: unable to set output direction for GPIO %d\n", gpio_pin);
+        goto error;
+    }
+
+    if (gpiod_line_config_add_line_settings(line_cfg, &offset, 1, settings) < 0) {
+        fprintf(stderr, "[uart] libgpiod: unable to configure GPIO %d\n", gpio_pin);
+        goto error;
+    }
+
+    gpiod_request_config_set_consumer(req_cfg, "uart-rs485-de");
+    request = gpiod_chip_request_lines(ctx->gpiod_chip, req_cfg, line_cfg);
+    if (!request) {
         fprintf(stderr, "[uart] libgpiod: GPIO %d request output failed\n", gpio_pin);
-        gpiod_chip_close(ctx->gpiod_chip);
-        ctx->gpiod_chip    = NULL;
-        ctx->gpiod_de_line = NULL;
-        return 0;
+        goto error;
     }
+
+    if (gpiod_line_request_set_value(request, offset, GPIOD_LINE_VALUE_INACTIVE) < 0) {
+        fprintf(stderr, "[uart] libgpiod: failed to drive GPIO %d low\n", gpio_pin);
+        goto error;
+    }
+
+    ctx->gpiod_de_request = request;
+    ctx->gpiod_de_offset = offset;
+    gpiod_line_settings_free(settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+
     fprintf(stderr, "[uart] RS-485: libgpiod GPIO %d configured as DE\n", gpio_pin);
     return 1;
+
+error:
+    if (request) {
+        gpiod_line_request_release(request);
+    }
+    gpiod_line_settings_free(settings);
+    gpiod_line_config_free(line_cfg);
+    gpiod_request_config_free(req_cfg);
+    if (ctx->gpiod_chip) {
+        gpiod_chip_close(ctx->gpiod_chip);
+        ctx->gpiod_chip = NULL;
+    }
+    ctx->gpiod_de_request = NULL;
+    return 0;
 }
 #endif /* HAVE_LIBGPIOD */
 
@@ -354,8 +403,9 @@ static int rs485_init_gpio_sysfs(uart_context_t *ctx, int gpio_pin)
 static void rs485_de_assert(uart_context_t *ctx)
 {
 #ifdef HAVE_LIBGPIOD
-    if (ctx->gpiod_de_line) {
-        gpiod_line_set_value(ctx->gpiod_de_line, 1);
+    if (ctx->gpiod_de_request) {
+        (void)gpiod_line_request_set_value(
+                ctx->gpiod_de_request, ctx->gpiod_de_offset, GPIOD_LINE_VALUE_ACTIVE);
         return;
     }
 #endif
@@ -370,8 +420,9 @@ static void rs485_de_assert(uart_context_t *ctx)
 static void rs485_de_deassert(uart_context_t *ctx)
 {
 #ifdef HAVE_LIBGPIOD
-    if (ctx->gpiod_de_line) {
-        gpiod_line_set_value(ctx->gpiod_de_line, 0);
+    if (ctx->gpiod_de_request) {
+        (void)gpiod_line_request_set_value(
+                ctx->gpiod_de_request, ctx->gpiod_de_offset, GPIOD_LINE_VALUE_INACTIVE);
         return;
     }
 #endif
@@ -385,9 +436,9 @@ static void rs485_de_deassert(uart_context_t *ctx)
 static void rs485_gpio_cleanup(uart_context_t *ctx)
 {
 #ifdef HAVE_LIBGPIOD
-    if (ctx->gpiod_de_line) {
-        gpiod_line_release(ctx->gpiod_de_line);
-        ctx->gpiod_de_line = NULL;
+    if (ctx->gpiod_de_request) {
+        gpiod_line_request_release(ctx->gpiod_de_request);
+        ctx->gpiod_de_request = NULL;
     }
     if (ctx->gpiod_chip) {
         gpiod_chip_close(ctx->gpiod_chip);
