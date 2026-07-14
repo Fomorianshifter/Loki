@@ -9,37 +9,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* ===== STATUS CODES ===== */
-typedef enum {
-    HAL_OK           = 0,
-    HAL_ERROR        = -1,
-    HAL_TIMEOUT      = -2,
-    HAL_NOT_READY    = -3,
-    HAL_BUSY         = -4,
-    HAL_INVALID_PARAM = -5,
-    HAL_NOT_SUPPORTED = -6,
-} hal_status_t;
-
-/* ===== SPI CONFIGURATION ===== */
-typedef enum {
-    SPI_MODE_0 = 0,  /* CPOL=0, CPHA=0 */
-    SPI_MODE_1 = 1,  /* CPOL=0, CPHA=1 */
-    SPI_MODE_2 = 2,  /* CPOL=1, CPHA=0 */
-    SPI_MODE_3 = 3,  /* CPOL=1, CPHA=1 */
-} spi_mode_t;
-
-typedef enum {
-    SPI_LSB_FIRST = 0,
-    SPI_MSB_FIRST = 1,
-} spi_bit_order_t;
-
-typedef struct {
-    uint32_t frequency;      /* SPI frequency in Hz */
-    uint8_t mode;            /* SPI mode (0-3) */
-    uint8_t bits_per_word;   /* Usually 8 */
-    spi_bit_order_t bit_order;
-} spi_config_t;
-
 /* ===== I2C CONFIGURATION ===== */
 typedef enum {
     I2C_STANDARD_MODE   = 100000,   /* 100 kHz */

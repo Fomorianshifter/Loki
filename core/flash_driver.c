@@ -1,3 +1,19 @@
+#include <stdint.h>
+#include "hal.h"
+#include "spi.h"
+#include "flash_driver.h"
+#include "flash_defs.h"
+
+hal_status_t flash_write_enable(void) {
+    return HAL_OK;
+}
+
+hal_status_t flash_wait_ready(void) {
+    return HAL_OK;
+}
+
+flash_context_t flash_ctx = {0};
+
 hal_status_t flash_init(void)
 {
     if (flash_ctx.initialized) {
