@@ -1,0 +1,119 @@
+from PIL import Image, ImageDraw
+import time
+import logging
+import threading
+
+logger = logging.getLogger("loki.display")
+
+# Guard and single shared instance for the framebuffer/display
+_fb_opened = False
+_display_instance = None
+_display_lock = threading.Lock()
+
+
+class LokiDisplay:
+    """
+    LokiDisplay opens the framebuffer once and exposes simple drawing helpers.
+    """
+
+    def __init__(self, config):
+        global _fb_opened, _display_instance
+        # If another instance was created while this constructor was queued,
+        # reuse it to avoid opening the device twice.
+        if _fb_opened and _display_instance is not None:
+            logger.debug("LokiDisplay.__init__: reusing existing display instance")
+            existing = _display_instance
+            self.width = existing.width
+            self.height = existing.height
+            self.animation = existing.animation
+            self.fb_dev = existing.fb_dev
+            self.fb = existing.fb
+            return
+
+        # Normal initialization (first instance)
+        try:
+            disp_cfg = config.display() if hasattr(config, "display") else {}
+        except Exception:
+            disp_cfg = {}
+        self.width = disp_cfg.get("width", 480)
+        self.height = disp_cfg.get("height", 320)
+        self.animation = disp_cfg.get("animation", "boot_sequence")
+        # Accept either config.display() dict or fallback to /dev/fb1
+        self.fb_dev = disp_cfg.get("device", "/dev/fb1") if isinstance(disp_cfg, dict) else "/dev/fb1"
+
+        try:
+            import traceback
+            import threading
+            logger.info("Opening framebuffer in thread: %s", threading.current_thread().name)
+            logger.info("Open framebuffer call stack (most recent call last):")
+            for line in traceback.format_stack():
+                logger.info(line.rstrip())
+            self.fb = open(self.fb_dev, "wb", buffering=0)
+            logger.info("Opened framebuffer device %s", self.fb_dev)
+        except Exception as e:
+            logger.error("Unexpected error opening framebuffer %s: %s", self.fb_dev, e)
+            self.fb = None
+
+        _display_instance = self
+        _fb_opened = True
+
+    def draw_frame(self, img):
+        if not self.fb:
+            return
+        try:
+            self.fb.write(img.tobytes())
+            self.fb.flush()
+        except Exception:
+            logger.exception("Error writing frame to framebuffer")
+
+    def boot_animation(self):
+        for i in range(60):
+            img = Image.new("RGB", (self.width, self.height), (i * 4 % 255, 0, 40))
+            draw = ImageDraw.Draw(img)
+            draw.text((10, 10), "Loki booting...", fill=(255, 255, 255))
+            draw.text((10, 40), f"Step {i}", fill=(200, 200, 200))
+            self.draw_frame(img)
+            time.sleep(0.05)
+
+    def show_plugin_status(self, active_plugins, enabled_plugins):
+        img = Image.new("RGB", (self.width, self.height), (0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.text((10, 10), "Loki Plugins", fill=(0, 255, 0))
+        y = 40
+        for name in enabled_plugins:
+            color = (255, 255, 255)
+            if name in active_plugins:
+                color = (0, 255, 0)
+            draw.text((10, y), f"- {name}", fill=color)
+            y += 20
+        self.draw_frame(img)
+
+    def close(self):
+        try:
+            if self.fb:
+                self.fb.close()
+        except Exception:
+            logger.exception("Error closing framebuffer")
+
+
+def init_display(config):
+    """
+    Return a single shared display instance. Thread-safe: prevents concurrent creation.
+    """
+    global _fb_opened, _display_instance
+
+    # Fast path
+    if _fb_opened and _display_instance is not None:
+        logger.debug("Display already initialized; returning existing instance")
+        return _display_instance
+
+    # Slow path: ensure only one thread creates the instance
+    with _display_lock:
+        if _fb_opened and _display_instance is not None:
+            logger.debug("Display initialized while waiting for lock; returning existing instance")
+            return _display_instance
+
+        disp = LokiDisplay(config)
+        _display_instance = disp
+        _fb_opened = True
+        return _display_instance

@@ -1,32 +1,8 @@
-# Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
-
-# Virtualenv
 venv/
 .venv/
-env/
-ENV/
-
-# Editor files
-*.swp
-*.swo
-*.sublime-project
-*.sublime-workspace
+*.log
+*.bak
 .vscode/
 .idea/
-
-# Logs and runtime
-*.log
-*.pid
-/tmp/
-*.bak
-*.bak2
-
-# Bytecode and caches
-*.egg-info/
-dist/
-build/

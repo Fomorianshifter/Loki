@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""
+Robust main loop for Loki:
+- safe display init with fallback
+- plugin lifecycle management with exception handling
+- shared_state aggregation for renderers/adapters
+- graceful shutdown
+"""
+
+import importlib
+import logging
+import time
+import traceback
+import os
+from pathlib import Path
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("loki")
+
+# Configurable values
+PLUGINS_DIR = "plugins"
+MAIN_LOOP_SLEEP = 0.1  # seconds
+
+def discover_plugins():
+    """
+    Discover plugin modules in the plugins package by listing files.
+    Returns dict name -> module instance (module object).
+    """
+    plugins = {}
+    p = Path(PLUGINS_DIR)
+    if not p.exists():
+        logger.warning("Plugins directory not found: %s", PLUGINS_DIR)
+        return plugins
+
+    for py in p.glob("*.py"):
+        name = py.stem
+        if name.startswith("_"):
+            continue
+        try:
+            mod = importlib.import_module(f"{PLUGINS_DIR}.{name}")
+            plugins[name] = mod
+        except Exception:
+            logger.error("Failed to import plugin module %s:\n%s", name, traceback.format_exc())
+    return plugins
+
+def instantiate_plugins(modules, config=None):
+    plugin_configs = (config or {}).get("plugins", {})
+    instances = {}
+
+    # modules is expected to be a dict mapping name -> module
+    if isinstance(modules, dict):
+        iterable = modules.items()
+    else:
+        # fallback: build (name, module) pairs for a list of modules
+        iterable = []
+        for m in modules:
+            name = getattr(m, "PLUGIN_NAME", None) or getattr(m, "__name__", None)
+            if not name:
+                name = getattr(m, "__file__", "unknown").split("/")[-1].split(".")[0]
+            iterable.append((name, m))
+
+    for name, module in iterable:
+        plugin_class = getattr(module, "Plugin", None)
+        if not plugin_class:
+            continue
+        cfg = plugin_configs.get(name, {})
+        try:
+            instances[name] = plugin_class(cfg)
+        except Exception:
+            logger.exception("Failed to instantiate plugin %s", name)
+
+    return instances
+
+def safe_call(method_name, plugin_name, plugin_obj, *args, **kwargs):
+    """
+    Call plugin method safely and log exceptions.
+    """
+    method = getattr(plugin_obj, method_name, None)
+    if not callable(method):
+        return None
+    try:
+        return method(*args, **kwargs)
+    except Exception:
+        logger.error("Plugin %s.%s failed:\n%s", plugin_name, method_name, traceback.format_exc())
+        return None
+
+class DisplayFallback:
+    """
+    Minimal fallback display object used when framebuffer cannot be opened.
+    Renderers should detect absence of fb and use terminal or no-op.
+    """
+    def __init__(self):
+        self.mode = "terminal"
+    def write(self, *args, **kwargs):
+        # no-op or simple print
+        pass
+    def close(self):
+        pass
+
+def init_display(config):
+    """
+    Try to open framebuffer device from config or default. On failure, return fallback.
+    """
+    fb_dev = config.get("display_device", "/dev/fb1") if config else "/dev/fb1"
+    try:
+        # Try to open in binary write mode with buffering disabled
+        from display import init_display
+        _display = init_display(config)
+        fb = _display.fb
+
+        logger.info("Opened framebuffer device %s", fb_dev)
+        return fb
+    except PermissionError:
+        logger.warning("Permission denied opening framebuffer %s; falling back to terminal display", fb_dev)
+        return DisplayFallback()
+    except FileNotFoundError:
+        logger.warning("Framebuffer device %s not found; falling back to terminal display", fb_dev)
+        return DisplayFallback()
+    except Exception:
+        logger.error("Unexpected error opening framebuffer %s:\n%s", fb_dev, traceback.format_exc())
+        return DisplayFallback()
+
+def main():
+    # Minimal config placeholder; replace with your real config loader if present
+    import toml
+    config = toml.load("/home/loki/Loki/config.toml")
+    # Discover and import plugin modules
+    modules = discover_plugins()
+    logger.info("Discovered plugin modules: %s", list(modules.keys()))
+
+    # Instantiate plugin objects with per-plugin config
+    plugin_configs = config.get("plugins", {})
+    plugins = {}
+    for name, module in modules.items():
+        plugin_class = getattr(module, "Plugin", None)
+        if not plugin_class:
+            continue
+
+        # get the config for this plugin (empty dict if missing)
+        cfg = plugin_configs.get(name, {})
+        try:
+            instance = plugin_class(cfg)
+            plugins[name] = instance
+        except Exception:
+            logger.exception("Failed to instantiate plugin %s", name)
+
+        # Initialize display (safe)
+        display = init_display(config)
+
+    # Call on_start for each plugin (safe)
+    for name, plugin in plugins.items():
+        logger.info("Starting plugin %s", name)
+        safe_call("on_start", name, plugin, None)
+
+    # Main loop: aggregate plugin states and call on_tick
+    shared_state = {}
+    try:
+        logger.info("Entering main loop")
+        while True:
+            # Build shared_state from plugin instances that expose .state
+            shared_state.clear()
+            for name, plugin in plugins.items():
+                # If plugin has a 'state' attribute, include it
+                try:
+                    st = getattr(plugin, "state", None)
+                    if st is not None:
+                        shared_state[name] = st
+                except Exception:
+                    logger.debug("Reading state from plugin %s failed", name)
+
+            # Call on_tick for each plugin with shared_state
+            for name, plugin in plugins.items():
+                safe_call("on_tick", name, plugin, shared_state)
+
+            # Sleep a short while; keep this outside plugin calls
+            time.sleep(MAIN_LOOP_SLEEP)
+    except KeyboardInterrupt:
+        logger.info("Shutdown requested by user (KeyboardInterrupt)")
+    except Exception:
+        logger.error("Unhandled exception in main loop:\n%s", traceback.format_exc())
+    finally:
+        # Call on_stop for each plugin
+        logger.info("Stopping plugins")
+        for name, plugin in plugins.items():
+            safe_call("on_stop", name, plugin)
+        # Close display if it has close method or is a file
+        try:
+            if hasattr(display, "close"):
+                display.close()
+        except Exception:
+            logger.debug("Error closing display: %s", traceback.format_exc())
+        logger.info("Shutdown complete")
+
+if __name__ == "__main__":
+    main()
