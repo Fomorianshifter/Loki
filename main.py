@@ -1,40 +1,47 @@
 import time
 import loki
-from plugins.sniff import SniffPlugin
-from plugins.scan import ScanPlugin
-from plugins.ai_brain import AIBrain
+import toml
+
+def load_config():
+    return toml.load("config.toml")
 
 class LokiState:
     def __init__(self):
         self.tick = 0
 
-def load_plugins():
-    return [
-        SniffPlugin(),
-        ScanPlugin(),
-        AIBrain(),
-    ]
+def load_plugins(config):
+    enabled = config.get("plugins", {}).get("enabled", [])
+    plugins = []
+
+    for name in enabled:
+        module = __import__(f"plugins.{name}", fromlist=["Plugin"])
+        plugins.append(module.Plugin())
+
+    return plugins
 
 def main():
+    config = load_config()
     state = LokiState()
-    plugins = load_plugins()
+    plugins = load_plugins(config)
 
+    # Start plugins
     for p in plugins:
-        p.on_start(loki)
+        if hasattr(p, "on_start"):
+            p.on_start(loki)
 
     while True:
         state.tick += 1
+        print("tick:", state.tick)
 
-        # TODO: call C wifi_scan() and wifi_sniff() once we expose them
-        aps = []      # placeholder
-        frame = None  # placeholder
+        aps = []      # placeholder until wifi_scan() is exposed
+        frame = None  # placeholder until wifi_sniff() is exposed
 
         for p in plugins:
-            p.on_scan(aps)
-            p.on_sniff(frame)
-            p.on_tick(state)
+            if hasattr(p, "on_scan"):
+                p.on_scan(aps)
+            if hasattr(p, "on_sniff"):
+                p.on_sniff(frame)
+            if hasattr(p, "on_tick"):
+                p.on_tick(state)
 
         time.sleep(1)
-
-if __name__ == "__main__":
-    main()

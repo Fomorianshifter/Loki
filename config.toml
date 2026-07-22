@@ -1,0 +1,3 @@
+[plugins]
+enabled = ["sniff", "scan", "ai_brain", "bettercap"]
+
