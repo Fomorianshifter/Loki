@@ -76,6 +76,18 @@ class LokiDisplay:
         self._render_thread = threading.Thread(target=self._render_loop, name="LokiDisplayRender", daemon=True)
         self._render_thread.start()
 
+    def request_frame(self, img):
+        """Queue a PIL Image to be shown on the next render tick. Nonblocking."""
+        try:
+            with self._frame_lock:
+                # store a copy so callers can reuse their Image
+                self._current_frame = img.copy()
+        except Exception:
+            logger.exception("Failed to request frame")
+
+    def draw_frame(self, img):
+        """Backwards-compatible immediate write. Prefer request_frame for smoothness."""
+        self.request_frame(img)
     def draw_frame(self, img):
         if not self.fb:
             return
@@ -85,13 +97,13 @@ class LokiDisplay:
         except Exception:
             logger.exception("Error writing frame to framebuffer")
 
-    def boot_animation(self):
+    def boot_animation(self, duration_seconds=3.0):
         for i in range(60):
             img = Image.new("RGB", (self.width, self.height), (i * 4 % 255, 0, 40))
             draw = ImageDraw.Draw(img)
             draw.text((10, 10), "Loki booting...", fill=(255, 255, 255))
             draw.text((10, 40), f"Step {i}", fill=(200, 200, 200))
-            self.draw_frame(img)
+            self.request_frame(img)
             time.sleep(0.05)
 
     def show_plugin_status(self, active_plugins, enabled_plugins):
@@ -105,7 +117,7 @@ class LokiDisplay:
                 color = (0, 255, 0)
             draw.text((10, y), f"- {name}", fill=color)
             y += 20
-        self.draw_frame(img)
+        self.request_frame(img)
 
     def close(self):
         try:
@@ -143,40 +155,9 @@ class LokiDisplay:
                 self.show_plugin_status(active, enabled, scroll=scroll, speed=speed)
             except Exception:
                 logger.exception("Error processing status update")
-    def enqueue_status(self, active_plugins, enabled_plugins, scroll=True, speed=1.0):
-        """Nonblocking API for plugins: enqueue a status update."""
-        try:
-            self._status_queue.put_nowait((set(active_plugins), list(enabled_plugins), bool(scroll), float(speed)))
-        except Exception:
-            logger.exception("Failed to enqueue status update")
-
-    def _status_worker_loop(self):
-        """Worker thread that consumes status updates and runs show_plugin_status.
-        If multiple updates arrive quickly, only the latest is processed.
-        """
-        while not getattr(self, "_stop_event", threading.Event()).is_set():
-            try:
-                item = self._status_queue.get(timeout=0.5)
-            except Exception:
-                continue
-            # drain queue to keep only the latest update
-            while True:
-                try:
-                    nxt = self._status_queue.get_nowait()
-                    item = nxt
-                except Exception:
-                    break
-            try:
-                active, enabled, scroll, speed = item
-                self.show_plugin_status(active, enabled, scroll=scroll, speed=speed)
-            except Exception:
-                logger.exception("Error processing status update")
-             
+ 
     def _render_loop(self):
-        """
-        Minimal render loop: writes the latest requested frame to the framebuffer
-        at the configured FPS. Safe no-op if framebuffer not available.
-        """
+        """Minimal render loop: writes the latest requested frame to the framebuffer at the configured FPS."""
         period = 1.0 / max(1, int(getattr(self, "_fps", 20)))
         while not getattr(self, "_stop_event", threading.Event()).is_set():
             start = time.time()
@@ -188,7 +169,6 @@ class LokiDisplay:
                         self._current_frame = None
                 if frame is not None and getattr(self, "fb", None):
                     try:
-                        # write raw bytes; PIL Image must be in a compatible mode
                         self.fb.write(frame.tobytes())
                         try:
                             self.fb.flush()
@@ -202,8 +182,6 @@ class LokiDisplay:
             to_sleep = period - elapsed
             if to_sleep > 0:
                 time.sleep(to_sleep)
-
- 
 def init_display(config):
     """
     Return a single shared display instance. Thread-safe: prevents concurrent creation.
