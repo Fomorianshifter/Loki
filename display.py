@@ -1,7 +1,9 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import time
 import logging
 import threading
+import queue
+import os
 
 logger = logging.getLogger("loki.display")
 
@@ -49,6 +51,30 @@ class LokiDisplay:
 
         _display_instance = self
         _fb_opened = True
+        # Rendering state and font/queue
+        self._fps = 20
+        self._frame_lock = threading.Lock()
+        self._current_frame = None
+        self._stop_event = threading.Event()
+
+        # Font: try a common system TTF, fallback to default
+        try:
+            ttf_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if os.path.exists(ttf_path):
+                self._font = ImageFont.truetype(ttf_path, 14)
+            else:
+                self._font = getattr(self, "_font", ImageFont.load_default())
+        except Exception:
+            self._font = getattr(self, "_font", ImageFont.load_default())
+
+        # Nonblocking status queue for plugins
+        self._status_queue = queue.Queue()
+        self._status_worker = threading.Thread(target=self._status_worker_loop, name="LokiStatusWorker", daemon=True)
+        self._status_worker.start()
+
+        # Render thread placeholder (starts a render loop if implemented)
+        self._render_thread = threading.Thread(target=self._render_loop, name="LokiDisplayRender", daemon=True)
+        self._render_thread.start()
 
     def draw_frame(self, img):
         if not self.fb:
@@ -89,6 +115,95 @@ class LokiDisplay:
             logger.exception("Error closing framebuffer")
 
 
+    def enqueue_status(self, active_plugins, enabled_plugins, scroll=True, speed=1.0):
+        """Nonblocking API for plugins: enqueue a status update."""
+        try:
+            self._status_queue.put_nowait((set(active_plugins), list(enabled_plugins), bool(scroll), float(speed)))
+        except Exception:
+            logger.exception("Failed to enqueue status update")
+
+    def _status_worker_loop(self):
+        """Worker thread that consumes status updates and runs show_plugin_status.
+        If multiple updates arrive quickly, only the latest is processed.
+        """
+        while not getattr(self, "_stop_event", threading.Event()).is_set():
+            try:
+                item = self._status_queue.get(timeout=0.5)
+            except Exception:
+                continue
+            # drain queue to keep only the latest update
+            while True:
+                try:
+                    nxt = self._status_queue.get_nowait()
+                    item = nxt
+                except Exception:
+                    break
+            try:
+                active, enabled, scroll, speed = item
+                self.show_plugin_status(active, enabled, scroll=scroll, speed=speed)
+            except Exception:
+                logger.exception("Error processing status update")
+    def enqueue_status(self, active_plugins, enabled_plugins, scroll=True, speed=1.0):
+        """Nonblocking API for plugins: enqueue a status update."""
+        try:
+            self._status_queue.put_nowait((set(active_plugins), list(enabled_plugins), bool(scroll), float(speed)))
+        except Exception:
+            logger.exception("Failed to enqueue status update")
+
+    def _status_worker_loop(self):
+        """Worker thread that consumes status updates and runs show_plugin_status.
+        If multiple updates arrive quickly, only the latest is processed.
+        """
+        while not getattr(self, "_stop_event", threading.Event()).is_set():
+            try:
+                item = self._status_queue.get(timeout=0.5)
+            except Exception:
+                continue
+            # drain queue to keep only the latest update
+            while True:
+                try:
+                    nxt = self._status_queue.get_nowait()
+                    item = nxt
+                except Exception:
+                    break
+            try:
+                active, enabled, scroll, speed = item
+                self.show_plugin_status(active, enabled, scroll=scroll, speed=speed)
+            except Exception:
+                logger.exception("Error processing status update")
+             
+    def _render_loop(self):
+        """
+        Minimal render loop: writes the latest requested frame to the framebuffer
+        at the configured FPS. Safe no-op if framebuffer not available.
+        """
+        period = 1.0 / max(1, int(getattr(self, "_fps", 20)))
+        while not getattr(self, "_stop_event", threading.Event()).is_set():
+            start = time.time()
+            frame = None
+            try:
+                with self._frame_lock:
+                    if self._current_frame is not None:
+                        frame = self._current_frame.copy()
+                        self._current_frame = None
+                if frame is not None and getattr(self, "fb", None):
+                    try:
+                        # write raw bytes; PIL Image must be in a compatible mode
+                        self.fb.write(frame.tobytes())
+                        try:
+                            self.fb.flush()
+                        except Exception:
+                            pass
+                    except Exception:
+                        logger.exception("Error writing frame to framebuffer")
+            except Exception:
+                logger.exception("Unexpected error in render loop")
+            elapsed = time.time() - start
+            to_sleep = period - elapsed
+            if to_sleep > 0:
+                time.sleep(to_sleep)
+
+ 
 def init_display(config):
     """
     Return a single shared display instance. Thread-safe: prevents concurrent creation.
