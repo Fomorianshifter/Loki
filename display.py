@@ -66,9 +66,41 @@ class LokiDisplay:
                 self._font = getattr(self, "_font", ImageFont.load_default())
         except Exception:
             self._font = getattr(self, "_font", ImageFont.load_default())
+        # Preload boot/logo frames from assets to speed up boot animation
+        try:
+            import glob
+            assets_dir = Path(__file__).parent / 'assets' / 'boot_frames'
+            self._boot_frames = []
+        # If preblended frames exist, prefer them for faster playback
+        try:
+            blends_dir = Path(__file__).parent / 'assets' / 'boot_blends'
+            if blends_dir.exists():
+                self._boot_frames = []
+                for pth in sorted(blends_dir.glob('*.png')):
+                    try:
+                        img = Image.open(pth).convert('RGB')
+                        if img.size != (self.width, self.height):
+                            img = img.resize((self.width, self.height))
+                        self._boot_frames.append(img)
+                    except Exception:
+                        logger.exception('Failed to load preblend %s', pth)
+        except Exception:
+            pass
+
+            if assets_dir.exists():
+                for pth in sorted(assets_dir.glob('*.png')):
+                    try:
+                        img = Image.open(pth).convert('RGB')
+                        # resize if display size differs
+                        if img.size != (self.width, self.height):
+                            img = img.resize((self.width, self.height))
+                        self._boot_frames.append(img)
+                    except Exception:
+                        logger.exception('Failed to load boot frame %s', pth)
+        except Exception:
+            self._boot_frames = []
 
         # Nonblocking status queue for plugins
-        self._status_queue = queue.Queue()
         self._status_worker = threading.Thread(target=self._status_worker_loop, name="LokiStatusWorker", daemon=True)
         self._status_worker.start()
 
@@ -88,16 +120,33 @@ class LokiDisplay:
     def draw_frame(self, img):
         """Backwards-compatible immediate write. Prefer request_frame for smoothness."""
         self.request_frame(img)
-    def draw_frame(self, img):
-        if not self.fb:
-            return
-        try:
-            self.fb.write(img.tobytes())
-            self.fb.flush()
-        except Exception:
-            logger.exception("Error writing frame to framebuffer")
-
     def boot_animation(self, duration_seconds=3.0):
+        """
+        Nonblocking boot animation: enqueue precomputed frames if available.
+        duration_seconds is a hint for total playback time; frames are paced accordingly.
+        """
+        try:
+            frames = getattr(self, "_boot_frames", None)
+            if frames:
+                # pace frames to fit duration_seconds
+                total = max(1, len(frames))
+                per = max(0.02, float(duration_seconds) / float(total))
+                for f in frames:
+                    self.request_frame(f)
+                    time.sleep(per)
+                return
+        except Exception:
+            logger.exception("Error playing cached boot frames; falling back")
+
+        # fallback: simple animated sweep (original behavior)
+        for i in range(60):
+            img = Image.new("RGB", (self.width, self.height), (i * 4 % 255, 0, 40))
+            draw = ImageDraw.Draw(img)
+            draw.text((10, 10), "Loki booting...", fill=(255, 255, 255))
+            draw.text((10, 40), f"Step {i}", fill=(200, 200, 200))
+            self.request_frame(img)
+            time.sleep(0.05)
+
         for i in range(60):
             img = Image.new("RGB", (self.width, self.height), (i * 4 % 255, 0, 40))
             draw = ImageDraw.Draw(img)
@@ -211,39 +260,66 @@ class LokiDisplay:
                 logger.exception("Error processing status update")
  
     def _render_loop(self):
-        """Minimal render loop: writes the latest requested frame to the framebuffer at the configured FPS."""
         period = 1.0 / max(1, int(getattr(self, "_fps", 20)))
+        prev = None
+        next_img = None
+        fade_ms = 250
+        fade_steps = max(1, int(self._fps * (fade_ms / 1000.0)))
+        step = 0
         while not getattr(self, "_stop_event", threading.Event()).is_set():
-            start = time.time()
-            frame = None
-            try:
-                with self._frame_lock:
-                    if self._current_frame is not None:
-                        frame = self._current_frame.copy()
-                        self._current_frame = None
-                if frame is not None and getattr(self, "fb", None):
+            start_t = time.time()
+            with self._frame_lock:
+                if self._current_frame is not None:
+                    next_img = self._current_frame.copy()
+                    self._current_frame = None
+                    step = 0
+            out = None
+            if next_img is not None:
+                if prev is None:
+                    prev = next_img
+                    out = prev
+                    next_img = None
+                else:
+                    t = min(1.0, float(step) / float(fade_steps))
                     try:
-                        self.fb.write(frame.tobytes())
-                        try:
-                            self.fb.flush()
-                        except Exception:
-                            pass
+                        out = Image.blend(prev, next_img, t)
                     except Exception:
-                        logger.exception("Error writing frame to framebuffer")
-            except Exception:
-                logger.exception("Unexpected error in render loop")
-            elapsed = time.time() - start
+                        # fallback: show next_img when blend fails
+                        out = next_img
+                    step += 1
+                    if t >= 1.0:
+                        prev = next_img
+                        next_img = None
+            else:
+                out = prev
+            if out is not None and getattr(self, "fb", None):
+                try:
+                    self.fb.write(out.tobytes())
+                    try:
+                        self.fb.flush()
+                    except Exception:
+                        pass
+                except Exception:
+                    logger.exception("Error writing frame to framebuffer")
+            elapsed = time.time() - start_t
             to_sleep = period - elapsed
             if to_sleep > 0:
                 time.sleep(to_sleep)
+
     def stop(self):
         """Signal worker and render threads to stop and join them."""
         try:
             self._stop_event.set()
-            if hasattr(self, "_render_thread") and self._render_thread.is_alive():
-                self._render_thread.join(timeout=1.0)
-            if hasattr(self, "_status_worker") and self._status_worker.is_alive():
-                self._status_worker.join(timeout=1.0)
+            if hasattr(self, "_render_thread") and getattr(self, "_render_thread") and self._render_thread.is_alive():
+                try:
+                    self._render_thread.join(timeout=1.0)
+                except Exception:
+                    pass
+            if hasattr(self, "_status_worker") and getattr(self, "_status_worker") and self._status_worker.is_alive():
+                try:
+                    self._status_worker.join(timeout=1.0)
+                except Exception:
+                    pass
         except Exception:
             logger.exception("Error stopping display threads")
 
