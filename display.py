@@ -106,7 +106,48 @@ class LokiDisplay:
             self.request_frame(img)
             time.sleep(0.05)
 
-    def show_plugin_status(self, active_plugins, enabled_plugins):
+    def show_plugin_status(self, active_plugins, enabled_plugins, scroll=False, speed=1.0):
+        """
+        Render plugin list. If scroll is True and list exceeds height, scroll vertically.
+        """
+        font = getattr(self, "_font", ImageFont.load_default())
+        line_h = font.getsize("Ay")[1] + 2
+        visible_lines = max(1, self.height // line_h)
+        names = list(enabled_plugins)
+
+        if len(names) <= visible_lines or not scroll:
+            img = Image.new("RGB", (self.width, self.height), (0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            draw.text((10, 10), "Loki Plugins", fill=(0, 255, 0), font=font)
+            y = 30
+            for name in names:
+                color = (0, 255, 0) if name in active_plugins else (255, 255, 255)
+                draw.text((10, y), f"- {name}", fill=color, font=font)
+                y += line_h
+            self.request_frame(img)
+            return
+
+        # Scrolling mode: create tall image and scroll window
+        tall_h = line_h * (len(names) + 3)
+        tall = Image.new("RGB", (self.width, tall_h), (0, 0, 0))
+        draw = ImageDraw.Draw(tall)
+        draw.text((10, 2), "Loki Plugins", fill=(0, 255, 0), font=font)
+        y = 20
+        for name in names:
+            color = (0, 255, 0) if name in active_plugins else (255, 255, 255)
+            draw.text((10, y), f"- {name}", fill=color, font=font)
+            y += line_h
+
+        offset = 0
+        step = max(1, int(speed))
+        while not self._stop_event.is_set():
+            if offset + self.height > tall_h:
+                offset = 0
+            window = tall.crop((0, offset, self.width, offset + self.height))
+            self.request_frame(window)
+            time.sleep(1.0 / max(1, int(self._fps)))
+            offset += step
+
         img = Image.new("RGB", (self.width, self.height), (0, 0, 0))
         draw = ImageDraw.Draw(img)
         draw.text((10, 10), "Loki Plugins", fill=(0, 255, 0))
@@ -182,6 +223,17 @@ class LokiDisplay:
             to_sleep = period - elapsed
             if to_sleep > 0:
                 time.sleep(to_sleep)
+    def stop(self):
+        """Signal worker and render threads to stop and join them."""
+        try:
+            self._stop_event.set()
+            if hasattr(self, "_render_thread") and self._render_thread.is_alive():
+                self._render_thread.join(timeout=1.0)
+            if hasattr(self, "_status_worker") and self._status_worker.is_alive():
+                self._status_worker.join(timeout=1.0)
+        except Exception:
+            logger.exception("Error stopping display threads")
+
 def init_display(config):
     """
     Return a single shared display instance. Thread-safe: prevents concurrent creation.
