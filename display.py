@@ -111,7 +111,20 @@ class LokiDisplay:
         Render plugin list. If scroll is True and list exceeds height, scroll vertically.
         """
         font = getattr(self, "_font", ImageFont.load_default())
-        line_h = font.getsize("Ay")[1] + 2
+        # compute line height robustly: prefer font.getmetrics(), fallback to textbbox, then default
+        try:
+            ascent, descent = font.getmetrics()
+            line_h = ascent + descent + 2
+        except Exception:
+            try:
+                tmp_img = Image.new('RGB', (1, 1))
+                tmp_draw = ImageDraw.Draw(tmp_img)
+                bbox = tmp_draw.textbbox((0, 0), 'Ay', font=font)
+                line_h = (bbox[3] - bbox[1]) + 2
+            except Exception:
+                # last resort: conservative fixed height
+                line_h = 14
+
         visible_lines = max(1, self.height // line_h)
         names = list(enabled_plugins)
 
