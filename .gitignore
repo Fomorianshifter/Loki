@@ -8,3 +8,7 @@ venv/
 *.save
 .vscode/
 .idea/
+build/
+*.so
+*.o
+*.d
