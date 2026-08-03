@@ -46,6 +46,7 @@ class Plugin:
 
         self._lock = threading.Lock()
         self._session = None  # requests.Session, lazily created
+        self._last_auto_prompts = {}
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -128,11 +129,16 @@ class Plugin:
         if self.auto_reply and shared_state:
             for plugin_name, pstate in shared_state.items():
                 if not isinstance(pstate, dict):
+                    self._last_auto_prompts.pop(plugin_name, None)
                     continue
                 prompt = pstate.get("ai_prompt")
                 if not prompt:
+                    self._last_auto_prompts.pop(plugin_name, None)
+                    continue
+                if self._last_auto_prompts.get(plugin_name) == prompt:
                     continue
                 logger.info("[AIBrain] Received prompt from plugin '%s'", plugin_name)
+                self._last_auto_prompts[plugin_name] = prompt
                 self._handle_prompt(prompt)
                 break  # process one prompt per tick
 
