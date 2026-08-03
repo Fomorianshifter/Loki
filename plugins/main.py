@@ -21,6 +21,7 @@ class DisplayPlugin(BasePlugin):
         super().__init__(config)
         self.fb = None
         self.fb_dev = "/dev/fb1"
+        self.refresh_interval = 5.0
         self._stop = False
         self._thread = None
         self._lock = threading.Lock()
@@ -33,6 +34,12 @@ class DisplayPlugin(BasePlugin):
                 dev = cfg.get("display_device")
                 if dev:
                     self.fb_dev = dev
+                interval = cfg.get("refresh_interval")
+                if interval is not None:
+                    try:
+                        self.refresh_interval = max(0.1, float(interval))
+                    except (TypeError, ValueError):
+                        pass
         except Exception:
             pass
 
@@ -66,26 +73,28 @@ class DisplayPlugin(BasePlugin):
             tick += 1
             try:
                 with self._lock:
-                    if self.fb:
-                        try:
-                            # Diagnostic write; replace with proper framebuffer bytes for real use
-                            self.fb.write(f"HB {tick}\n".encode("utf-8"))
-                        except Exception:
-                            try:
-                                self.fb.close()
-                            except Exception:
-                                pass
-                            self.fb = None
-                            print("[DisplayPlugin] framebuffer write failed; falling back to terminal")
-                        else:
-                            # no framebuffer available, but we keep the loop alive
-                            time.sleep(5.0)
+                    fb = self.fb
+
+                if fb:
+                    try:
+                        # Diagnostic write; replace with proper framebuffer bytes for real use
+                        fb.write(f"HB {tick}\n".encode("utf-8"))
+                    except Exception:
+                        with self._lock:
+                            if self.fb is fb:
+                                try:
+                                    self.fb.close()
+                                except Exception:
+                                    pass
+                                self.fb = None
+                        print("[DisplayPlugin] framebuffer write failed; falling back to terminal")
+
+                time.sleep(self.refresh_interval)
             except Exception:
                 print("[DisplayPlugin] render loop exception:\n" + traceback.format_exc())
-                time.sleep(5.0)
+                time.sleep(self.refresh_interval)
 
     def on_tick(self, state):
-        print("[DisplayPlugin] tick", flush=True)
         try:
             if not state:
                 return

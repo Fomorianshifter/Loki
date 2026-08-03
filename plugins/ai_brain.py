@@ -16,6 +16,7 @@ Configuration (config.toml, [plugins.ai_brain]):
 """
 
 import logging
+import queue
 import threading
 import time
 import traceback
@@ -45,7 +46,12 @@ class Plugin:
         }
 
         self._lock = threading.Lock()
+        self._request_lock = threading.Lock()
         self._session = None  # requests.Session, lazily created
+        self._last_auto_prompts = {}
+        self._auto_reply_queue = queue.Queue(maxsize=1)
+        self._auto_reply_stop = threading.Event()
+        self._auto_reply_thread = None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -72,23 +78,54 @@ class Plugin:
         Send *prompt* to the configured API and return the reply string.
         Raises on failure so callers can handle the error.
         """
-        session = self._get_session()
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-        if self.debug:
-            logger.debug("[AIBrain] POST %s  model=%s  prompt=%.80s…", self.api_url, self.model, prompt)
+        with self._request_lock:
+            session = self._get_session()
+            payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if self.debug:
+                logger.debug("[AIBrain] POST %s  model=%s  prompt=%.80s…", self.api_url, self.model, prompt)
 
-        response = session.post(self.api_url, json=payload, timeout=self.timeout)
-        response.raise_for_status()
+            response = session.post(self.api_url, json=payload, timeout=self.timeout)
+            response.raise_for_status()
 
-        data = response.json()
-        choices = data.get("choices") or []
-        if not choices:
-            raise ValueError("API response contained no choices")
-        content = choices[0].get("message", {}).get("content", "")
-        return content.strip()
+            data = response.json()
+            choices = data.get("choices") or []
+            if not choices:
+                raise ValueError("API response contained no choices")
+            content = choices[0].get("message", {}).get("content", "")
+            return content.strip()
+
+    def _auto_reply_worker(self):
+        while not self._auto_reply_stop.is_set():
+            try:
+                prompt = self._auto_reply_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            try:
+                self._handle_prompt(prompt)
+            finally:
+                self._auto_reply_queue.task_done()
+
+    def _queue_auto_reply(self, plugin_name, prompt):
+        if self._last_auto_prompts.get(plugin_name) == prompt:
+            return False
+
+        if self._auto_reply_queue.full():
+            try:
+                self._auto_reply_queue.get_nowait()
+                self._auto_reply_queue.task_done()
+            except queue.Empty:
+                pass
+
+        try:
+            self._auto_reply_queue.put_nowait(prompt)
+            self._last_auto_prompts[plugin_name] = prompt
+            return True
+        except queue.Full:
+            return False
 
     # ------------------------------------------------------------------
     # Plugin lifecycle
@@ -109,6 +146,14 @@ class Plugin:
             import requests  # noqa: F401 – validate dependency is present
             with self._lock:
                 self.state["ready"] = True
+            if self.auto_reply and self._auto_reply_thread is None:
+                self._auto_reply_stop.clear()
+                self._auto_reply_thread = threading.Thread(
+                    target=self._auto_reply_worker,
+                    name="loki-ai-auto-reply",
+                    daemon=True,
+                )
+                self._auto_reply_thread.start()
             logger.info(
                 "[AIBrain] Started (use_openai=%s, model=%s, url=%s)",
                 self.use_openai, self.model, self.api_url,
@@ -128,12 +173,14 @@ class Plugin:
         if self.auto_reply and shared_state:
             for plugin_name, pstate in shared_state.items():
                 if not isinstance(pstate, dict):
+                    self._last_auto_prompts.pop(plugin_name, None)
                     continue
                 prompt = pstate.get("ai_prompt")
                 if not prompt:
+                    self._last_auto_prompts.pop(plugin_name, None)
                     continue
-                logger.info("[AIBrain] Received prompt from plugin '%s'", plugin_name)
-                self._handle_prompt(prompt)
+                if self._queue_auto_reply(plugin_name, prompt):
+                    logger.info("[AIBrain] Queued prompt from plugin '%s'", plugin_name)
                 break  # process one prompt per tick
 
     def query(self, prompt):
@@ -170,6 +217,10 @@ class Plugin:
         logger.info("[AIBrain] Stopping plugin")
         with self._lock:
             self.state["ready"] = False
+        self._auto_reply_stop.set()
+        if self._auto_reply_thread and self._auto_reply_thread.is_alive():
+            self._auto_reply_thread.join(timeout=1.0)
+        self._auto_reply_thread = None
         if self._session:
             try:
                 self._session.close()
