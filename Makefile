@@ -8,9 +8,14 @@
 # Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf
 
 ## Compiler Settings
-CC := arm-linux-gnueabihf-gcc
-CFLAGS := -Wall -Wextra -march=armv7-a -mtune=cortex-a7
-CFLAGS += -I. 
+CC := $(shell command -v arm-linux-gnueabihf-gcc 2>/dev/null)
+ifeq ($(CC),)
+CC := gcc
+endif
+CFLAGS := -Wall -Wextra -I.
+ifeq ($(notdir $(CC)),arm-linux-gnueabihf-gcc)
+	CFLAGS += -march=armv7-a -mtune=cortex-a7
+endif
  
 ## Debug/Release Build Modes
 DEBUG ?= 1
@@ -30,7 +35,7 @@ CROSS_HOST ?= orange-pi.local
 CROSS_PATH ?= /tmp
  
 ## Project Structure
-SOURCES := $(wildcard *.c)
+SOURCES := $(wildcard *.c) $(wildcard drivers/ai_client/*.c)
 HEADERS := $(wildcard *.h)
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(SOURCES:.c=.o))
 DEPS := $(OBJECTS:.o=.d)
@@ -38,6 +43,13 @@ TARGET := loki_app
  
 ## Linker Settings
 LDFLAGS := -lm -lpthread
+
+## Optional libcurl for AI client (enabled when AI_ENABLED=1 at compile time)
+ifeq ($(AI_ENABLED),1)
+    CFLAGS  += -DAI_ENABLED=1
+    LDFLAGS += -lcurl
+    $(info [INFO] AI_ENABLED=1: building with libcurl support)
+endif
  
 ## Build Rules
 all: $(BUILD_DIR)/$(TARGET)
@@ -70,7 +82,7 @@ run: install
  
 ## Local testing (without hardware)
 test: clean
-	$(MAKE) DEBUG=1 CFLAGS+=-DMOCK_HARDWARE
+	$(MAKE) DEBUG=1 CFLAGS="$(CFLAGS) -DMOCK_HARDWARE"
 	./build/debug/$(TARGET)
  
 ## Documentation generation (requires Doxygen)

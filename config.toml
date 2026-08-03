@@ -1,0 +1,177 @@
+##############################################
+# LOKI GLOBAL SETTINGS
+##############################################
+
+color = false
+boot_animation = true
+regular_animation = true
+level_speed = 2
+ascii_mode = true
+
+
+##############################################
+# DISPLAY (top-level – used by LokiConfig.display())
+##############################################
+[display]
+width = 480
+height = 320
+device = "/dev/fb1"
+pixel_format = "RGB565"
+animation = "boot_sequence"
+
+
+##############################################
+# PLUGIN: AI BRAIN
+##############################################
+[plugins.ai_brain]
+enabled = true
+use_openai = false
+api_key = ""
+api_url = "https://api.openai.com/v1/chat/completions"
+model = "gpt-4o-mini"
+timeout = 30
+auto_reply = false
+debug = false
+
+
+##############################################
+# PLUGIN: SCAN
+##############################################
+[plugins.scan]
+enabled = true
+wifi = false
+ble = false
+ethernet = true
+interval = 5
+
+
+##############################################
+# PLUGIN: SNIFF
+##############################################
+[plugins.sniff]
+enabled = true
+interface = "wlan0"
+channel_hop = true
+hop_interval = 3
+
+
+##############################################
+# PLUGIN: DISPLAY
+##############################################
+[plugins.display]
+enabled = true
+driver = "fb"
+device = "/dev/fb1"
+pixel_format = "RGB565"
+invert = false
+contrast = 50
+
+
+##############################################
+# PLUGIN: LOKI ANIMATION
+##############################################
+[plugins.loki_animation]
+enabled = true
+speed = 2
+style = "default"
+
+
+##############################################
+# PLUGIN: BETTERCAP
+##############################################
+[plugins.bettercap]
+enabled = false
+path = "/usr/local/bin/bettercap"
+auto_start = false
+
+
+##############################################
+# PLUGIN: GPS
+##############################################
+[plugins.gps]
+enabled = false
+device = "/dev/ttyUSB0"
+baud = 9600
+
+
+##############################################
+# PLUGIN: BLE
+##############################################
+[plugins.ble]
+enabled = false
+scan = false
+interval = 10
+
+
+##############################################
+# PLUGIN: UPS
+##############################################
+[plugins.ups]
+enabled = false
+battery_min = 20
+shutdown_on_low = true
+
+
+##############################################
+# PLUGIN: TOUCH
+##############################################
+[plugins.touch]
+enabled = false
+device = "/dev/input/event0"
+
+
+##############################################
+# PLUGIN: WIFI TOOLS
+##############################################
+[plugins.wifi_tools]
+enabled = false
+auto_deauth = false
+auto_probe = false
+
+
+##############################################
+# PLUGIN: PWNY
+##############################################
+[plugins.pwny]
+enabled = false
+auto_attack = false
+aggressive = false
+
+
+##############################################
+# PLUGIN: PWNAGOTCHI
+##############################################
+[plugins.pwnagotchi]
+enabled = false
+personality = "default"
+auto_handshake = false
+
+
+##############################################
+# PLUGIN: WPA-SEC HANDSHAKE FETCHER
+##############################################
+[plugins.wpa_sec]
+enabled = true
+api_key = ""
+auto_fetch = true
+auto_upload = true
+interval = 30
+
+
+##############################################
+# PLUGIN: WIGLE WIFI MAPPING
+##############################################
+[plugins.wigle]
+enabled = false
+api_key = ""
+username = ""
+password = ""
+
+
+##############################################
+# PLUGIN: ONLINEHASHCRACK
+##############################################
+[plugins.onlinehash]
+enabled = false
+api_key = ""
+auto_upload = false
