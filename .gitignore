@@ -59,3 +59,6 @@ build/debug/loki_app
 build/release/loki_app
 dist/
 *.zip
+
+# Editor-local workspace settings
+.vscode/

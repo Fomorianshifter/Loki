@@ -2,14 +2,14 @@
 #define BOARD_CONFIG_H
 
 /**
- * Orange Pi Zero 2W Loki Board Configuration
+ * Raspberry Pi Zero 2W Loki Board Configuration
  * Defines board-level settings for all subsystems
  */
 
 /* ===== BOARD IDENTIFICATION ===== */
-#define BOARD_NAME        "Orange Pi Zero 2W Loki"
+#define BOARD_NAME        "Raspberry Pi Zero 2W Loki"
 #define BOARD_VERSION     "1.0"
-#define BOARD_MODEL       "OPI_ZERO_2W"
+#define BOARD_MODEL       "RPI_ZERO_2W"
 
 /* ===== POWER CONFIGURATION ===== */
 #define POWER_INPUT_VOLTAGE     5.0  /* 5V USB input from Flipper */
