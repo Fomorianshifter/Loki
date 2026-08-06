@@ -4,7 +4,7 @@ Loki is an embedded C project for a dragon-themed interactive device that runs o
 
 ## Architecture Overview
 
-Loki is the master embedded systems framework for this ecosystem. It provides reusable HAL modules, device drivers, runtime orchestration, and Python-side integration points that downstream projects consume rather than re-implement.
+Loki is the master embedded systems framework for this ecosystem. It provides reusable HAL modules, device drivers, runtime orchestration, and Python-side integration points that downstream projects can reuse.
 
 The intended model is:
 
@@ -121,22 +121,7 @@ That pattern is a good starting point for your own SBC or hardware-control appli
 
 `loki_life.c` / `loki_life.h` implement the gameplay foundation for Loki's interactive behaviour.
 
-<<<<<<< HEAD
-- ✅ **Modular Architecture** - Clean separation of HAL, drivers, and application
-- ✅ **Hardware Abstraction Layer** - GPIO, SPI (3 buses), I2C, UART, PWM
-- ✅ **Device Drivers** - TFT display, SD card, Flash memory, EEPROM, Flipper UART
-- ✅ **Web UI Dashboard** - Built-in HTTP server; open `http://loki.local:8080/` in any browser
-- ✅ **Professional Logging** - 5 severity levels, auto source tracking, color output
-- ✅ **Memory Safety** - Safe allocation/free with leak detection in DEBUG mode
-- ✅ **Error Recovery** - Automatic retry with exponential backoff for transient errors
-- ✅ **Cross-Compilation** - Build on Windows, Mac, or Linux for any target
-- ✅ **Windows Support** - Native PowerShell and CMD build scripts
-- ✅ **CI/CD** - GitHub Actions workflow builds debug and release for every push/PR
-- ✅ **Production Ready** - Systemd integration, comprehensive error handling
-- ✅ **Full Documentation** - API docs, build guides, deployment procedures
-=======
 ### Life stages
->>>>>>> origin/main
 
 Loki begins as an egg and advances through four stages based on accumulated **growth points (gp)**:
 
@@ -290,7 +275,6 @@ Loki uses the same USB-network addresses as a typical Pwnagotchi setup:
 Loki is `10.0.0.2` and the connected computer is `10.0.0.1`. Install the
 included systemd-networkd profile on Loki once, then restart networking:
 
-<<<<<<< HEAD
 **Code Review Checklist:**
 - ✅ Compiles without warnings
 - ✅ Follows naming conventions
@@ -448,118 +432,4 @@ Built with ❤️ for the embedded systems community.
 ---
 
 **Loki Embedded System** - Making embedded development easier, one HAL at a time.
-
-```
-    /__\
-   /    \
-  /      \
- /________\
-
- "In ancient Norse mythology, Loki is a shape-shifter.
-  This codebase adapts to any embedded system with ease."
-=======
-```bash
-sudo install -D -m 644 network/loki-usb0.network /etc/systemd/network/10-loki-usb0.network
-sudo systemctl enable --now systemd-networkd
-sudo systemctl restart systemd-networkd
->>>>>>> origin/main
-```
-
-Set the computer's USB Ethernet interface to the static address
-`10.0.0.1/24`, connect to Loki over USB, and open `http://10.0.0.2:8080`.
-On Linux, this can be configured with:
-
-```bash
-sudo ip address replace 10.0.0.1/24 dev <usb-interface>
-sudo ip link set <usb-interface> up
-```
-
-The UI accepts connections only from that USB subnet. Edit values, save them,
-then restart Loki for the updated configuration to take effect. Configure the
-WPA-SEC plugin key outside the repository:
-
-```bash
-export LOKI_WPA_SEC_API_KEY="your-key"
-python3 main.py
-```
-
-For a systemd-managed Loki process, persist the key in an override instead of
-adding it to `config.toml`:
-
-```bash
-sudo systemctl edit loki
-# Add: [Service]
-# Add: Environment=LOKI_WPA_SEC_API_KEY=your-key
-```
-
-Set `[web_ui].enabled = false` in `config.toml` to disable the editor. For a
-strictly local-only UI instead, set `[web_ui].host = "127.0.0.1"`.
-
-## A2C AI brain (Pwnagotchi-style adaptive loop)
-
-Loki now includes a local actor-critic plugin at `plugins/ai_brain.py` that
-runs a lightweight A2C loop without external ML dependencies.
-
-1. Enable Bettercap telemetry and the AI brain in `config.toml`:
-   - `[plugins.bettercap].enabled = true`
-   - `[plugins.ai_brain].enabled = true`
-   - `[plugins.ai_brain].learning = true` (online updates)
-2. Start Loki normally with `python3 main.py`.
-3. Let it run for a while; policy/value weights are persisted to:
-   - `~/.local/share/loki/a2c_state.json`
-4. For inference-only behavior, set:
-   - `[plugins.ai_brain].learning = false`
-5. To make inference deterministic (no action sampling), set:
-   - `[plugins.ai_brain].deterministic = true`
-
-The AI brain consumes shared telemetry (AP/client counts and API health) from
-the Bettercap plugin and publishes its current action/probabilities through
-plugin state for other modules to consume.
-
-## Master configuration (`config.toml`)
-
-Loki now uses a single master `config.toml` with a runtime-first structure inspired by Pwnagotchi:
-
-- `[main]`, `[main.auth]`, `[main.network]`
-- `[main.plugins.*]` including plugin loader settings
-- `[ui]`, `[ui.web]`, `[ui.display]`
-
-Build-time C macros are generated from `[build.board]` and `[build.pinout]` by:
-
-```bash
-python3 tools/gen_config.py
-```
-
-The generated files are `board_config.h`, `pinout.h`, and `config.h`.
-
-## Good ways to study this project
-
-If you are learning from this repo, a strong reading order is:
-
-1. `README.md`
-2. `main.c`
-3. `system.c` and `system.h`
-4. `loki_life.h` and `loki_life.c` — the life-cycle system
-5. `log.*`, `memory.*`, and `retry.*`
-6. `spi.*`, `i2c.*`, `uart.*`, `gpio.*`, and `pwm.*`
-7. the device drivers
-8. `BUILD.md` and `DEPLOYMENT.md`
-
-## Hardware focus
-
-The repository was originally documented around Raspberry Pi hardware, and much of the current checked-in code and documentation still reflects that. The code also includes Raspberry Pi and Flipper-related intent in various places, so treat board assumptions as something to verify before wiring real hardware.
-
-## Important note
-
-This README now focuses only on the most teachable and durable information. For deeper platform setup, deployment details, troubleshooting, and build workflow notes, use the companion docs already in the repository such as:
-
-- `BUILD.md`
-- `BUILD_WINDOWS.md`
-- [`DEPLOYMENT.md`](DEPLOYMENT.md) — cross-compile and deploy to Orange Pi / Raspberry Pi, including [setting up Loki as a persistent systemd service](DEPLOYMENT.md#using-systemd-service)
-- `CONTRIBUTING.md`
-- `QUICK_REFERENCE.md`
-
-## License
-
-MIT License. See `LICENSE`.
-
+````
