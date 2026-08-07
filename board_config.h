@@ -18,7 +18,7 @@
 #define TFT_SPI_FREQ                 8000000
 #define TFT_TYPE                     "ILI9486"
 #define TFT_COLOR_DEPTH              16
-#define TFT_ROTATION                 0
+#define TFT_ROTATION                 90
 #define TFT_BRIGHTNESS               100
 #define SD_SPI_FREQ                  25000000
 #define SD_SECTOR_SIZE               512

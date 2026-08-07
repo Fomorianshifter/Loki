@@ -94,7 +94,7 @@ class DragonAnimator:
             draw.ellipse((x, y, x + 2, y + 2), fill=(130, 170, 255))
 
     def _draw_status(self, draw: ImageDraw.ImageDraw, state: DragonState) -> None:
-        draw.text((12, 10), f"LOKI — {state.title}", font=self._font, fill="white")
+        draw.text((12, 10), f"LOKI - {state.title}", font=self._font, fill="white")
         draw.text(
             (12, 28),
             f"Level {state.level}  XP {state.xp}  Mood: {state.mood_name}",

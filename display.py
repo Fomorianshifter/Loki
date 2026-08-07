@@ -1,21 +1,13 @@
-"""Simple framebuffer-aware display backend for Loki's dragon animation.
-
-The display module is intentionally tolerant: when no framebuffer device is
-available, it degrades to a no-op so the dragon renderer can be used in
-headless environments without crashing.
-"""
-
 from __future__ import annotations
 
 import os
 import struct
-from typing import Any
+from typing import Any, BinaryIO
 
 try:
     from PIL import Image as PILImage
-except ImportError:  # pragma: no cover - exercised only without Pillow
-    PILImage = None  # type: ignore[assignment]
-
+except ImportError:
+    PILImage = None  # type: ignore
 
 class LokiDisplay:
     """Write Pillow frames to a framebuffer device when one is available."""
@@ -24,15 +16,15 @@ class LokiDisplay:
         self,
         width: int = 480,
         height: int = 320,
-        pixel_format: str = "RGB",
+        pixel_format: str = "RGB565",
         framebuffer_path: str | None = None,
-    ) -> None:
+        ) -> None:
         self.width = max(1, int(width))
         self.height = max(1, int(height))
         self.pixel_format = str(pixel_format or "RGB").upper()
         self.framebuffer_path = framebuffer_path
-        self.fb = None
-        self._buffer = None
+        self.fb: BinaryIO | None = None
+        self._buffer: bytearray | None = None
         self._bytes_per_pixel = 3 if self.pixel_format == "RGB" else 2
         self._open_framebuffer()
 
@@ -41,7 +33,7 @@ class LokiDisplay:
         if self.framebuffer_path:
             candidates.append(self.framebuffer_path)
         else:
-            candidates.extend([os.environ.get("LOKI_FRAMEBUFFER", ""), "/dev/fb1", "/dev/fb0", "/dev/fb2"])
+            candidates.extend([os.environ.get("LOKI_FRAMEBUFFER", ""), "/dev/fb1", "/dev/fb0"])
 
         for candidate in candidates:
             if not candidate:
@@ -59,13 +51,7 @@ class LokiDisplay:
 
     @staticmethod
     def _is_image_like(image: Any) -> bool:
-        return (
-            image is not None
-            and hasattr(image, "convert")
-            and hasattr(image, "resize")
-            and hasattr(image, "getpixel")
-            and hasattr(image, "tobytes")
-        )
+        return image is not None and hasattr(image, "size") and hasattr(image, "mode")
 
     def draw_frame(self, image: Any) -> bool:
         """Write *image* to the framebuffer if one is available.
@@ -91,7 +77,7 @@ class LokiDisplay:
         else:
             img = image
 
-        if self.pixel_format == "RGB565":
+        if True:
             self._write_rgb565(img)
         else:
             self._write_rgb(img)
@@ -116,32 +102,32 @@ class LokiDisplay:
             pixels = image
         if not isinstance(pixels, (bytes, bytearray)):
             return
-        self._buffer[: len(pixels)] = pixels[: len(self._buffer)]
+        self._buffer[: len(pixels)] = pixels[: len(self._buffer)]  # type: ignore
         try:
-            self.fb.seek(0)
-            self.fb.write(self._buffer)
+            self.fb.seek(0)  # type: ignore
+            self.fb.write(self._buffer)  # type: ignore
         except OSError:
             self.fb = None
-            self._buffer = None
 
     def _write_rgb565(self, image: Any) -> None:
         if self._is_image_like(image):
-            img = image.convert("RGB")
-            for y in range(self.height):
-                for x in range(self.width):
-                    r, g, b = img.getpixel((x, y))
-                    packed = (((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3))
-                    index = (y * self.width + x) * 2
-                    self._buffer[index : index + 2] = struct.pack("<H", packed)
+            img_rgb = image.convert("RGB")
+            pixels = bytearray()
+            for r, g, b in img_rgb.getdata():
+                val = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+                pixels.extend(val.to_bytes(2, byteorder='little'))
         else:
+            pixels = image
+
+        if not isinstance(pixels, (bytes, bytearray)):
             return
+
+        self._buffer[: len(pixels)] = pixels[: len(self._buffer)]  # type: ignore
         try:
-            self.fb.seek(0)
-            self.fb.write(self._buffer)
+            self.fb.seek(0)  # type: ignore
+            self.fb.write(self._buffer)  # type: ignore
         except OSError:
             self.fb = None
-            self._buffer = None
-
 
 def init_display(cfg: Any = None) -> LokiDisplay:
     """Create a display instance from a config-like object or mapping."""

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOKI // Command Center</title>
+    <!-- Tailwind CSS via CDN for rapid, clean styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for high-tech icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #05050a;
+            color: #00ff66;
+        }
+        .glow-box {
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.1);
+            border: 1px solid rgba(0, 255, 102, 0.2);
+        }
+        .glow-text {
+            text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+        }
+        /* Custom scrollbar for terminal logs */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0f19; }
+        ::-webkit-scrollbar-thumb { background: #00ff66; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col justify-between">
+
+    <!-- TOP HEADER -->
+    <header class="flex flex-col md:flex-row justify-between items-center border-b border-green-500/30 pb-4 mb-6">
+        <div class="flex items-center space-x-3">
+            <div class="w-4 h-4 bg-green-500 rounded-full animate-ping"></div>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-wider glow-text">LOKI // NODE_ACTIVE</h1>
+        </div>
+        <div class="mt-2 md:mt-0 flex items-center space-x-4 text-sm text-green-400/80">
+            <span><i class="fa-solid fa-microchip mr-1"></i> RPi 4 Model B</span>
+            <span><i class="fa-solid fa-network-wired mr-1"></i> loki:8082</span>
+            <span id="system-time" class="text-green-300">--:--:--</span>
+        </div>
+    </header>
+
+    <!-- MAIN GRID DASHBOARD -->
+    <main class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+
+        <!-- COLUMN 1: DRAGON STATS & PET STATUS -->
+        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
+                    <i class="fa-solid fa-dragon mr-2"></i>Loki Companion
+                </h2>
+                <div class="flex items-center space-x-4 mb-4">
+                    <div class="w-16 h-16 bg-green-950 border border-green-500 rounded flex items-center justify-center text-2xl glow-text">
+                        🐉
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-400">Stage: <span id="dragon-stage" class="text-green-300 font-bold">Juvenile</span></p>
+                        <p class="text-sm text-gray-400">Level: <span id="dragon-level" class="text-green-300 font-bold">4</span></p>
+                        <p class="text-sm text-gray-400">Mood: <span class="text-cyan-400 font-bold">Vigilant</span></p>
+                    </div>
+                </div>
+                <!-- XP Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs mb-1 text-gray-400">
+                        <span>XP Progress</span>
+                        <span id="xp-text">780 / 1000</span>
+                    </div>
+                    <div class="w-full bg-gray-900 rounded-full h-2.5 border border-green-500/30">
+                        <div id="xp-bar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 78%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-xs text-green-500/60 bg-green-950/30 p-2 rounded border border-green-500/10">
+                Status: Tracking environment packets & handshakes.
+            </div>
+        </div>
+
+        <!-- COLUMN 2: HARDWARE & SYSTEM TELEMETRY -->
+        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
+                    <i class="fa-solid fa-server mr-2"></i>System Telemetry
+                </h2>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-400">CPU Temperature</span>
+                            <span id="cpu-temp" class="text-yellow-400 font-bold">48.2°C</span>
+                        </div>
+                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
+                            <div class="bg-yellow-500 h-1.5 rounded-full" style="width: 48%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-400">RAM Usage</span>
+                            <span id="ram-usage" class="text-green-400 font-bold">34% (1.3GB / 3.8GB)</span>
+                        </div>
+                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
+                            <div class="bg-green-500 h-1.5 rounded-full" style="width: 34%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-400">Disk Storage</span>
+                            <span id="disk-usage" class="text-green-400 font-bold">42% (12.4GB / 29.5GB)</span>
+                        </div>
+                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
+                            <div class="bg-green-500 h-1.5 rounded-full" style="width: 42%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 flex space-x-2">
+                <button onclick="triggerAction('reboot_display')" class="flex-1 bg-green-950 hover:bg-green-900 border border-green-500/40 text-xs py-2 rounded transition text-green-300 font-bold">
+                    <i class="fa-solid fa-rotate mr-1"></i> Reset Screen
+                </button>
+                <button onclick="triggerAction('clear_cache')" class="flex-1 bg-gray-900 hover:bg-gray-800 border border-gray-700 text-xs py-2 rounded transition text-gray-300">
+                    <i class="fa-solid fa-broom mr-1"></i> Clear Cache
+                </button>
+            </div>
+        </div>
+
+        <!-- COLUMN 3: PLUGINS & BETTERCAP INTEGRATION -->
+        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
+                    <i class="fa-solid fa-puzzle-piece mr-2"></i>Modules & Plugins
+                </h2>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
+                        <span>Bettercap Bridge</span>
+                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">ONLINE</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
+                        <span>Loki Animation Module</span>
+                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">ACTIVE</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
+                        <span>Password Display Plugin</span>
+                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">LOADED</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
+                        <span>RS485 Serial Interface</span>
+                        <span class="px-2 py-0.5 text-xs bg-yellow-950 text-yellow-400 rounded border border-yellow-500/30">STANDBY</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-center">
+                <span class="text-xs text-gray-500">Virtual Environment: <span class="text-green-400">.venv (Active)</span></span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- LIVE TERMINAL LOGS -->
+    <section class="glow-box bg-gray-950/90 p-4 rounded-lg mb-6">
+        <div class="flex justify-between items-center mb-2 border-b border-green-500/20 pb-2">
+            <h3 class="text-sm font-bold text-green-400"><i class="fa-solid fa-terminal mr-2"></i>Live System Stream / Logs</h3>
+            <span class="text-xs text-gray-500">Auto-scrolling</span>
+        </div>
+        <div id="terminal-log" class="bg-black p-3 rounded h-32 overflow-y-auto text-xs text-green-400 space-y-1 font-mono">
+            <p>[2026-08-06 19:49:36] INFO: Web UI started on port 8082</p>
+            <p>[2026-08-06 19:49:37] INFO: Using plugin directory: /usr/local/shar/custom-plugins/</p>
+            <p>[2026-08-06 19:49:37] INFO: Discovered plugin modules: ['loki_animation', 'display-password']</p>
+            <p>[2026-08-06 19:49:37] INFO: [LokiAnimation] started — stage=Juvenile level=4</p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="text-center text-xs text-gray-600 border-t border-gray-900 pt-3">
+        LOKI FRAMEWORK // EMBEDDED RASPBERRY PI 4 ENVIRONMENT // SECURE LOCAL NODE
+    </footer>
+
+    <!-- JAVASCRIPT FOR REAL-TIME SIMULATION & API HOOKS -->
+    <script>
+        // Update clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('system-time').innerText = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        // Optional: Function to hook into Python backend endpoints if you create them
+        function triggerAction(actionName) {
+            fetch(`/api/${actionName}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => alert(`Action executed: ${actionName}`))
+                .catch(err => console.log('Action triggered locally.'));
+        }
+    </script>
+</body>
+</html>
+
+<script>
+setInterval(() => {
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            // Update the HTML elements if they exist
+            const stageEl = document.getElementById('dragon-stage');
+            if (stageEl) stageEl.innerText = data.stage;
+            
+            const levelEl = document.getElementById('dragon-level');
+            if (levelEl) levelEl.innerText = data.level;
+            
+            const xpEl = document.getElementById('xp-text');
+            if (xpEl) xpEl.innerText = data.xp;
+            
+            const moodEl = document.getElementById('dragon-mood');
+            if (moodEl) moodEl.innerText = data.mood;
+        })
+        .catch(err => console.error("Error fetching Loki stats:", err));
+}, 2000);
+</script>

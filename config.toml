@@ -11,7 +11,8 @@ runtime_root = "/etc/loki"
 state_dir = "/var/lib/loki"
 log_dir = "/var/log/loki"
 custom_plugin_repos = []
-custom_plugins = "/usr/local/share/loki/custom-plugins/"
+custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins/"
+wordlist = "/home/loki/wordlists/my_custom_wordlist.txt"
 
 [main.auth]
 enabled = true
@@ -19,14 +20,14 @@ method = "token"
 token = "change-me"
 username = "loki"
 password = "change-me"
-allow_remote = false
+allow_remote = true
 allowed_users = ["loki"]
 
 [main.network]
 enabled = true
 hostname = "loki-rpi"
 dhcp = true
-ipv4_address = ""
+ipv4_address = "0.0.0.0"
 gateway = ""
 dns = ["1.1.1.1", "8.8.8.8"]
 country = "US"
@@ -34,8 +35,11 @@ country = "US"
 [main.plugins]
 enabled = true
 autodiscover = true
-directory = "/usr/local/share/loki/plugins/"
+directory = "/opt/loki/plugins/"
 startup = ["status", "telemetry"]
+
+[main.plugins.display-password]
+enabled = true
 
 [main.plugins.loaders]
 python_enabled = true
@@ -47,8 +51,8 @@ wasm_enabled = false
 shell_enabled = false
 
 [main.plugins.security]
-allow_unsigned = false
-allow_network_plugins = false
+allow_unsigned = true
+allow_network_plugins = true
 sandbox = "restricted"
 
 [main.plugins.status]
@@ -62,7 +66,7 @@ endpoint = ""
 api_key = ""
 
 [main.plugins.auto-update]
-enabled = false
+enabled = true
 interval_days = 7
 token = ""
 
@@ -82,15 +86,15 @@ fps = 0.0
 [ui.web]
 enabled = true
 address = "0.0.0.0"
-auth = true
+auth = false
 username = "loki"
 password = "change-me"
 origin = ""
-port = 8080
+port = 8082
 
 [ui.display]
 enabled = true
-rotation = 0
+rotation = 90
 type = "ili9488"
 backend = "spi"
 brightness = 100
@@ -116,7 +120,7 @@ TFT_HEIGHT = 320
 TFT_SPI_FREQ = 8000000
 TFT_TYPE = "ILI9486"
 TFT_COLOR_DEPTH = 16
-TFT_ROTATION = 0
+TFT_ROTATION = 90
 TFT_BRIGHTNESS = 100
 
 SD_SPI_FREQ = 25000000
