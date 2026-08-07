@@ -2,6 +2,71 @@
 
 Loki is an embedded C project for a dragon-themed interactive device that runs on a single-board computer and talks to attached hardware such as a TFT display, SD card, flash memory, EEPROM, and a Flipper Zero over UART.
 
+## Architecture Overview
+
+Loki is the master embedded systems framework for this ecosystem. It provides reusable HAL modules, device drivers, runtime orchestration, and Python-side integration points that downstream projects consume rather than re-implement.
+
+The intended model is:
+
+- **Loki (master):** source of truth for embedded framework capabilities
+- **FullStack (dependent):** integrates Loki into broader application workflows
+- **BlackSmith (dependent):** integrates Loki for project-specific system builds
+
+## Master/Submodule Relationship
+
+Loki stays authoritative while dependent repositories reference Loki as a pinned Git submodule.
+
+- FullStack and BlackSmith include Loki under a dedicated directory (commonly `loki/`)
+- each dependent repo pins Loki to a specific commit for reproducible builds
+- upgrades happen intentionally by moving the pinned Loki commit forward after validation
+
+See `/SUBMODULE_GUIDE.md` for full setup and day-to-day workflow examples.
+
+## Project Structure
+
+Current Loki repository layout:
+
+```text
+Loki/
+├── core/                 # framework orchestration and runtime layers
+├── drivers/              # hardware/peripheral drivers
+├── hal/                  # HAL modules (GPIO, SPI, I2C, UART, PWM)
+├── plugins/              # Python plugin extensions
+├── config/               # configuration helpers and generated/config assets
+├── utils/                # utility helpers and scripts
+├── README.md
+├── SUBMODULE_GUIDE.md
+├── BUILD.md
+├── DEPLOYMENT.md
+└── Makefile
+```
+
+Example dependent-project shape (outside this repo):
+
+```text
+FullStack-or-BlackSmith/
+├── loki/                 # Git submodule -> Fomorianshifter/Loki
+└── <project-specific files>
+```
+
+## Dependency Management
+
+Loki dependency behavior is designed for compatibility and predictable integration:
+
+- **Version pinning:** dependent repos pin Loki at a specific commit SHA (or approved tag)
+- **Compatibility checks:** update Loki pins only after build/test validation in the dependent repo
+- **Coordinated updates:** treat Loki version bumps as explicit changes with release notes and review
+
+Use the compatibility guide for recommended pinning and rollout patterns.
+
+## Quick Links
+
+- **Submodule guide:** [`SUBMODULE_GUIDE.md`](SUBMODULE_GUIDE.md)
+- **Integration guide:** [`INTEGRATION_GUIDE.md`](INTEGRATION_GUIDE.md)
+- **Version compatibility:** [`VERSION_COMPATIBILITY.md`](VERSION_COMPATIBILITY.md)
+- **Build details:** [`BUILD.md`](BUILD.md)
+- **Deployment details:** [`DEPLOYMENT.md`](DEPLOYMENT.md)
+
 ## What this repository teaches
 
 This repo is most useful if you want to learn how to build a hardware-oriented C project with:
@@ -490,7 +555,7 @@ This README now focuses only on the most teachable and durable information. For 
 
 - `BUILD.md`
 - `BUILD_WINDOWS.md`
-- `DEPLOYMENT.md`
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) — cross-compile and deploy to Orange Pi / Raspberry Pi, including [setting up Loki as a persistent systemd service](DEPLOYMENT.md#using-systemd-service)
 - `CONTRIBUTING.md`
 - `QUICK_REFERENCE.md`
 

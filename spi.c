@@ -5,7 +5,7 @@
 
 #include "spi.h"
 #include "log.h"
-#include "pinout.h"
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,16 +47,11 @@ static hal_status_t spi_validate_bus(spi_bus_t bus)
 /**
  * Get SPI device path from bus number
  */
-static const char* spi_get_device_path(spi_bus_t bus)
+static const char* spi_get_device_path(spi_bus_t bus, uint8_t cs_line)
 {
     /* Raspberry Pi SPI device mapping */
     switch (bus) {
-        case SPI_BUS_0:
-#if defined(TFT_CS) && defined(SPI0_CS1)
-            return (TFT_CS == SPI0_CS1) ? "/dev/spidev0.1" : "/dev/spidev0.0";
-#else
-            return "/dev/spidev0.0";
-#endif
+        case SPI_BUS_0: return (cs_line == 1u) ? "/dev/spidev0.1" : "/dev/spidev0.0";
         case SPI_BUS_1: return "/dev/spidev1.0";
         case SPI_BUS_2: return "/dev/spidev1.1";
         default: return NULL;
@@ -66,9 +61,9 @@ static const char* spi_get_device_path(spi_bus_t bus)
 /**
  * Open SPI device file
  */
-static hal_status_t spi_open_device(spi_bus_t bus, spi_context_t *ctx)
+static hal_status_t spi_open_device(spi_bus_t bus, uint8_t cs_line, spi_context_t *ctx)
 {
-    const char *device_path = spi_get_device_path(bus);
+    const char *device_path = spi_get_device_path(bus, cs_line);
     if (device_path == NULL) {
         return HAL_INVALID_PARAM;
     }
@@ -103,7 +98,7 @@ hal_status_t spi_init(spi_bus_t bus, const spi_config_t *config)
     }
 
     /* Open SPI device */
-    status = spi_open_device(bus, ctx);
+    status = spi_open_device(bus, config->cs_line, ctx);
     if (status != HAL_OK) {
         return status;
     }

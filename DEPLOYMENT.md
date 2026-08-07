@@ -402,6 +402,19 @@ For production, you want Loki to run automatically on Raspberry Pi boot:
 
 ### Using systemd Service
 
+This is the recommended approach for both Orange Pi and Raspberry Pi.
+
+#### Platform-specific defaults
+
+| Platform | Default user | Home directory | Binary destination |
+|---|---|---|---|
+| Orange Pi (Armbian) | `orangepi` | `/home/orangepi` | `/usr/local/bin/loki_app` |
+| Raspberry Pi OS | `pi` | `/home/pi` | `/usr/local/bin/loki_app` |
+
+Replace `USER` and `HOMEDIR` in the examples below with the values that match your board.
+
+#### Sample `loki.service` file
+
 Create `/etc/systemd/system/loki.service`:
 
 ```ini
@@ -417,15 +430,20 @@ ExecStart=/usr/local/bin/loki_app --wait-flipper --skip-tests
 Restart=on-failure
 RestartSec=2
 
-# Log output
+# Permissions — allow GPIO/SPI/I2C access without running as root
+# Add the user to the gpio, spi, and i2c groups instead (see platform notes below)
+AmbientCapabilities=CAP_SYS_RAWIO
+
+# Route stdout/stderr to the journal
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=loki
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Install and enable:
+#### Install and enable
 
 ```bash
 # Preferred (from Loki repo on Raspberry Pi)
@@ -436,21 +454,213 @@ make install-service HAVE_LIBGPIOD=1
 sudo cp build/release/loki_app /usr/local/bin/loki_app
 sudo chmod +x /usr/local/bin/loki_app
 
-# Copy service file
-sudo cp loki.service /etc/systemd/system/
+# 3. Reload systemd so it picks up the new unit file
 sudo systemctl daemon-reload
 
-# Enable service
+# 4. Enable the service to start automatically on every boot
 sudo systemctl enable loki.service
 
-# Start service
+# 5. Start the service immediately (without rebooting)
 sudo systemctl start loki.service
 
-# Check status
+# 6. Confirm it is running
 sudo systemctl status loki.service
+```
 
-# View logs
+A healthy service shows `Active: active (running)` in the status output.
+
+#### Viewing logs
+
+```bash
+# Follow live output (Ctrl-C to stop)
 sudo journalctl -u loki.service -f
+
+# Show all logs for the service since the last boot
+sudo journalctl -u loki.service -b
+
+# Show the 100 most recent lines
+sudo journalctl -u loki.service -n 100
+
+# Filter by severity (err, warning, info, debug)
+sudo journalctl -u loki.service -p err
+
+# Show logs between two timestamps
+sudo journalctl -u loki.service --since "2026-01-01 00:00:00" --until "2026-01-01 01:00:00"
+```
+
+#### Platform-specific permissions
+
+**Orange Pi (Armbian)**
+
+Armbian creates `gpio`, `spi`, and `i2c` groups automatically. Add your user to them so the service can access hardware without `sudo`:
+
+```bash
+# Add the service user to hardware groups
+sudo usermod -aG gpio,spi,i2c orangepi
+
+# Verify membership (log out and back in, or reboot)
+groups orangepi
+# Expected output includes: gpio spi i2c
+```
+
+If the groups do not exist yet, create them and add udev rules:
+
+```bash
+# Create groups (if missing)
+sudo groupadd --system gpio
+sudo groupadd --system spi
+sudo groupadd --system i2c
+
+# Create a udev rule to apply group ownership on boot
+echo 'SUBSYSTEM=="gpio", GROUP="gpio", MODE="0660"' | sudo tee /etc/udev/rules.d/60-gpio.rules
+echo 'SUBSYSTEM=="spidev", GROUP="spi", MODE="0660"' | sudo tee /etc/udev/rules.d/60-spi.rules
+echo 'SUBSYSTEM=="i2c-dev", GROUP="i2c", MODE="0660"' | sudo tee /etc/udev/rules.d/60-i2c.rules
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo usermod -aG gpio,spi,i2c orangepi
+```
+
+**Raspberry Pi OS**
+
+Raspberry Pi OS already includes the `gpio`, `spi`, and `i2c` groups. Enable the interfaces via `raspi-config` first:
+
+```bash
+sudo raspi-config
+# Interface Options → SPI → Enable
+# Interface Options → I2C → Enable
+# Interface Options → Serial Port → Disable shell / Enable serial hardware
+# Finish → Reboot
+
+# Then add the service user to the hardware groups
+sudo usermod -aG gpio,spi,i2c pi
+```
+
+#### Troubleshooting common service start failures
+
+**Service fails to start — check the reason first**
+
+```bash
+sudo systemctl status loki.service
+sudo journalctl -u loki.service -n 50 --no-pager
+```
+
+---
+
+**`ExecStart` path not found**
+
+```
+loki.service: Control process exited with error code.
+Failed to execute /usr/local/bin/loki_app: No such file or directory
+```
+
+The binary is not at the path specified in `ExecStart`.
+
+```bash
+# Verify the binary exists
+ls -la /usr/local/bin/loki_app
+
+# If missing, redeploy it
+sudo cp ~/loki_app /usr/local/bin/
+sudo chmod 755 /usr/local/bin/loki_app
+```
+
+---
+
+**Permission denied on GPIO/SPI/I2C devices**
+
+```
+/dev/spidev0.0: Permission denied
+/sys/class/gpio/export: Permission denied
+```
+
+The service user does not have access to the hardware devices.
+
+```bash
+# Check which groups own the device files
+ls -la /dev/spidev* /dev/i2c-* /dev/gpiochip*
+
+# Add the user to the required groups (see platform notes above)
+sudo usermod -aG gpio,spi,i2c orangepi   # Orange Pi
+sudo usermod -aG gpio,spi,i2c pi          # Raspberry Pi
+
+# Reload udev rules and trigger device permissions
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# Reboot or restart the service after group changes take effect
+sudo reboot
+```
+
+---
+
+**Service exits immediately (exit code non-zero)**
+
+```
+loki.service: Main process exited, code=exited, status=1/FAILURE
+```
+
+The application crashed during startup. Capture the output to find the root cause:
+
+```bash
+sudo journalctl -u loki.service -n 100 --no-pager
+```
+
+Common causes include missing device nodes (`/dev/spidev*`, `/dev/i2c-*`) if the corresponding kernel modules are not loaded:
+
+```bash
+# Load modules manually to verify
+sudo modprobe spi-bcm2835    # Raspberry Pi
+sudo modprobe i2c-dev
+
+# Make modules persist across reboots
+echo "spi-bcm2835" | sudo tee -a /etc/modules
+echo "i2c-dev"     | sudo tee -a /etc/modules
+```
+
+---
+
+**Service restart loop — hits `StartLimitBurst`**
+
+```
+loki.service: Start request repeated too quickly.
+loki.service: Failed with result 'start-limit-hit'.
+```
+
+The service crashed three times within sixty seconds (matching `StartLimitBurst=3`). Investigate the root cause before resetting:
+
+```bash
+# View recent crash logs
+sudo journalctl -u loki.service -n 200 --no-pager
+
+# Reset the failure counter once the issue is fixed
+sudo systemctl reset-failed loki.service
+sudo systemctl start loki.service
+```
+
+---
+
+**`AmbientCapabilities` not allowed (older kernels)**
+
+If the capability line causes a parse error on older kernels (pre-4.3), remove it from the service file and run as root instead:
+
+```ini
+# Replace the User/Group/AmbientCapabilities lines with:
+User=root
+```
+
+Or keep the dedicated user but grant access through group membership only (preferred for security).
+
+---
+
+**Verifying the service survives a reboot**
+
+```bash
+sudo reboot
+# After the board comes back up:
+ssh user@<board-ip>
+sudo systemctl status loki.service
+# Expected: Active: active (running)
 ```
 
 For interactive/manual diagnostics with hardware tests enabled, run:

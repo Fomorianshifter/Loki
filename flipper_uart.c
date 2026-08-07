@@ -5,7 +5,8 @@
 
 #include "flipper_uart.h"
 #include "uart.h"
-#include "pinout.h"
+#include "config.h"
+#include <stdlib.h>
 #include <string.h>
 
 /* ===== FLIPPER UART STATE ===== */

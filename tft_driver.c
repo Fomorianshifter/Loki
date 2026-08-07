@@ -15,16 +15,36 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ===== COMMON ILI948x COMMANDS ===== */
+#define ILI948X_SWRESET         0x01
+#define ILI948X_SLPOUT          0x11
+#define ILI948X_DISPOFF         0x28
+#define ILI948X_DISPON          0x29
+#define ILI948X_CASET           0x2A  /* Set column address */
+#define ILI948X_PASET           0x2B  /* Set page address */
+#define ILI948X_RAMWR           0x2C  /* Write to RAM */
+#define ILI948X_MADCTL          0x36  /* Memory access control */
+#define ILI948X_COLMOD          0x3A  /* Interface pixel format */
+
 /* ===== ILI9488 COMMANDS ===== */
-#define ILI9488_SWRESET         0x01
-#define ILI9488_SLPOUT          0x11
-#define ILI9488_DISPOFF         0x28
-#define ILI9488_DISPON          0x29
-#define ILI9488_CASET           0x2A  /* Set column address */
-#define ILI9488_PASET           0x2B  /* Set page address */
-#define ILI9488_RAMWR           0x2C  /* Write to RAM */
-#define ILI9488_MADCTL          0x36  /* Memory access control */
-#define ILI9488_COLMOD          0x3A  /* Interface pixel format */
+#define ILI9488_SWRESET         ILI948X_SWRESET
+#define ILI9488_SLPOUT          ILI948X_SLPOUT
+#define ILI9488_DISPOFF         ILI948X_DISPOFF
+#define ILI9488_DISPON          ILI948X_DISPON
+#define ILI9488_CASET           ILI948X_CASET
+#define ILI9488_PASET           ILI948X_PASET
+#define ILI9488_RAMWR           ILI948X_RAMWR
+#define ILI9488_MADCTL          ILI948X_MADCTL
+#define ILI9488_COLMOD          ILI948X_COLMOD
+
+/* ===== ILI9486-SPECIFIC COMMANDS ===== */
+#define ILI9486_IFMODE          0xB0
+#define ILI9486_FRMCTR1         0xB1
+#define ILI9486_DISCTRL         0xB6
+#define ILI9486_PWCTRL1         0xC0
+#define ILI9486_PWCTRL2         0xC1
+#define ILI9486_PWCTRL3         0xC2
+#define ILI9486_VMCTRL1         0xC5
 
 /* ===== TFT STATE ===== */
 typedef struct {
@@ -60,7 +80,7 @@ static hal_status_t tft_write_command(uint8_t cmd)
     }
     
     /* Send command byte */
-    status = spi_write(SPI_BUS_0, SPI0_CS0, &cmd, 1);
+    status = spi_write(SPI_BUS_0, TFT_CS, &cmd, 1);
     if (status != HAL_OK) {
         LOG_ERROR("TFT command write failed (cmd=0x%02X)", cmd);
     }
@@ -83,7 +103,7 @@ static hal_status_t tft_write_data(const uint8_t *data, uint32_t length)
     }
     
     /* Send data bytes */
-    status = spi_write(SPI_BUS_0, SPI0_CS0, data, length);
+    status = spi_write(SPI_BUS_0, TFT_CS, data, length);
     if (status != HAL_OK) {
         LOG_ERROR("TFT data write failed (len=%u)", length);
     }
@@ -131,6 +151,45 @@ static void tft_reset(void)
     delay_ms(100);
 }
 
+static void tft_init_sequence_ili9486(void)
+{
+    uint8_t data[4];
+
+    tft_write_command(ILI9486_IFMODE);
+    data[0] = 0x00;
+    tft_write_data(data, 1);
+
+    tft_write_command(ILI9486_FRMCTR1);
+    data[0] = 0xB0;
+    data[1] = 0x11;
+    tft_write_data(data, 2);
+
+    tft_write_command(ILI9486_DISCTRL);
+    data[0] = 0x02;
+    data[1] = 0x42;
+    tft_write_data(data, 2);
+
+    tft_write_command(ILI9486_PWCTRL1);
+    data[0] = 0x19;
+    data[1] = 0x1A;
+    tft_write_data(data, 2);
+
+    tft_write_command(ILI9486_PWCTRL2);
+    data[0] = 0x45;
+    tft_write_data(data, 1);
+
+    tft_write_command(ILI9486_PWCTRL3);
+    data[0] = 0x33;
+    tft_write_data(data, 1);
+
+    tft_write_command(ILI9486_VMCTRL1);
+    data[0] = 0x00;
+    data[1] = 0x28;
+    tft_write_data(data, 2);
+
+    delay_ms(5);
+}
+
 /**
  * Set address window for pixel writing
  */
@@ -167,12 +226,24 @@ hal_status_t tft_init(void)
         return HAL_OK;
     }
 
+    LOG_INFO("TFT init: controller=%s  %ux%u  SPI_FREQ=%u Hz  CS=%u  DC=%u  RST=%u  BL=%u  rot=%u  brightness=%u%%",
+             TFT_TYPE,
+             (unsigned)TFT_WIDTH, (unsigned)TFT_HEIGHT,
+             (unsigned)TFT_SPI_FREQ,
+             (unsigned)TFT_CS,
+             (unsigned)GPIO_TFT_DC,
+             (unsigned)GPIO_TFT_RST,
+             (unsigned)GPIO_TFT_BL,
+             (unsigned)TFT_ROTATION,
+             (unsigned)TFT_BRIGHTNESS);
+
     /* Initialize SPI0 for TFT */
     spi_config_t spi_cfg = {
         .frequency = TFT_SPI_FREQ,
         .mode = SPI_MODE_0,
         .bits_per_word = 8,
         .bit_order = SPI_MSB_FIRST,
+        .cs_line = (TFT_CS == SPI0_CS0) ? 0u : 1u,
     };
     
     status = spi_init(SPI_BUS_0, &spi_cfg);
@@ -236,14 +307,18 @@ hal_status_t tft_init(void)
         LOG_ERROR("TFT init failed: SWRESET command");
         return HAL_ERROR;
     }
-    delay_ms(50);
+    delay_ms(150);
 
     /* Sleep out */
     if (tft_write_command(ILI9488_SLPOUT) != HAL_OK) {
         LOG_ERROR("TFT init failed: SLPOUT command");
         return HAL_ERROR;
     }
-    delay_ms(100);
+    delay_ms(120);
+
+    if (strcmp(TFT_TYPE, "ILI9486") == 0) {
+        tft_init_sequence_ili9486();
+    }
 
     tft_ctx.uses_18bit_pixels = (strcmp(TFT_TYPE, "ILI9488") == 0) ? 1u : 0u;
     LOG_INFO("TFT controller profile: %s (%s pixel writes)",
@@ -266,7 +341,7 @@ hal_status_t tft_init(void)
         LOG_ERROR("TFT init failed: MADCTL command");
         return HAL_ERROR;
     }
-    uint8_t madctl_data = 0x00;  /* Default orientation */
+    uint8_t madctl_data = 0x48;  /* Default landscape orientation */
     if (tft_write_data(&madctl_data, 1) != HAL_OK) {
         LOG_ERROR("TFT init failed: MADCTL payload");
         return HAL_ERROR;
@@ -358,19 +433,39 @@ hal_status_t tft_fill_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t heig
     /* Write command and prepare for data */
     tft_write_command(ILI9488_RAMWR);
 
-    /* Send color data repeatedly */
     uint32_t pixel_count = (uint32_t)width * (uint32_t)height;
-    uint8_t color_bytes[3];
-    if (tft_ctx.uses_18bit_pixels) {
-        rgb565_to_rgb666_bytes(color, color_bytes);
-    } else {
-        rgb565_to_rgb565_bytes(color, color_bytes);
-    }
+    enum { TFT_FILL_CHUNK_PIXELS = 256 };
 
-    /* Write same color for all pixels */
-    for (uint32_t i = 0; i < pixel_count; i++) {
-        if (tft_write_data(color_bytes, tft_ctx.uses_18bit_pixels ? 3u : 2u) != HAL_OK) {
-            return HAL_ERROR;
+    if (tft_ctx.uses_18bit_pixels) {
+        uint8_t color_bytes[3];
+        uint8_t chunk[TFT_FILL_CHUNK_PIXELS * 3];
+        rgb565_to_rgb666_bytes(color, color_bytes);
+        for (uint32_t i = 0; i < TFT_FILL_CHUNK_PIXELS; i++) {
+            chunk[i * 3u + 0] = color_bytes[0];
+            chunk[i * 3u + 1] = color_bytes[1];
+            chunk[i * 3u + 2] = color_bytes[2];
+        }
+        while (pixel_count > 0) {
+            uint32_t pixels = (pixel_count > TFT_FILL_CHUNK_PIXELS) ? TFT_FILL_CHUNK_PIXELS : pixel_count;
+            if (tft_write_data(chunk, pixels * 3u) != HAL_OK) {
+                return HAL_ERROR;
+            }
+            pixel_count -= pixels;
+        }
+    } else {
+        uint8_t color_bytes[2];
+        uint8_t chunk[TFT_FILL_CHUNK_PIXELS * 2];
+        rgb565_to_rgb565_bytes(color, color_bytes);
+        for (uint32_t i = 0; i < TFT_FILL_CHUNK_PIXELS; i++) {
+            chunk[i * 2u + 0] = color_bytes[0];
+            chunk[i * 2u + 1] = color_bytes[1];
+        }
+        while (pixel_count > 0) {
+            uint32_t pixels = (pixel_count > TFT_FILL_CHUNK_PIXELS) ? TFT_FILL_CHUNK_PIXELS : pixel_count;
+            if (tft_write_data(chunk, pixels * 2u) != HAL_OK) {
+                return HAL_ERROR;
+            }
+            pixel_count -= pixels;
         }
     }
 
@@ -409,14 +504,14 @@ hal_status_t tft_set_rotation(uint8_t rotation)
     tft_ctx.rotation = rotation;
 
     /* Set MADCTL register based on rotation */
-    tft_write_command(ILI9488_MADCTL);
+    tft_write_command(ILI948X_MADCTL);
     
     uint8_t madctl = 0x00;
     switch (rotation) {
-        case 0: madctl = 0x00; break;  /* 0° */
-        case 1: madctl = 0x60; break;  /* 90° */
-        case 2: madctl = 0xC0; break;  /* 180° */
-        case 3: madctl = 0xA0; break;  /* 270° */
+        case 0: madctl = 0x48; break;  /* 0° */
+        case 1: madctl = 0x28; break;  /* 90° */
+        case 2: madctl = 0x88; break;  /* 180° */
+        case 3: madctl = 0xE8; break;  /* 270° */
     }
     
     tft_write_data(&madctl, 1);
