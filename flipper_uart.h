@@ -7,11 +7,7 @@
  */
 
 #include "types.h"
-<<<<<<< HEAD
 #include "board_config.h"
-=======
-#include "config.h"
->>>>>>> origin/main
 
 /* ===== FLIPPER MESSAGE PROTOCOL ===== */
 

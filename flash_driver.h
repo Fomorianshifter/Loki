@@ -8,11 +8,7 @@
  */
 
 #include "types.h"
-<<<<<<< HEAD
 #include "board_config.h"
-=======
-#include "config.h"
->>>>>>> origin/main
 
 /* ===== LOKI CREDITS FLASH INTERFACE ===== */
 

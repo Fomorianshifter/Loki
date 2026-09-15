@@ -7,12 +7,9 @@
 #include "spi.h"
 #include "gpio.h"
 #include "pwm.h"
-<<<<<<< HEAD
 #include "pinout.h"
-=======
 #include "config.h"
 #include "log.h"
->>>>>>> origin/main
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

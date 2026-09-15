@@ -1,0 +1,35 @@
+import os
+
+
+def __init__(
+    self,
+    width: int = 480,
+    height: int = 320,
+    pixel_format: str = "RGB565",
+    framebuffer_path: str | None = None,
+) -> None:
+  self.width = max(1, int(width))
+  self.height = max(1, int(height))
+  self.pixel_format = str(pixel_format or "RGB565").upper()
+
+  # Auto-detect the correct framebuffer: /dev/fb1 is standard for 3.5" RPi SPI screens
+  if framebuffer_path is None:
+    if os.path.exists("/dev/fb1"):
+      self.framebuffer_path = "/dev/fb1"
+    else:
+      self.framebuffer_path = "/dev/fb0"
+  else:
+    self.framebuffer_path = framebuffer_path
+
+  self.fb = None
+  self._buffer = None
+  # Force 2 bytes per pixel for 16-bit framebuffers (RGB565)
+  self._bytes_per_pixel = 2
+
+  try:
+    self._open_framebuffer()
+  except Exception as e:
+    print(
+        f"[!] Framebuffer error on {self.framebuffer_path}: {e}. Ensure display"
+        " driver or fbcp is running."
+    )
