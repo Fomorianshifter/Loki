@@ -6,6 +6,7 @@
 #include "flipper_uart.h"
 #include "uart.h"
 #include "config.h"
+#include "memory.h"
 #include <string.h>
 
 /* ===== FLIPPER UART STATE ===== */
@@ -133,7 +134,7 @@ hal_status_t flipper_receive_message(flipper_message_t *message, uint32_t timeou
         }
 
         message->length = payload_length;
-        message->payload = malloc(payload_length);
+        message->payload = malloc_safe(payload_length);
         if (message->payload == NULL) {
             return HAL_ERROR;
         }

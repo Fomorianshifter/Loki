@@ -18,6 +18,7 @@
 #include "flash_driver.h"
 #include "eeprom_driver.h"
 #include "flipper_uart.h"
+#include "dragon_anim.h"
 #include "log.h"
 #include "memory.h"
 #include "retry.h"
@@ -35,28 +36,23 @@ static void handle_signal(int sig)
     should_exit = 1;
 }
 
-/* ===== EXAMPLE: TFT DISPLAY TEST ===== */
+/* ===== BOOT ANIMATION: PROCEDURAL DRAGON ===== */
 /**
- * @brief Test TFT display functionality
- * 
- * Demonstrates display clearing and drawing colored rectangles.
+ * @brief Play the Loki dragon boot animation
+ *
+ * Fully procedural: domain-warped aurora sky, a capsule-SDF dragon on a
+ * Lissajous flight path, additive fire glow and drifting embers. No
+ * stored sprites - every pixel is computed.
  */
-static void test_tft_display(void)
+static void play_dragon_boot_animation(void)
 {
-    LOG_INFO("Running TFT Display Test...");
+    LOG_INFO("Running dragon boot animation...");
 
-    if (tft_clear() != HAL_OK) {
-        LOG_ERROR("Failed to clear display");
-        return;
+    if (dragon_anim_play() != HAL_OK) {
+        LOG_WARN("Dragon animation unavailable (display not ready?)");
+        /* Fall back to a minimal clear so the screen is in a known state */
+        tft_clear();
     }
-
-    /* Draw some patterns */
-    tft_fill_rect(0, 0, 100, 100, RGB565(255, 0, 0));      /* Red square */
-    tft_fill_rect(100, 0, 100, 100, RGB565(0, 255, 0));    /* Green square */
-    tft_fill_rect(200, 0, 100, 100, RGB565(0, 0, 255));    /* Blue square */
-    tft_fill_rect(300, 0, 180, 100, RGB565(255, 255, 0));  /* Yellow square */
-
-    LOG_INFO("Display test complete");
 }
 
 /* ===== EXAMPLE: EEPROM READ/WRITE TEST ===== */
@@ -190,7 +186,7 @@ int main(int argc, char *argv[])
     LOG_INFO("Running hardware tests...");
     LOG_INFO("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-    test_tft_display();
+    play_dragon_boot_animation();
     sleep(1);
 
     test_flash();
@@ -227,7 +223,7 @@ int main(int argc, char *argv[])
 
                 /* Free payload if allocated */
                 if (msg.payload != NULL) {
-                    free(msg.payload);
+                    free_safe((void **)&msg.payload);
                 }
             }
         }

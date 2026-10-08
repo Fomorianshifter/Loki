@@ -1,439 +1,223 @@
 # Loki Project File Reference
 
-Complete inventory of all files in the Loki Orange Pi Zero 2W embedded systems project.
+Complete inventory of the Loki embedded systems project. All source files live in the repository root (flat layout).
 
 ## Configuration Files
 
-### [config/pinout.h](config/pinout.h)
-**Orange Pi Zero 2W GPIO Pin Definitions**
-- All 40 GPIO pins with hardware pin numbers
-- SPI0/1/2 bus pin assignments (SCK, MOSI, MISO, CS)
-- I2C0 pin definitions (SDA, SCL)
-- UART1 pin definitions (TX, RX)
-- PWM pin definitions (backlight control)
-- Control pins (TFT DC, RST, SD detect, etc.)
-- Interrupt pin definitions
+### [pinout.h](pinout.h)
+**GPIO Pin Definitions**
+- SPI/I2C/UART bus pin assignments (SCK, MOSI, MISO, CS, SDA, SCL, TX, RX)
+- Control pins (TFT DC, TFT RST, TFT backlight, SD detect)
+- PWM channel assignments
 
-### [config/board_config.h](config/board_config.h)
+### [board_config.h](board_config.h)
 **Board-level Configuration Parameters**
-- Voltage specifications (3.3V, 5V)
-- Clock frequencies (SPI speeds, I2C speed, UART baud)
-- Timing parameters (debounce delays, timeouts)
-- Capacitor/resistor values for circuit design
-- Power consumption specs
-- Environmental operating conditions
-- Device-specific limits
+- Board identification (name, version, model)
+- Power and voltage specifications
+- Device frequencies (TFT 40 MHz SPI, SD 25 MHz, Flash 20 MHz, EEPROM 100 kHz I2C)
+- Memory capacities and page/sector sizes
+- UART settings (115200 baud for Flipper)
+- Timing constants and error handling flags
 
-### [includes/types.h](includes/types.h)
+### [config.h](config.h)
+**Master Configuration Entry Point**
+- Aggregates `board_config.h` and `pinout.h`
+- Single include for any file needing configuration values
+
+### [types.h](types.h)
 **Shared Type Definitions**
-- `hal_status_t` enum for return codes
-- Color type: `color_t` for RGB565 16-bit colors
-- Various integer types: uint8_t, uint16_t, uint32_t, etc.
-- Preprocessor magic for cross-platform compatibility
-- RGB565 color macro: `RGB565(r, g, b)`
-- Color constants (BLACK, WHITE, RED, GREEN, BLUE, etc.)
-- Assert macros for DEBUG/RELEASE builds
+- `hal_status_t` return codes (HAL_OK, HAL_ERROR, HAL_TIMEOUT, ...)
+- SPI/I2C/UART/GPIO/PWM configuration structs
+- `color_t` (RGB565 16-bit) and the `RGB565(r, g, b)` macro
+- Standard color constants (COLOR_BLACK, COLOR_WHITE, ...)
 
 ---
 
 ## Hardware Abstraction Layer (HAL)
 
-### [hal/gpio/gpio.h](hal/gpio/gpio.h), [hal/gpio/gpio.c](hal/gpio/gpio.c)
+### [gpio.h](gpio.h), [gpio.c](gpio.c)
 **GPIO Pin Control Interface**
-- `gpio_configure()` - Set pin mode (input/output) and pull resistors
-- `gpio_set()` - Write high/low to output pins
-- `gpio_read()` - Read input pin state
-- `gpio_toggle()` - Flip output pin
-- `gpio_wait_for_interrupt()` - Block until edge detected
-- `gpio_configure_interrupt()` - Set up edge/level triggered interrupts
-- Logging integration with LOG_DEBUG macros
+- `gpio_init()` / `gpio_deinit()` - Subsystem lifecycle
+- `gpio_configure()` - Set pin mode and pull resistors
+- `gpio_set()` / `gpio_read()` / `gpio_toggle()` - Pin I/O
 
-### [hal/spi/spi.h](hal/spi/spi.h), [hal/spi/spi.c](hal/spi/spi.c)
-**SPI Multi-Bus Interface (SPI0, SPI1, SPI2)**
-- `spi_init()` - Initialize SPI bus with clock speed
-- `spi_write()` - Send data on bus (MOSI only)
-- `spi_read()` - Receive data from bus (MISO only)
-- `spi_transfer()` - Full-duplex simultaneous send/receive
-- `spi_configure_cs()` - Set chip select pin behavior
-- Bus selection for SPI0 (40 MHz TFT), SPI1 (25 MHz SD), SPI2 (20 MHz Flash)
+### [spi.h](spi.h), [spi.c](spi.c)
+**SPI Multi-Bus Interface**
+- `spi_init()` / `spi_deinit()` - Bus lifecycle with `spi_config_t`
+- `spi_write()` / `spi_read()` / `spi_transfer()` - Data movement
+- Used by TFT (SPI0), SD card (SPI1), and Flash (SPI2)
 
-### [hal/i2c/i2c.h](hal/i2c/i2c.h), [hal/i2c/i2c.c](hal/i2c/i2c.c)
-**I2C Communication (I2C0)**
-- `i2c_init()` - Initialize I2C bus at 100 kHz
-- `i2c_write()` - Send data to I2C slave
-- `i2c_read()` - Receive data from I2C slave
-- `i2c_write_read()` - Send register address then read response (common pattern)
-- `i2c_write_register()` - Write single register with value
-- `i2c_read_register()` - Read single register
-- I2C0 dedicated to EEPROM at 0x50 address
+### [i2c.h](i2c.h), [i2c.c](i2c.c)
+**I2C Communication**
+- `i2c_init()` / `i2c_deinit()`
+- `i2c_write()` / `i2c_read()` / `i2c_write_read()`
+- Dedicated to the EEPROM at address 0x50
 
-### [hal/uart/uart.h](hal/uart/uart.h), [hal/uart/uart.c](hal/uart/uart.c)
-**Serial UART with Ring Buffer (UART1)**
-- `uart_init()` - Initialize UART1 at 115200 baud
-- `uart_write()` - Send data synchronously
-- `uart_read()` - Read available data
-- `uart_available()` - Check if data waiting in buffer
-- `uart_on_data_received()` - Register callback for incoming data
-- Ring buffer for interrupt-driven reception
-- Used for Flipper Zero bidirectional communication
+### [uart.h](uart.h), [uart.c](uart.c)
+**Serial UART**
+- `uart_init()` / `uart_deinit()` with `uart_config_t`
+- `uart_send()` / `uart_receive()` / `uart_receive_byte()`
+- `uart_available()` - Bytes waiting in the RX buffer
+- Used by the Flipper Zero link (UART1, 115200 baud)
 
-### [hal/pwm/pwm.h](hal/pwm/pwm.h), [hal/pwm/pwm.c](hal/pwm/pwm.c)
-**PWM Output for Brightness Control**
-- `pwm_init()` - Initialize PWM on specified GPIO pin
-- `pwm_set_frequency()` - Set PWM frequency (typically 1 kHz)
-- `pwm_set_duty()` - Set duty cycle 0-100%
-- `pwm_enable()`/`pwm_disable()` - Control PWM output
-- Used for TFT display backlight brightness: Pin 7 (PWM)
+### [pwm.h](pwm.h), [pwm.c](pwm.c)
+**PWM Output**
+- `pwm_init()` / `pwm_deinit()`
+- `pwm_set_duty()` / `pwm_enable()` / `pwm_disable()`
+- Drives the TFT backlight brightness
 
 ---
 
 ## Device Drivers
 
-### [drivers/tft/tft_driver.h](drivers/tft/tft_driver.h), [drivers/tft/tft_driver.c](drivers/tft/tft_driver.c)
+### [tft_driver.h](tft_driver.h), [tft_driver.c](tft_driver.c)
 **3.5" TFT Display Driver (ILI9488, 480×320)**
-- `tft_init()` - Initialize display controller and SPI0
-- `tft_clear()` - Fill entire screen with black
-- `tft_fill_rect()` - Draw filled rectangle with color
-- `tft_write_pixels()` - Write pixel data to frame buffer region
-- `tft_set_brightness()` - Control backlight PWM (0-100%)
-- `tft_set_rotation()` - Portrait/landscape orientation
-- `tft_sleep()`/`tft_wake()` - Power management
-- SPI0 interface (40 MHz), DC/RST control pins
-- Color mode: RGB565 16-bit
+- `tft_init()` / `tft_deinit()` - Controller init via SPI0
+- `tft_write_pixels()` - Stream an RGB565 region
+- `tft_fill_rect()` / `tft_clear()` - Solid fills
+- `tft_set_brightness()` / `tft_set_rotation()`
 
-### [drivers/sdcard/sdcard_driver.h](drivers/sdcard/sdcard_driver.h), [drivers/sdcard/sdcard_driver.c](drivers/sdcard/sdcard_driver.c)
-**SD Card Storage Interface (SPI Mode)**
-- `sdcard_init()` - Detect and initialize SD card on SPI1
-- `sdcard_detect()` - Check if card inserted (GPIO pin)
-- `sdcard_read_sector()` - Read 512-byte sector(s) from card
-- `sdcard_write_sector()` - Write 512-byte sector(s) to card
-- `sdcard_get_info()` - Retrieve card capacity and type
-- SPI1 interface (25 MHz), CS on Pin 32
-- 6-pin push-pull module with detect pin
-- Supports both SDHC and SDXC cards
+### [sdcard_driver.h](sdcard_driver.h), [sdcard_driver.c](sdcard_driver.c)
+**SD Card Storage (SPI mode)**
+- `sdcard_init()` / `sdcard_deinit()`
+- `sdcard_read_sector()` / `sdcard_write_sector()` - 512-byte sectors
+- `sdcard_get_info()` - Capacity and card type
 
-### [drivers/flash/flash_driver.h](drivers/flash/flash_driver.h), [drivers/flash/flash_driver.c](drivers/flash/flash_driver.c)
-**W25Q40 SPI Flash Memory (4 Mbit)**
-- `flash_init()` - Initialize flash chip and verify JEDEC ID
-- `flash_read()` - Read data from any address (no block boundary)
-- `flash_write()` - Write data (requires sector erase first)
-- `flash_erase_sector()` - Erase 4 KB sector
-- `flash_erase_block()` - Erase 64 KB block (faster bulk erase)
-- `flash_get_jedec_id()` - Read manufacturer/device ID
-- `flash_write_protection()` - Lock/unlock sectors
-- SPI2 interface (20 MHz), CS on Pin 15
+### [flash_driver.h](flash_driver.h), [flash_driver.c](flash_driver.c)
+**W25Q40 SPI Flash (4 Mbit)**
+- `flash_init()` / `flash_deinit()`
+- `flash_read()` / `flash_write()`
+- `flash_erase_sector()` / `flash_erase_block()`
+- `flash_get_jedec_id()` - Chip identification
 - Used for persistent Loki credit storage
 
-### [drivers/eeprom/eeprom_driver.h](drivers/eeprom/eeprom_driver.h), [drivers/eeprom/eeprom_driver.c](drivers/eeprom/eeprom_driver.c)
-**FT24C02A I2C EEPROM (256 Bytes)**
-- `eeprom_init()` - Initialize I2C and verify device
-- `eeprom_read()` - Read configuration bytes
-- `eeprom_write()` - Write configuration (page-aligned)
-- `eeprom_erase()` - Clear all EEPROM to 0xFF
-- I2C0 interface (100 kHz), address 0x50
-- Page size: 16 bytes
-- 1 million write cycle endurance
+### [eeprom_driver.h](eeprom_driver.h), [eeprom_driver.c](eeprom_driver.c)
+**FT24C02A I2C EEPROM (256 bytes)**
+- `eeprom_init()` / `eeprom_deinit()`
+- `eeprom_read()` / `eeprom_write()` - Page-aligned writes
 
-### [drivers/flipper_uart/flipper_uart.h](drivers/flipper_uart/flipper_uart.h), [drivers/flipper_uart/flipper_uart.c](drivers/flipper_uart/flipper_uart.c)
-**Flipper Zero Bidirectional Communication**
-- `flipper_uart_init()` - Initialize UART1 and handshake protocol
-- `flipper_send_message()` - Send command with XOR checksum
-- `flipper_receive_message()` - Wait for and parse incoming message
-- `flipper_available()` - Check if message waiting in buffer
-- `flipper_on_data_received()` - Register callback for messages
-- Command codes (ACK, NACK, HELLO, STATE_UPDATE, SEND_DATA, CONTROL, etc.)
-- UART1 interface (115200 baud), RX on Pin 10, TX on Pin 8
-- XOR checksum verification for data integrity
+### [flipper_uart.h](flipper_uart.h), [flipper_uart.c](flipper_uart.c)
+**Flipper Zero Bidirectional Protocol**
+- `flipper_uart_init()` / `flipper_uart_deinit()` - Init + HELLO handshake
+- `flipper_send_message()` / `flipper_receive_message()` - Packet I/O with XOR checksum
+- `flipper_available()` - Incoming data check
+- Payloads allocated with `malloc_safe()` (tracked in DEBUG builds)
+
+---
+
+## Graphics & Animation
+
+### [dragon_anim.h](dragon_anim.h), [dragon_anim.c](dragon_anim.c)
+**Procedural Dragon Animation Engine**
+- Fully procedural: no stored bitmaps or sprite sheets
+- Domain-warped aurora plasma sky with twinkling stars
+- Dragon built from a capsule-SDF chain on a Lissajous flight path
+  - Serpentine body undulation with per-segment phase lag
+  - Anatomical features: snout, jaw, twin horns, dorsal spikes, glowing eyes
+  - Analytic shading: SDF-gradient normals, key light, cool rim light, fire belly glow
+- Additive fire glow with breathing pulse and flicker
+- 24 ember particles with deterministic seeds, curl wobble, and life-cycle fade
+- Renders in scanline tiles (`DRAGON_TILE_LINES`) to bound RAM use
+- `dragon_anim_init()` / `dragon_anim_play()` / `dragon_anim_render_frame()` / `dragon_anim_deinit()`
 
 ---
 
 ## Utility Libraries
 
-### [utils/log.h](utils/log.h), [utils/log.c](utils/log.c)
-**Centralized Logging Framework (5 Levels)**
-- `LOG_CRITICAL()` - System failures, unrecoverable errors (red)
-- `LOG_ERROR()` - Failed operations, recoverable issues (red)
-- `LOG_WARN()` - Potential problems, unusual conditions (yellow)
-- `LOG_INFO()` - Normal operations, state changes (blue)
-- `LOG_DEBUG()` - Detailed diagnostic information (green)
-- `log_init()` - Initialize logging system
-- `log_set_level()` - Filter logs by minimum severity (runtime configurable)
-- Auto-tracking of source file, line number, function name
-- Millisecond-precision timestamps
-- ANSI color codes for terminal readability
+### [log.h](log.h), [log.c](log.c)
+**Centralized Logging (5 Levels)**
+- `LOG_CRITICAL()` / `LOG_ERROR()` / `LOG_WARN()` / `LOG_INFO()` / `LOG_DEBUG()`
+- `log_init()` / `log_deinit()` / `log_set_level()`
+- Automatic file, line, and function capture
 
-### [utils/memory.h](utils/memory.h), [utils/memory.c](utils/memory.c)
+### [memory.h](memory.h), [memory.c](memory.c)
 **Safe Memory Management with Leak Detection**
-- `malloc_safe()` - Allocate memory with error checking
-- `calloc_safe()` - Allocate zeroed memory
-- `free_safe()` - Free and nullify pointer (prevents use-after-free)
-- `memory_init()` - Initialize tracking table (DEBUG mode only)
-- `memory_report()` - Print leak report at shutdown
-- Tracks all allocations in DEBUG mode with:
-  - Allocation size
-  - Allocating function/file/line
-  - Time since allocation
-  - Total leaked bytes if not freed
-- Zero overhead in RELEASE mode
+- `malloc_safe()` / `calloc_safe()` / `free_safe()`
+- `memory_get_usage()` / `memory_report()` (DEBUG builds)
+- Zero overhead in release builds
 
-### [utils/retry.h](utils/retry.h), [utils/retry.c](utils/retry.c)
-**Automatic Retry Logic with Exponential Backoff**
-- `RETRY()` macro - Transparent retry wrapper for function calls
-- **RETRY_AGGRESSIVE**: 10 attempts, 1-100 ms backoff
-- **RETRY_BALANCED**: 5 attempts, 2-50 ms backoff (recommended)
-- **RETRY_CONSERVATIVE**: 3 attempts, 5-20 ms backoff
-- **RETRY_NONE**: No retry, fail immediately
-- Exponential backoff: delay = base * 2^attempt
-- Jitter added to prevent bus flooding
-- Retryable error detection (timeout, busy, etc.)
-- Non-retryable errors fail immediately (invalid param, not initialized)
+### [retry.h](retry.h), [retry.c](retry.c)
+**Automatic Retry with Exponential Backoff**
+- `RETRY()` macro wrapping any `hal_status_t` call
+- Strategies: RETRY_AGGRESSIVE, RETRY_BALANCED, RETRY_CONSERVATIVE, RETRY_NONE
 
 ---
 
 ## Core System
 
-### [core/system.h](core/system.h), [core/system.c](core/system.c)
+### [system.h](system.h), [system.c](system.c)
 **Unified System Initialization and Shutdown**
-- `system_init()` - Initialize all subsystems in correct order:
-  - Logging system
-  - Memory tracking
-  - GPIO HAL
-  - SPI0/1/2 buses
-  - I2C0 bus
-  - UART1 port
-  - TFT display
-  - SD card
-  - Flash memory
-  - EEPROM
-  - Flipper UART
-- `system_shutdown()` - Graceful shutdown in reverse order
-- `system_print_status()` - Display per-component initialization status
-- Integrated logging of all initialization steps
-- Memory tracking enabled in DEBUG builds
+- `system_init()` - GPIO, TFT, SD, Flash, EEPROM, Flipper UART in order
+- `system_shutdown()` - Reverse-order teardown with memory report
+- `system_print_status()` - Per-subsystem status table
 
-### [core/main.c](core/main.c)
-**Application Entry Point and Hardware Tests**
-- `main()` - Initialize system and enter event loop
-- TFT Display Test:
-  - Clear screen
-  - Draw colored rectangles
-  - Set brightness
-- EEPROM Test:
-  - Write test data
-  - Read and verify
-- Flash Memory Test:
-  - Read JEDEC ID
-- Flipper UART Test:
-  - Detect connection
-  - Send/receive messages
-- Event loop waiting for Flipper commands
-- Graceful shutdown with status reporting
+### [main.c](main.c)
+**Application Entry Point**
+- Startup banner and logging setup
+- Signal handlers for graceful shutdown (SIGINT/SIGTERM)
+- Dragon boot animation via `play_dragon_boot_animation()`
+- Hardware self-tests (Flash JEDEC ID, EEPROM read/write verify, Flipper link)
+- Main loop receiving Flipper commands with ACK responses
 
 ---
 
-## Build & Documentation
+## Build & Hardware Design
 
 ### [Makefile](Makefile)
-**Build System with Multiple Targets**
-- `make` (all) - Compile debug build
-- `make DEBUG=0` - Compile release/optimized build
-- `make DEBUG=1` - Compile debug build with all features
-- `make install` - Copy binary to Orange Pi via SCP
-- `make run` - Build and execute on target
-- `make test` - Compile with test flags enabled
-- `make docs` - Generate Doxygen HTML documentation
-- `make analyze` - Run cppcheck static analysis
-- `make size` - Show binary size breakdown
-- `make info` - Display build configuration
-- `make clean` - Remove build artifacts (.o files)
-- `make clean-all` - Remove all generated files (binary, docs)
-- `make help` - Show all available targets
+**Cross-compilation Build System (Linux/Mac)**
+- `make` / `make DEBUG=0` - Debug / release builds
+- `make install` / `make run` - Deploy to Orange Pi over SSH
+- `make test` / `make analyze` / `make docs` / `make size` / `make info`
+- `make clean` / `make clean-all`
 
-Cross-compilation setup:
-- ARM compiler: `arm-linux-gnueabihf-gcc`
-- CFLAGS with warning levels, optimization
-- DEBUG mode: `-g3 -O0 -DDEBUG=1`
-- RELEASE mode: `-O2 -DNDEBUG`
+### [build.ps1](build.ps1)
+**Windows PowerShell Build Script**
+- `-Mode debug|release`, `-Install`, `-HostName`, `-User`
+- Color-coded output, wraps the ARM cross-compiler
 
 ### [Doxyfile](Doxyfile)
-**API Documentation Generation Configuration**
-- Input directories: config/, hal/, drivers/, utils/, core/, includes/
-- HTML output: docs/html/
-- Features enabled:
-  - Function call graphs
-  - Caller graphs
-  - Dependency diagrams
-  - Full-text search
-  - Mobile-responsive layout
-- Project name: "Loki Orange Pi Zero 2W"
-- Generate navigation tree and search engine
+**API Documentation Configuration**
+- Generate with `make docs` (requires Doxygen)
+
+### [OrangePiZero2W_Loki.kicad_sch](OrangePiZero2W_Loki.kicad_sch), [OrangePiZero2W_Loki.kicad_pcb](OrangePiZero2W_Loki.kicad_pcb)
+**KiCad Schematic and PCB Layout**
+- Custom carrier board design for the Orange Pi Zero 2W
 
 ---
 
 ## Documentation
 
-### [README.md](README.md)
-**Main Project Overview and API Reference**
-- Project overview and key features
-- Complete project structure diagram
-- Hardware connections and wiring reference
-- Quick start and build instructions
-- Code examples (logging, memory, retry, TFT, Flipper)
-- API reference table for all components
-- Status codes and color definitions
-- Flipper Zero protocol documentation
-- Performance specifications
-- Troubleshooting guide
-- License information
-
-### [BUILD.md](BUILD.md)
-**Comprehensive Build and Development Guide**
-- Build system overview
-- Cross-compilation setup for Orange Pi
-- Logging system documentation with examples
-- Memory management and leak detection usage
-- Retry logic strategies and examples
-- Doxygen documentation generation
-- Static analysis integration
-- Binary size optimization
-- Performance profiling with Linux tools
-- Debugging techniques
-- Troubleshooting common issues
-
-### [CONTRIBUTING.md](CONTRIBUTING.md)
-**Code Style and Contribution Guidelines**
-- Code naming conventions:
-  - Functions: `subsystem_action()`
-  - Variables: `snake_case`
-  - Constants: `UPPER_CASE`
-  - Macros: `UPPER_CASE`
-- Formatting standards (indentation, line length, comments)
-- Doxygen documentation format for public functions
-- Development workflow (branching, testing, code review)
-- Driver implementation template with example
-- Testing checklist before committing
-- Performance and resource considerations
-- Git commit message standards
-
-### [IMPROVEMENTS.md](IMPROVEMENTS.md)
-**Documentation of All 8 Project Enhancements**
-- Enhanced Build System (12 targets, debug/release modes)
-- Centralized Logging Framework (5 levels, auto source tracking)
-- Safe Memory Management (leak detection)
-- Automatic Retry Logic (3 strategies, exponential backoff)
-- Doxygen Documentation (auto-generated from source)
-- Development Guides (BUILD.md, CONTRIBUTING.md)
-- Static Code Analysis (cppcheck integration)
-- Binary Size Reporting
-- Before/after code comparison
-- Implementation timeline
-- Future enhancement recommendations
-- Code review checklist
-
-### [.github/copilot-instructions.md](.github/copilot-instructions.md)
-**Setup Checklist and Project Status**
-- Verification checklist of completed components
-- HAL driver status (GPIO, SPI, I2C, UART, PWM)
-- Device driver status (TFT, SD, Flash, EEPROM, Flipper)
-- Core system files status
-- Next steps and optional enhancements
-- Build and run instructions
-- Project status summary
-
----
-
-## Summary Statistics
-
-### File Inventory
-| Category | Count | Purpose |
-|----------|-------|---------|
-| Configuration | 3 | Pins, board params, common types |
-| HAL | 10 | 5 bus drivers (header + implementation) |
-| Drivers | 10 | 5 device drivers (header + implementation) |
-| Utilities | 6 | 3 utility libraries (header + implementation) |
-| Core | 3 | System init, main app |
-| Build | 2 | Makefile, Doxygen config |
-| Documentation | 5 | README, BUILD, CONTRIBUTING, IMPROVEMENTS, setup |
-| **Total** | **39** | **Complete embedded system project** |
-
-### Lines of Code (Estimate)
-| Component | LOC | Purpose |
-|-----------|-----|---------|
-| HAL (5 drivers) | ~1,500 | Hardware abstraction |
-| Device drivers (5) | ~2,000 | Device-specific implementations |
-| Utilities (3 libs) | ~600 | Logging, memory, retry |
-| Core system | ~300 | Initialization, main |
-| Documentation | ~2,000 | Guides and references |
-| **Total** | **~6,400** | **Production-ready system** |
+| File | Purpose |
+|------|---------|
+| [README.md](README.md) | Project overview, architecture, build basics |
+| [BUILD.md](BUILD.md) | Build system, logging, memory, retry, profiling guide |
+| [BUILD_WINDOWS.md](BUILD_WINDOWS.md) | Windows/Mac/Linux build tool guide |
+| [QUICKSTART_WINDOWS.md](QUICKSTART_WINDOWS.md) | Step-by-step Windows setup walkthrough |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment and troubleshooting |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Code style and contribution guidelines |
+| [FILE_REFERENCE.md](FILE_REFERENCE.md) | This file |
 
 ---
 
 ## Architecture Overview
 
 ```
-User Application
+User Application (main.c)
     ↓
-Core System (system.h/c)
+Core System (system.c)          Graphics (dragon_anim.c)
+    ↓                                  ↓
+┌─────────────────────────────────────────────┐
+│ Device Drivers                              │
+│ TFT  SD Card  Flash  EEPROM  Flipper UART   │
+└─────────────────────────────────────────────┘
     ↓
-┌─────────────────────────────────────┐
-│      Device Drivers (drivers/)      │
-│  TFT  SD  Flash  EEPROM  Flipper   │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│ Hardware Abstraction Layer                  │
+│ GPIO  SPI  I2C  UART  PWM                   │
+└─────────────────────────────────────────────┘
     ↓
-┌─────────────────────────────────────┐
-│   Hardware Abstraction Layer (hal/) │
-│  GPIO  SPI0/1/2  I2C  UART  PWM    │
-└─────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────┐
-│    Orange Pi Zero 2W Hardware       │
-│ ARM Cortex-A7 + peripherals         │
-└─────────────────────────────────────┘
+Orange Pi Zero 2W / Raspberry Pi Zero W hardware
 
-Utilities (utils/) - Cross-cutting concerns
-├── Logging (log.h/c)
-├── Memory Management (memory.h/c)
-└── Retry Logic (retry.h/c)
-
-Configuration (config/) - Hardware parameters
-├── pinout.h
-└── board_config.h
-
-Shared Types (includes/types.h)
+Utilities (cross-cutting): log.c, memory.c, retry.c
+Configuration: config.h → board_config.h + pinout.h
 ```
-
----
-
-## Getting Started
-
-1. **Review Structure**: Read this file to understand layout
-2. **Review README.md**: Overview and API reference
-3. **Review BUILD.md**: Build instructions and system setup
-4. **Compile**: `make` to create debug build
-5. **Deploy**: `make install` to copy to Orange Pi
-6. **Test**: `make run` to execute on target
-7. **Extend**: Follow CONTRIBUTING.md when adding features
-
----
-
-## File Access Quick Reference
-
-**I want to...**
-- Learn about available functions → Look in `hal/{gpio,spi,i2c,uart,pwm}/` headers
-- Understand device protocols → Read `drivers/{tft,sdcard,flash,eeprom,flipper_uart}/` headers
-- Set log level at runtime → Use `log_set_level()` from `utils/log.h`
-- Allocate memory safely → Use `malloc_safe()` from `utils/memory.h`
-- Make reliable bus calls → Use `RETRY()` macro from `utils/retry.h`
-- See code examples → Check `core/main.c` or README.md
-- Build the project → Follow Makefile targets or BUILD.md
-- Contribute code → Read CONTRIBUTING.md
-- Generate API docs → Run `make docs`, open `docs/html/index.html`
-- Check code quality → Run `make analyze`
-- Monitor binary size → Run `make size`
-
----
-
-**Last Updated**: February 2026  
-**Project Status**: ✅ Production Ready  
-**Total Files**: 39  
-**Estimated LOC**: 6,400

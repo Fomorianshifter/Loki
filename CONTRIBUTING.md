@@ -7,7 +7,7 @@
 **Files**
 - Header files: `lowercase_with_underscores.h`
 - Implementation files: `lowercase_with_underscores.c`
-- Driver directories: `device_name/` (e.g., `drivers/tft/`)
+- Driver files: `device_name_driver.h/.c` in the repository root (e.g., `tft_driver.h`)
 
 **Functions**
 - Public HAL functions: `subsystem_verb_noun()` (e.g., `gpio_set()`, `spi_write()`)
@@ -211,11 +211,11 @@ make docs         # Open docs/html/index.html
 
 ### File Structure
 
+All sources live in the repository root (flat layout):
+
 ```
-drivers/
-  new_device/
-    new_device_driver.h
-    new_device_driver.c
+new_device_driver.h
+new_device_driver.c
 ```
 
 ### Header Template
@@ -235,7 +235,7 @@ drivers/
  * @{
  */
 
-#include "../../includes/types.h"
+#include "types.h"
 
 /* ===== PUBLIC API ===== */
 
@@ -273,8 +273,7 @@ hal_status_t new_device_deinit(void);
  */
 
 #include "new_device_driver.h"
-#include "../../utils/log.h"
-#include "../../hal/interface/interface.h"
+#include "log.h"
 
 /* ===== PRIVATE STATE ===== */
 

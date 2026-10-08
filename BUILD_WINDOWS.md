@@ -5,9 +5,8 @@ This guide explains which build tool to use based on your platform.
 ## Platform-Specific Build Tools
 
 ### Windows Users
-Choose one of the following methods:
+Use the PowerShell build script:
 
-#### Option 1: PowerShell Script (Recommended)
 ```powershell
 # Allow script execution (first time only)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -23,20 +22,6 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
 **Advantages**: Color-coded output, easier to read, modern PowerShell features
-
-#### Option 2: Batch Script (CMD.exe)
-```batch
-REM Debug build
-build.bat debug
-
-REM Release build
-build.bat release
-
-REM Build and install
-build.bat release orange-pi.local pi --install
-```
-
-**Advantages**: Works in standard CMD even if PowerShell is unavailable
 
 ### Mac/Linux Users
 Use the standard Makefile:
@@ -131,11 +116,6 @@ Use for: Production deployment, performance-critical applications
 
 # With custom IP
 .\build.ps1 -Mode release -Install -HostName 192.168.1.100 -User pi
-```
-
-### From Windows CMD
-```batch
-build.bat release orange-pi.local pi --install
 ```
 
 ### From Mac/Linux
