@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 
                 /* Free payload if allocated */
                 if (msg.payload != NULL) {
-                    free(msg.payload);
+                    free_safe((void **)&msg.payload);
                 }
             }
         }

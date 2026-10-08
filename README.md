@@ -168,7 +168,7 @@ This README now focuses only on the most teachable and durable information. For 
 - `BUILD_WINDOWS.md`
 - `DEPLOYMENT.md`
 - `CONTRIBUTING.md`
-- `QUICK_REFERENCE.md`
+- `QUICKSTART_WINDOWS.md`
 
 ## License
 

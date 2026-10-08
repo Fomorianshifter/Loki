@@ -2,7 +2,7 @@
 # 
 # PLATFORM NOTES:
 # - Linux/Mac: Use this Makefile directly with `make` command
-# - Windows: Use build.bat or build.ps1 script instead
+# - Windows: Use the build.ps1 script instead
 #
 # Requires: arm-linux-gnueabihf-gcc cross-compiler
 # Install on Ubuntu/Debian: sudo apt-get install gcc-arm-linux-gnueabihf

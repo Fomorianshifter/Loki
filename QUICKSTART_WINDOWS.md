@@ -65,21 +65,6 @@ cd C:\Users\nlane\Desktop\Loki
 .\build.ps1 -Mode release -Install -HostName orange-pi.local -User pi
 ```
 
-### Using CMD.exe (Alternative)
-
-```batch
-cd C:\Users\nlane\Desktop\Loki
-
-REM Debug build
-build.bat debug
-
-REM Release build  
-build.bat release
-
-REM Build and install
-build.bat release orange-pi.local pi --install
-```
-
 ## Step 4: Deploy to Orange Pi
 
 After a successful build, deploy the binary:
