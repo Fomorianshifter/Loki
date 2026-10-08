@@ -51,7 +51,12 @@ class LokiDisplay:
 
     @staticmethod
     def _is_image_like(image: Any) -> bool:
-        return image is not None and hasattr(image, "size") and hasattr(image, "mode")
+        return (
+            image is not None
+            and hasattr(image, "size")
+            and hasattr(image, "convert")
+            and hasattr(image, "tobytes")
+        )
 
     def draw_frame(self, image: Any) -> bool:
         """Write *image* to the framebuffer if one is available.
@@ -77,7 +82,7 @@ class LokiDisplay:
         else:
             img = image
 
-        if True:
+        if self.pixel_format == "RGB565":
             self._write_rgb565(img)
         else:
             self._write_rgb(img)

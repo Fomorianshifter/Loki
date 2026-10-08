@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/loki_app --wait-flipper --skip-tests
+WorkingDirectory=/opt/loki
+ExecStart=/opt/loki/.venv/bin/python3 /opt/loki/main.py
 Restart=on-failure
 RestartSec=2
 StandardOutput=journal

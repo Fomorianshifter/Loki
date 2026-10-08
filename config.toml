@@ -103,6 +103,24 @@ height = 320
 color_depth = 16
 theme = "default"
 
+# Dragon companion: persistent growth/animation plugin (plugins/loki_animation.py)
+[dragon]
+enabled = true
+persist = true
+state_path = "/var/lib/loki/dragon_state.json"
+
+[dragon.animation]
+width = 480
+height = 320
+fps = 10
+
+[plugins.loki_animation]
+enabled = true
+
+[plugins.display]
+pixel_format = "RGB565"
+framebuffer_path = "/dev/fb1"
+
 # -------------------------------------------------------------------
 # Build-time hardware config (consumed by tools/gen_config.py)
 # -------------------------------------------------------------------

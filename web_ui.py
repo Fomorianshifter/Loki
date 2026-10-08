@@ -19,7 +19,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - _load reports the Python 3.11 requirement
     tomllib = None  # type: ignore[assignment]
 
-    _SECRET_NAMES = {"api_key", "password", "secret", "token"}
+_SECRET_NAMES = {"api_key", "password", "secret", "token"}
 
 
 def _is_secret(path: tuple[str, ...]) -> bool:
@@ -54,8 +54,8 @@ def _toml_value(value) -> str:
     if isinstance(value, bool):
         return str(value).lower()
     if isinstance(value, str):
-       escaped_val = value.replace("\\", "\\\\").replace("\"", "\\\"")
-    return f'"{escaped_val}"'
+        escaped_val = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped_val}"'
     if isinstance(value, list):
         return "[" + ", ".join(_toml_value(item) for item in value) + "]"
     return str(value)
@@ -95,9 +95,25 @@ class ConfigWebUI:
         self.host = host
         self.port = port
         self.shared_state = shared_state if shared_state is not None else {}
-        
-        # Allow any network connection for local testing so your computer isn't blocked
-        self.client_network = ipaddress.ip_network("0.0.0.0/0")
+
+        if host == "127.0.0.1":
+            # Strictly local-only access.
+            self.client_network = ipaddress.ip_network("127.0.0.0/8")
+        else:
+            # Pwnagotchi-style USB network: Loki is 10.0.0.2 and the
+            # connected computer is 10.0.0.1.  Anything else is rejected so
+            # the editor is never exposed to a public interface.
+            try:
+                address = ipaddress.ip_address(host)
+            except ValueError:
+                raise ValueError(f"Unsupported web UI host: {host!r}")
+            usb_network = ipaddress.ip_network("10.0.0.0/24")
+            if address not in usb_network:
+                raise ValueError(
+                    "Web UI host must be 127.0.0.1 or an address on the "
+                    "10.0.0.0/24 USB network"
+                )
+            self.client_network = usb_network
 
         self.csrf_token = secrets.token_urlsafe(32)
         self.server: ThreadingHTTPServer | None = None
@@ -108,6 +124,18 @@ class ConfigWebUI:
             raise RuntimeError("The local web UI requires Python 3.11 or later")
         with self.config_path.open("rb") as config_file:
             return tomllib.load(config_file)
+
+    def _status_snapshot(self) -> dict:
+        """Build the JSON payload for ``GET /api/status`` from shared state."""
+        dragon = self.shared_state.get("loki_animation")
+        if isinstance(dragon, dict):
+            return {
+                "stage": dragon.get("stage", "unknown"),
+                "level": dragon.get("level", 0),
+                "xp": dragon.get("xp", 0),
+                "mood": dragon.get("mood", "unknown"),
+            }
+        return {"stage": "unknown", "level": 0, "xp": 0, "mood": "unknown"}
 
     def _save(self, data: dict) -> None:
         fd, temporary_path = tempfile.mkstemp(
@@ -153,56 +181,49 @@ class ConfigWebUI:
 
         class Handler(BaseHTTPRequestHandler):
             def _is_allowed_client(self) -> bool:
-                return True  # Temporarily bypass network check for testing     
+                try:
+                    client_address = ipaddress.ip_address(self.client_address[0])
+                except ValueError:
+                    return False
+                return client_address in server_instance.client_network
 
             def do_GET(self):
                 if not self._is_allowed_client():
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
 
-                # --- NEW API ENDPOINT ---
                 if self.path == "/api/status":
+                    import json
+
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Type", "application/json")
                     self.end_headers()
-                    
-                    # Hardcoding physical screen stats to test the connection
-                    import json
-                    status = {
-                        "stage": "Egg",
-                        "level": "0",
-                        "xp": "0",
-                        "mood": "Grumpy"
-                    }
-                    self.wfile.write(json.dumps(status).encode('utf-8'))
+                    self.wfile.write(
+                        json.dumps(server_instance._status_snapshot()).encode("utf-8")
+                    )
                     return
 
-                # --- SERVE WEB UI ---
                 if self.path == "/":
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.end_headers()
-
-                    with open("/opt/loki/templates/index.html", "r", encoding="utf-8") as f:
-                        html_content = f.read()
-
-                    self.wfile.write(html_content.encode('utf-8'))
+                    self.wfile.write(server_instance._page().encode("utf-8"))
                     return
-                
+
                 self.send_error(HTTPStatus.NOT_FOUND)
 
             def do_POST(self):
                 if not self._is_allowed_client() or self.path != "/":
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
-                    
+
                 length = int(self.headers.get("Content-Length", "0"))
                 form = parse_qs(self.rfile.read(length).decode("utf-8"), keep_blank_values=True)
-                
+
                 if form.get("csrf_token", [""])[0] != server_instance.csrf_token:
                     self.send_error(HTTPStatus.FORBIDDEN)
                     return
-                    
+
                 try:
                     data = server_instance._load()
                     for path, current in _flatten_settings(data):
@@ -210,9 +231,9 @@ class ConfigWebUI:
                         if field in form:
                             _set_value(data, path, _parse_value(form[field][0], current))
                     server_instance._save(data)
-                    self.send_response(HTTPStatus.OK)
+                    self.send_response(HTTPStatus.SEE_OTHER)
+                    self.send_header("Location", "/")
                     self.end_headers()
-                    self.wfile.write(b"Settings saved successfully.")
                 except (ValueError, TypeError, RuntimeError) as error:
                     self.send_response(HTTPStatus.BAD_REQUEST)
                     self.end_headers()
