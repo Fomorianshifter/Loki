@@ -10,7 +10,8 @@ GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 GENERATE_MAN           = NO
 
-INPUT                  = hal/ drivers/ core/ utils/ includes/ config/
+# All sources live in the repository root (flat layout)
+INPUT                  = .
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.h *.c
 RECURSIVE              = YES
@@ -33,7 +34,7 @@ MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = NO
 
 SEARCH_INCLUDES        = YES
-INCLUDE_PATH           = ./includes ./config ./utils
+INCLUDE_PATH           = .
 
 GENERATE_TREEVIEW      = YES
 TREEVIEW_WIDTH         = 250

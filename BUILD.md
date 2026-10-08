@@ -74,7 +74,7 @@ The Loki system features a comprehensive logging framework accessible via easy-t
 ### Usage Examples
 
 ```c
-#include "utils/log.h"
+#include "log.h"
 
 // Simple messages
 LOG_INFO("System initialized");
@@ -113,7 +113,7 @@ log_set_level(LOG_ERROR);    // Only errors and critical
 Safe memory allocation with automatic tracking (debug mode):
 
 ```c
-#include "utils/memory.h"
+#include "memory.h"
 
 // Safe allocation
 uint8_t *buffer = malloc_safe(256);
@@ -154,7 +154,7 @@ When the system shuts down, a final report shows any memory leaks:
 Automatic retry mechanism for transient failures (SPI, I2C, UART):
 
 ```c
-#include "utils/retry.h"
+#include "retry.h"
 
 // Simple retry with sensible defaults
 hal_status_t status = RETRY(

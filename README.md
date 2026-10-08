@@ -28,6 +28,7 @@ Main source files in the current root-level layout include:
 - `uart.c` / `uart.h` — UART abstraction
 - `pwm.c` / `pwm.h` — PWM abstraction
 - `tft_driver.c` / `tft_driver.h` — TFT display driver
+- `dragon_anim.c` / `dragon_anim.h` — procedural dragon boot animation
 - `sdcard_driver.c` / `sdcard_driver.h` — SD card driver
 - `flash_driver.c` / `flash_driver.h` — flash memory driver
 - `eeprom_driver.c` / `eeprom_driver.h` — EEPROM driver
@@ -90,6 +91,17 @@ Hardware communication can fail temporarily. The retry helpers show how to wrap 
 ### 5. Graceful shutdown
 
 The signal handling in `main.c` demonstrates a clean exit path. That matters for embedded Linux software that may be stopped through SSH, a service manager, or a terminal.
+
+### 6. Procedural graphics (the dragon)
+
+`dragon_anim.c` renders the boot animation without any stored sprites. Each frame is computed per-pixel:
+
+- a domain-warped aurora plasma sky with twinkling stars
+- a dragon built from capsule signed-distance fields following a Lissajous flight path, with snout, horns, dorsal spikes, and glowing eyes
+- analytic shading (SDF-gradient normals, key light, rim light, fire underglow)
+- additive fire glow and drifting ember particles
+
+Frames render into scanline tiles and stream to the ILI9488 with `tft_write_pixels()`, so peak RAM stays around 38 KiB regardless of resolution. It is a compact study in how far pure math can take embedded graphics.
 
 ## Build basics
 

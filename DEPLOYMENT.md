@@ -607,7 +607,7 @@ Once deployment is successful:
 
 - **Build Errors**: See [BUILD.md](BUILD.md) troubleshooting section
 - **Code Issues**: See [CONTRIBUTING.md](CONTRIBUTING.md) code standards
-- **Improvements**: See [IMPROVEMENTS.md](IMPROVEMENTS.md) for architecture overview
+- **File Inventory**: See [FILE_REFERENCE.md](FILE_REFERENCE.md) for architecture overview
 - **API Reference**: Generate with `make docs` and open `docs/html/index.html`
 
 ---
