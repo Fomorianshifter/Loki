@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import html
 import ipaddress
+import json
 import os
 import secrets
 import tempfile
@@ -54,7 +55,13 @@ def _toml_value(value) -> str:
     if isinstance(value, bool):
         return str(value).lower()
     if isinstance(value, str):
-        escaped_val = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped_val = (
+            value.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+        )
         return f'"{escaped_val}"'
     if isinstance(value, list):
         return "[" + ", ".join(_toml_value(item) for item in value) + "]"
@@ -154,6 +161,9 @@ class ConfigWebUI:
     def _page(self, message: str = "", data: dict | None = None) -> str:
         if data is None:
             data = self._load()
+        snapshot = json.dumps(
+            {".".join(path): _toml_value(value) for path, value in _flatten_settings(data)}
+        )
         rows = []
         for path, value in _flatten_settings(data):
             field = ".".join(path)
@@ -172,8 +182,9 @@ class ConfigWebUI:
 <html><head><meta charset="utf-8"><title>Loki configuration</title>
 <style>body{{font-family:sans-serif;max-width:900px;margin:2rem auto}}table{{border-collapse:collapse;width:100%}}th,td{{padding:.5rem;border-bottom:1px solid #ddd;text-align:left}}input{{width:100%;box-sizing:border-box}}.notice{{color:#075}}</style>
 </head><body><h1>Loki configuration</h1>
+<p><a href="/">Return to dashboard</a></p>
 <p>Changes are saved to {html.escape(str(self.config_path))}. Fully restart Loki to apply them. Secrets are deliberately excluded; configure the WPA-SEC key with <code>LOKI_WPA_SEC_API_KEY</code>.</p>
-{notice}<form method="post"><input type="hidden" name="csrf_token" value="{self.csrf_token}"><table>{''.join(rows)}</table><p><button type="submit">Save configuration</button></p></form></body></html>"""
+{notice}<form method="post"><input type="hidden" name="csrf_token" value="{self.csrf_token}"><input type="hidden" name="_snapshot" value="{html.escape(snapshot, quote=True)}"><table>{''.join(rows)}</table><p><button type="submit">Save configuration</button></p></form></body></html>"""
 
     def _handler(self):
         # Capture the parent instance so the inner Handler class can access it safely
@@ -207,13 +218,21 @@ class ConfigWebUI:
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.end_headers()
+                    template_path = Path(__file__).parent / "templates" / "index.html"
+                    self.wfile.write(template_path.read_bytes())
+                    return
+
+                if self.path == "/config":
+                    self.send_response(HTTPStatus.OK)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
                     self.wfile.write(server_instance._page().encode("utf-8"))
                     return
 
                 self.send_error(HTTPStatus.NOT_FOUND)
 
             def do_POST(self):
-                if not self._is_allowed_client() or self.path != "/":
+                if not self._is_allowed_client() or self.path != "/config":
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
 
@@ -226,13 +245,28 @@ class ConfigWebUI:
 
                 try:
                     data = server_instance._load()
+                    snapshot = json.loads(form.get("_snapshot", [""])[0])
+                    if not isinstance(snapshot, dict):
+                        raise ValueError("invalid configuration snapshot")
+                    stale_fields = []
+                    for path, current in _flatten_settings(data):
+                        field = ".".join(path)
+                        if field in form and snapshot.get(field) != _toml_value(current):
+                            stale_fields.append(field)
+                    if stale_fields:
+                        self.send_response(HTTPStatus.CONFLICT)
+                        self.end_headers()
+                        self.wfile.write(
+                            b"Configuration changed since this form was loaded; reload and try again."
+                        )
+                        return
                     for path, current in _flatten_settings(data):
                         field = ".".join(path)
                         if field in form:
                             _set_value(data, path, _parse_value(form[field][0], current))
                     server_instance._save(data)
                     self.send_response(HTTPStatus.SEE_OTHER)
-                    self.send_header("Location", "/")
+                    self.send_header("Location", "/config")
                     self.end_headers()
                 except (ValueError, TypeError, RuntimeError) as error:
                     self.send_response(HTTPStatus.BAD_REQUEST)

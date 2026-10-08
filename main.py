@@ -8,7 +8,9 @@ Robust main loop for Loki:
 """
 
 import importlib
+import importlib.util
 import logging
+import sys
 import time
 import traceback
 import os
@@ -28,24 +30,42 @@ def get_config_path():
 
 def discover_plugins(custom_dir=None):
     """
-    Discover plugin modules in the plugins package by listing files.
+    Discover built-in and configured custom plugin modules by listing files.
     Returns dict name -> module instance (module object).
     """
     plugins = {}
     p = Path(PLUGINS_DIR)
-    if not p.exists():
+    if p.exists():
+        for py in p.glob("*.py"):
+            name = py.stem
+            if name.startswith("_"):
+                continue
+            try:
+                mod = importlib.import_module(f"{PLUGINS_DIR}.{name}")
+                plugins[name] = mod
+            except Exception:
+                logger.error("Failed to import plugin module %s:\n%s", name, traceback.format_exc())
+    else:
         logger.warning("Plugins directory not found: %s", PLUGINS_DIR)
-        return plugins
 
-    for py in p.glob("*.py"):
-        name = py.stem
-        if name.startswith("_"):
-            continue
-        try:
-            mod = importlib.import_module(f"{PLUGINS_DIR}.{name}")
-            plugins[name] = mod
-        except Exception:
-            logger.error("Failed to import plugin module %s:\n%s", name, traceback.format_exc())
+    if custom_dir:
+        custom_path = Path(custom_dir).expanduser()
+        for py in custom_path.glob("*.py"):
+            name = py.stem
+            if name.startswith("_"):
+                continue
+            module_name = f"_loki_custom_{name}"
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, py)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load custom plugin from {py}")
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = mod
+                spec.loader.exec_module(mod)
+                plugins[getattr(mod, "PLUGIN_NAME", name)] = mod
+            except Exception:
+                sys.modules.pop(module_name, None)
+                logger.error("Failed to import custom plugin module %s:\n%s", name, traceback.format_exc())
     return plugins
 
 def instantiate_plugins(modules, config=None):
@@ -59,7 +79,11 @@ def instantiate_plugins(modules, config=None):
         # fallback: build (name, module) pairs for a list of modules
         iterable = []
         for m in modules or []:
-            name = getattr(m, "PLUGIN_NAME", None) or getattr(m, "__name__", None)
+            name = getattr(m, "PLUGIN_NAME", None)
+            if not name:
+                name = getattr(m, "__name__", None)
+                if name:
+                    name = name.rsplit(".", 1)[-1]
             if not name:
                 name = getattr(m, "__file__", "unknown").split("/")[-1].split(".")[0]
             iterable.append((name, m))
@@ -150,7 +174,7 @@ def main():
             web_ui = ConfigWebUI(
                 config_file,
                 shared_state=shared_state,
-                host=web_config.get("host", "10.0.0.2"),
+                host=web_config.get("address", "10.0.0.2"),
                 port=web_config.get("port", 8080),
             )
             if hasattr(web_ui, "start"):
