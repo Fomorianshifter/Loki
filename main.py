@@ -199,6 +199,8 @@ def main():
     # open main.py in your editor (or use sed/awk to insert)
     # Instantiate plugin objects with per-plugin config
     plugins = instantiate_plugins(modules, config)
+    if web_ui is not None:
+        web_ui.plugins = plugins
 
     # Initialize display (safe)
     display = init_display(config)

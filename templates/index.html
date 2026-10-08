@@ -1,217 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOKI // Command Center</title>
-    <!-- Tailwind CSS via CDN for rapid, clean styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for high-tech icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body {
-            font-family: 'JetBrains Mono', monospace;
-            background-color: #05050a;
-            color: #00ff66;
-        }
-        .glow-box {
-            box-shadow: 0 0 15px rgba(0, 255, 102, 0.1);
-            border: 1px solid rgba(0, 255, 102, 0.2);
-        }
-        .glow-text {
-            text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
-        }
-        /* Custom scrollbar for terminal logs */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0b0f19; }
-        ::-webkit-scrollbar-thumb { background: #00ff66; border-radius: 3px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="__CSRF_TOKEN__">
+<title>LOKI // Control Panel</title>
+<style>
+:root{
+  --bg:#07090f;--bg2:#0c111c;--panel:rgba(18,25,40,.72);--line:rgba(120,255,190,.14);
+  --text:#e6edf7;--muted:#8a97ad;--accent:#3dffa6;--accent2:#7c5cff;--warn:#ffc857;--bad:#ff5c7a;
+  --radius:16px;--mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--sans);color:var(--text);background:
+  radial-gradient(900px 500px at 85% -10%,rgba(124,92,255,.22),transparent 60%),
+  radial-gradient(800px 500px at -10% 110%,rgba(61,255,166,.14),transparent 60%),var(--bg);
+  display:flex;min-height:100vh}
+a{color:inherit;text-decoration:none}
+.sidebar{width:230px;flex:none;padding:22px 14px;border-right:1px solid var(--line);
+  background:rgba(8,12,20,.7);backdrop-filter:blur(14px);display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 10px 18px;font-weight:800;letter-spacing:.18em}
+.brand .logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:19px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 22px rgba(61,255,166,.4)}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);
+  font-weight:600;font-size:14px;transition:.18s;cursor:pointer}
+.nav a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav a.active{color:var(--bg);background:linear-gradient(135deg,var(--accent),#7dffd0);box-shadow:0 6px 22px rgba(61,255,166,.25)}
+.nav .ic{width:20px;text-align:center}
+.side-foot{margin-top:auto;font-size:12px;color:var(--muted);padding:10px;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 10px var(--bad)}
+.dot.on{background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.45}}
+main{flex:1;min-width:0;padding:28px clamp(16px,3vw,40px) 60px}
+h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 24px;font-size:14px}
+.page{display:none;animation:fade .25s ease}.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+.grid{display:grid;gap:18px}
+.g-dash{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;
+  backdrop-filter:blur(12px);box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.card h2{margin:0 0 14px;font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:700}
+.screen{background:#000;border-radius:12px;border:1px solid var(--line);overflow:hidden;aspect-ratio:3/2;display:grid;place-items:center;
+  box-shadow:0 0 0 6px rgba(255,255,255,.03),0 0 40px rgba(61,255,166,.12)}
+.screen img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;display:block}
+.screen .off{color:var(--muted);font-size:13px;text-align:center;padding:20px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.stat{padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.stat b{display:block;font-size:20px;margin-top:2px}.stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.bar{height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .6s}
+.btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);padding:9px 14px;border-radius:10px;
+  font:600 13px var(--sans);cursor:pointer;transition:.15s}
+.btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#7dffd0);color:#04120b;border:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+/* chat */
+.chat{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:420px}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 4px 12px}
+.msg{max-width:78%;padding:10px 14px;border-radius:16px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent2),#5a8bff);border-bottom-right-radius:4px}
+.msg.loki{align-self:flex-start;background:rgba(255,255,255,.07);border:1px solid var(--line);border-bottom-left-radius:4px}
+.composer{display:flex;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+input,select,textarea{background:rgba(0,0,0,.35);border:1px solid var(--line);color:var(--text);border-radius:10px;
+  padding:10px 12px;font:14px var(--sans);outline:none;min-width:0}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(61,255,166,.15)}
+.composer input{flex:1}
+/* plugins */
+.plugins{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.plug-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.plug-head b{font-size:16px}
+.badge{font-size:11px;padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.badge.ok{color:var(--accent);border-color:rgba(61,255,166,.4)}
+.switch{position:relative;width:44px;height:24px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;border-radius:99px;background:rgba(255,255,255,.12);cursor:pointer;transition:.2s}
+.switch span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.2s}
+.switch input:checked+span{background:var(--accent)}.switch input:checked+span:before{transform:translateX(20px)}
+.kv{display:grid;grid-template-columns:1fr 1.2fr;gap:8px;align-items:center;margin-top:10px;font-size:13px}
+.kv label{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+/* settings */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{padding:7px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-size:12px;cursor:pointer;font-family:var(--mono)}
+.tab.active{background:var(--accent);color:#04120b;border-color:transparent;font-weight:700}
+.fields{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:var(--mono)}
+.field input,.field select{width:100%}
+.field.dirty input,.field.dirty select{border-color:var(--warn)}
+.savebar{position:sticky;bottom:14px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:12px 16px;border-radius:14px;background:rgba(10,15,26,.92);border:1px solid var(--line);backdrop-filter:blur(10px)}
+pre.log{margin:0;background:#020409;border:1px solid var(--line);border-radius:12px;padding:14px;font:12px/1.55 var(--mono);
+  color:#9dffd0;height:calc(100vh - 220px);overflow:auto;white-space:pre-wrap}
+.toast{position:fixed;right:20px;bottom:20px;padding:12px 18px;border-radius:12px;background:#0f1726;border:1px solid var(--line);
+  transform:translateY(80px);opacity:0;transition:.3s;z-index:9;font-size:14px}
+.toast.show{transform:none;opacity:1}.toast.err{border-color:var(--bad);color:var(--bad)}
+@media(max-width:860px){
+  body{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:sticky;z-index:5;flex-direction:row;align-items:center;padding:8px 10px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .brand{padding:0 8px 0 0}.brand span.t,.side-foot{display:none}
+  .nav{display:flex;gap:4px}.nav a{padding:8px 10px;white-space:nowrap}
+  .g-dash{grid-template-columns:1fr}.chat{height:calc(100vh - 220px)}
+}
+</style>
 </head>
-<body class="min-h-screen p-4 md:p-8 flex flex-col justify-between">
+<body>
+<aside class="sidebar">
+  <div class="brand"><div class="logo">🐉</div><span class="t">LOKI</span></div>
+  <nav class="nav" id="nav">
+    <a data-page="dashboard" class="active"><span class="ic">◈</span>Dashboard</a>
+    <a data-page="chat"><span class="ic">✦</span>Chat</a>
+    <a data-page="plugins"><span class="ic">⬡</span>Plugins</a>
+    <a data-page="settings"><span class="ic">⚙</span>Settings</a>
+    <a data-page="logs"><span class="ic">▤</span>Logs</a>
+  </nav>
+  <div class="side-foot"><span class="dot" id="dot"></span><span id="conn">connecting…</span></div>
+</aside>
 
-    <!-- TOP HEADER -->
-    <header class="flex flex-col md:flex-row justify-between items-center border-b border-green-500/30 pb-4 mb-6">
-        <div class="flex items-center space-x-3">
-            <div class="w-4 h-4 bg-green-500 rounded-full animate-ping"></div>
-            <h1 class="text-2xl md:text-3xl font-bold tracking-wider glow-text">LOKI // NODE_ACTIVE</h1>
+<main>
+  <section class="page active" id="page-dashboard">
+    <h1>Dashboard</h1><p class="sub">Live mirror of Loki's display and vitals.</p>
+    <div class="grid g-dash">
+      <div class="card">
+        <h2>Live display</h2>
+        <div class="screen"><img id="frame" alt="Loki display" hidden><div class="off" id="frame-off">Display animation is not running.<br>Enable the <code>loki_animation</code> plugin.</div></div>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2>Companion</h2>
+          <div class="stats">
+            <div class="stat"><span>Stage</span><b id="s-stage">–</b></div>
+            <div class="stat"><span>Level</span><b id="s-level">–</b></div>
+            <div class="stat"><span>Mood</span><b id="s-mood">–</b></div>
+            <div class="stat"><span>XP</span><b id="s-xp">–</b></div>
+          </div>
+          <div class="bar"><i id="xpbar" style="width:0"></i></div>
+          <div class="row" id="actions">
+            <button class="btn" data-act="care">Care</button><button class="btn" data-act="feed">Feed</button>
+            <button class="btn" data-act="play">Play</button><button class="btn" data-act="rest">Rest</button>
+          </div>
         </div>
-        <div class="mt-2 md:mt-0 flex items-center space-x-4 text-sm text-green-400/80">
-            <span><i class="fa-solid fa-microchip mr-1"></i> RPi 4 Model B</span>
-            <span><i class="fa-solid fa-network-wired mr-1"></i> loki:8082</span>
-            <span id="system-time" class="text-green-300">--:--:--</span>
-        </div>
-    </header>
+        <div class="card"><h2>Running plugins</h2><div id="running" class="row" style="margin:0"></div></div>
+      </div>
+    </div>
+  </section>
 
-    <!-- MAIN GRID DASHBOARD -->
-    <main class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+  <section class="page" id="page-chat">
+    <h1>Chat with Loki</h1><p class="sub">Talk, feed, play or ask for his status.</p>
+    <div class="card chat">
+      <div class="msgs" id="msgs"><div class="msg loki">Hello! I'm Loki. Say hi 🐉</div></div>
+      <form class="composer" id="chat-form"><input id="chat-input" autocomplete="off" maxlength="500" placeholder="Message Loki…"><button class="btn primary">Send</button></form>
+    </div>
+  </section>
 
-        <!-- COLUMN 1: DRAGON STATS & PET STATUS -->
-        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
-            <div>
-                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
-                    <i class="fa-solid fa-dragon mr-2"></i>Loki Companion
-                </h2>
-                <div class="flex items-center space-x-4 mb-4">
-                    <div class="w-16 h-16 bg-green-950 border border-green-500 rounded flex items-center justify-center text-2xl glow-text">
-                        🐉
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-400">Stage: <span id="dragon-stage" class="text-green-300 font-bold">Juvenile</span></p>
-                        <p class="text-sm text-gray-400">Level: <span id="dragon-level" class="text-green-300 font-bold">4</span></p>
-                        <p class="text-sm text-gray-400">Mood: <span class="text-cyan-400 font-bold">Vigilant</span></p>
-                    </div>
-                </div>
-                <!-- XP Bar -->
-                <div class="mb-4">
-                    <div class="flex justify-between text-xs mb-1 text-gray-400">
-                        <span>XP Progress</span>
-                        <span id="xp-text">780 / 1000</span>
-                    </div>
-                    <div class="w-full bg-gray-900 rounded-full h-2.5 border border-green-500/30">
-                        <div id="xp-bar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 78%"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="text-xs text-green-500/60 bg-green-950/30 p-2 rounded border border-green-500/10">
-                Status: Tracking environment packets & handshakes.
-            </div>
-        </div>
+  <section class="page" id="page-plugins">
+    <h1>Plugins</h1><p class="sub">Enable, disable and tune plugins. Restart Loki to apply changes.</p>
+    <div class="grid plugins" id="plugin-list"></div>
+  </section>
 
-        <!-- COLUMN 2: HARDWARE & SYSTEM TELEMETRY -->
-        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
-            <div>
-                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
-                    <i class="fa-solid fa-server mr-2"></i>System Telemetry
-                </h2>
-                <div class="space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-gray-400">CPU Temperature</span>
-                            <span id="cpu-temp" class="text-yellow-400 font-bold">48.2°C</span>
-                        </div>
-                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
-                            <div class="bg-yellow-500 h-1.5 rounded-full" style="width: 48%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-gray-400">RAM Usage</span>
-                            <span id="ram-usage" class="text-green-400 font-bold">34% (1.3GB / 3.8GB)</span>
-                        </div>
-                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
-                            <div class="bg-green-500 h-1.5 rounded-full" style="width: 34%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="text-gray-400">Disk Storage</span>
-                            <span id="disk-usage" class="text-green-400 font-bold">42% (12.4GB / 29.5GB)</span>
-                        </div>
-                        <div class="w-full bg-gray-900 rounded-full h-2 border border-green-500/30">
-                            <div class="bg-green-500 h-1.5 rounded-full" style="width: 42%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4 flex space-x-2">
-                <button onclick="triggerAction('reboot_display')" class="flex-1 bg-green-950 hover:bg-green-900 border border-green-500/40 text-xs py-2 rounded transition text-green-300 font-bold">
-                    <i class="fa-solid fa-rotate mr-1"></i> Reset Screen
-                </button>
-                <button onclick="triggerAction('clear_cache')" class="flex-1 bg-gray-900 hover:bg-gray-800 border border-gray-700 text-xs py-2 rounded transition text-gray-300">
-                    <i class="fa-solid fa-broom mr-1"></i> Clear Cache
-                </button>
-            </div>
-        </div>
+  <section class="page" id="page-settings">
+    <h1>Settings</h1><p class="sub">Everything in <code>config.toml</code>. Secrets are hidden and preserved.</p>
+    <div class="tabs" id="tabs"></div>
+    <div class="grid fields" id="fields"></div>
+    <div class="savebar"><span id="dirty" class="sub" style="margin:0">No changes</span><button class="btn primary" id="save">Save changes</button></div>
+  </section>
 
-        <!-- COLUMN 3: PLUGINS & BETTERCAP INTEGRATION -->
-        <div class="glow-box bg-gray-950/80 p-5 rounded-lg flex flex-col justify-between">
-            <div>
-                <h2 class="text-lg font-bold border-b border-green-500/20 pb-2 mb-4 text-green-400">
-                    <i class="fa-solid fa-puzzle-piece mr-2"></i>Modules & Plugins
-                </h2>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
-                        <span>Bettercap Bridge</span>
-                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">ONLINE</span>
-                    </div>
-                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
-                        <span>Loki Animation Module</span>
-                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">ACTIVE</span>
-                    </div>
-                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
-                        <span>Password Display Plugin</span>
-                        <span class="px-2 py-0.5 text-xs bg-green-950 text-green-400 rounded border border-green-500/30">LOADED</span>
-                    </div>
-                    <div class="flex justify-between items-center bg-gray-900/60 p-2 rounded border border-green-500/10">
-                        <span>RS485 Serial Interface</span>
-                        <span class="px-2 py-0.5 text-xs bg-yellow-950 text-yellow-400 rounded border border-yellow-500/30">STANDBY</span>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4 text-center">
-                <span class="text-xs text-gray-500">Virtual Environment: <span class="text-green-400">.venv (Active)</span></span>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- LIVE TERMINAL LOGS -->
-    <section class="glow-box bg-gray-950/90 p-4 rounded-lg mb-6">
-        <div class="flex justify-between items-center mb-2 border-b border-green-500/20 pb-2">
-            <h3 class="text-sm font-bold text-green-400"><i class="fa-solid fa-terminal mr-2"></i>Live System Stream / Logs</h3>
-            <span class="text-xs text-gray-500">Auto-scrolling</span>
-        </div>
-        <div id="terminal-log" class="bg-black p-3 rounded h-32 overflow-y-auto text-xs text-green-400 space-y-1 font-mono">
-            <p>[2026-08-06 19:49:36] INFO: Web UI started on port 8082</p>
-            <p>[2026-08-06 19:49:37] INFO: Using plugin directory: /usr/local/shar/custom-plugins/</p>
-            <p>[2026-08-06 19:49:37] INFO: Discovered plugin modules: ['loki_animation', 'display-password']</p>
-            <p>[2026-08-06 19:49:37] INFO: [LokiAnimation] started — stage=Juvenile level=4</p>
-        </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer class="text-center text-xs text-gray-600 border-t border-gray-900 pt-3">
-        LOKI FRAMEWORK // EMBEDDED RASPBERRY PI 4 ENVIRONMENT // SECURE LOCAL NODE
-    </footer>
-
-    <!-- JAVASCRIPT FOR REAL-TIME SIMULATION & API HOOKS -->
-    <script>
-        // Update clock
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('system-time').innerText = now.toTimeString().split(' ')[0];
-        }, 1000);
-
-        // Optional: Function to hook into Python backend endpoints if you create them
-        function triggerAction(actionName) {
-            fetch(`/api/${actionName}`, { method: 'POST' })
-                .then(res => res.json())
-                .then(data => alert(`Action executed: ${actionName}`))
-                .catch(err => console.log('Action triggered locally.'));
-        }
-    </script>
-</body>
-</html>
+  <section class="page" id="page-logs">
+    <h1>Logs</h1><p class="sub">Recent Loki log output.</p>
+    <pre class="log" id="log"></pre>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
 
 <script>
-setInterval(() => {
-    fetch('/api/status')
-        .then(response => response.json())
-        .then(data => {
-            // Update the HTML elements if they exist
-            const stageEl = document.getElementById('dragon-stage');
-            if (stageEl) stageEl.innerText = data.stage;
-            
-            const levelEl = document.getElementById('dragon-level');
-            if (levelEl) levelEl.innerText = data.level;
-            
-            const xpEl = document.getElementById('xp-text');
-            if (xpEl) xpEl.innerText = data.xp;
-            
-            const moodEl = document.getElementById('dragon-mood');
-            if (moodEl) moodEl.innerText = data.mood;
-        })
-        .catch(err => console.error("Error fetching Loki stats:", err));
-}, 2000);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const CSRF=document.querySelector('meta[name=csrf-token]').content;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path,body){
+  const o=body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},body:JSON.stringify(body)};
+  const r=await fetch(path,o); let j={}; try{j=await r.json()}catch(e){}
+  if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j;
+}
+let tt; function toast(m,err){const t=$('#toast');t.textContent=m;t.className='toast show'+(err?' err':'');clearTimeout(tt);tt=setTimeout(()=>t.className='toast',3200)}
+
+/* routing */
+function show(p){
+  if(!$('#page-'+p)) p='dashboard';
+  $$('.page').forEach(e=>e.classList.toggle('active',e.id==='page-'+p));
+  $$('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===p));
+  if(p==='plugins')loadPlugins(); if(p==='settings')loadSettings(); if(p==='logs')loadLogs();
+  if(p==='chat')$('#chat-input').focus();
+}
+$$('#nav a').forEach(a=>a.onclick=()=>{location.hash=a.dataset.page});
+addEventListener('hashchange',()=>show(location.hash.slice(1)));
+
+/* status + live frame */
+function applyStatus(s){
+  $('#dot').classList.add('on'); $('#conn').textContent='Online';
+  $('#s-stage').textContent=s.stage; $('#s-level').textContent=s.level; $('#s-mood').textContent=s.mood; $('#s-xp').textContent=s.xp;
+  $('#xpbar').style.width=Math.min(100,(Number(s.xp)||0)%1000/10)+'%';
+  $('#running').innerHTML=s.plugins.length?s.plugins.map(p=>`<span class="badge ok">${esc(p)}</span>`).join(''):'<span class="sub" style="margin:0">None</span>';
+  $('#frame').hidden=!s.display; $('#frame-off').hidden=s.display;
+}
+async function poll(){
+  try{applyStatus(await api('/api/status'))}catch(e){$('#dot').classList.remove('on');$('#conn').textContent='Offline'}
+}
+setInterval(poll,2000); poll();
+const img=$('#frame');
+function nextFrame(){ if(document.hidden||!$('#page-dashboard').classList.contains('active')||$('#frame').hidden){setTimeout(nextFrame,500);return}
+  const n=new Image(); n.onload=()=>{img.src=n.src;setTimeout(nextFrame,100)}; n.onerror=()=>setTimeout(nextFrame,1000); n.src='/api/frame.png?t='+Date.now(); }
+nextFrame();
+$('#actions').onclick=async e=>{const a=e.target.dataset.act; if(!a)return;
+  try{const r=await api('/api/chat',{message:a==='care'?'pet':a}); toast(r.reply); applyStatus(r.status)}catch(err){toast(err.message,1)}};
+
+/* chat */
+function addMsg(t,who){const d=document.createElement('div');d.className='msg '+who;d.textContent=t;$('#msgs').appendChild(d);$('#msgs').scrollTop=1e9}
+$('#chat-form').onsubmit=async e=>{e.preventDefault();const i=$('#chat-input'),m=i.value.trim();if(!m)return;i.value='';addMsg(m,'me');
+  try{const r=await api('/api/chat',{message:m});addMsg(r.reply,'loki');applyStatus(r.status)}catch(err){addMsg('⚠ '+err.message,'loki')}};
+
+/* plugins */
+async function loadPlugins(){
+  try{const {plugins}=await api('/api/plugins');
+  $('#plugin-list').innerHTML=plugins.map((p,i)=>`<div class="card"><div class="plug-head"><div><b>${esc(p.name)}</b><br>
+    <span class="badge ${p.running?'ok':''}">${p.running?'running':'stopped'}</span> ${p.installed?'':'<span class="badge">config only</span>'}</div>
+    <label class="switch"><input type="checkbox" data-name="${esc(p.name)}" ${p.enabled?'checked':''}><span></span></label></div>
+    ${p.settings.filter(s=>s.name!=='enabled').map(s=>`<div class="kv"><label title="${esc(s.key)}">${esc(s.name)}</label>
+      <input data-key="${esc(s.key)}" data-orig="${esc(s.value)}" value="${esc(s.value)}"></div>`).join('')}
+    ${p.settings.some(s=>s.name!=='enabled')?'<div class="row"><button class="btn" data-save="'+i+'">Save settings</button></div>':''}</div>`).join('');
+  }catch(e){toast(e.message,1)}
+}
+$('#plugin-list').onchange=async e=>{const n=e.target.dataset.name; if(!n)return;
+  try{await api('/api/plugins',{name:n,enabled:e.target.checked});toast((e.target.checked?'Enabled ':'Disabled ')+n+' — restart to apply');loadPlugins()}catch(err){toast(err.message,1);loadPlugins()}};
+$('#plugin-list').onclick=async e=>{if(e.target.dataset.save===undefined)return;
+  const changes={};e.target.closest('.card').querySelectorAll('input[data-key]').forEach(i=>{if(i.value!==i.dataset.orig)changes[i.dataset.key]=i.value});
+  if(!Object.keys(changes).length)return toast('No changes');
+  try{const r=await api('/api/config',{changes});toast(r.message);loadPlugins()}catch(err){toast(err.message,1)}};
+
+/* settings */
+let cfg=[],cur=null,dirty={};
+async function loadSettings(){try{cfg=(await api('/api/config')).sections;dirty={};if(!cur||!cfg.find(s=>s.name===cur))cur=cfg[0]&&cfg[0].name;renderTabs();renderFields()}catch(e){toast(e.message,1)}}
+function renderTabs(){$('#tabs').innerHTML=cfg.map(s=>`<div class="tab ${s.name===cur?'active':''}" data-s="${esc(s.name)}">${esc(s.name)}</div>`).join('')}
+function renderFields(){const s=cfg.find(x=>x.name===cur);if(!s)return;
+  $('#fields').innerHTML=s.fields.map(f=>{const v=f.key in dirty?dirty[f.key]:f.value;
+    const c=f.type==='bool'?`<select data-k="${esc(f.key)}"><option ${String(v)==='true'?'selected':''}>true</option><option ${String(v)==='false'?'selected':''}>false</option></select>`
+      :`<input data-k="${esc(f.key)}" value="${esc(v)}" ${f.type==='int'||f.type==='float'?'inputmode="decimal"':''}>`;
+    return `<div class="field ${f.key in dirty?'dirty':''}"><label>${esc(f.name)} · ${f.type}</label>${c}</div>`}).join('');
+  const n=Object.keys(dirty).length;$('#dirty').textContent=n?n+' unsaved change'+(n>1?'s':''):'No changes'}
+$('#tabs').onclick=e=>{if(e.target.dataset.s){cur=e.target.dataset.s;renderTabs();renderFields()}};
+$('#fields').oninput=$('#fields').onchange=e=>{const k=e.target.dataset.k;if(!k)return;
+  const f=cfg.flatMap(s=>s.fields).find(x=>x.key===k);
+  if(String(e.target.value)===String(f.value))delete dirty[k];else dirty[k]=e.target.value;
+  e.target.closest('.field').classList.toggle('dirty',k in dirty);
+  const n=Object.keys(dirty).length;$('#dirty').textContent=n?n+' unsaved change'+(n>1?'s':''):'No changes'};
+$('#save').onclick=async()=>{if(!Object.keys(dirty).length)return toast('No changes');
+  try{const r=await api('/api/config',{changes:dirty});toast(r.message);loadSettings()}catch(e){toast(e.message,1)}};
+
+/* logs */
+async function loadLogs(){try{const {lines}=await api('/api/logs');const l=$('#log');const bottom=l.scrollTop+l.clientHeight>=l.scrollHeight-30;
+  l.textContent=lines.join('\n')||'No log output yet.';if(bottom)l.scrollTop=l.scrollHeight}catch(e){}}
+setInterval(()=>{if($('#page-logs').classList.contains('active'))loadLogs()},2000);
+
+show(location.hash.slice(1));
 </script>
+</body>
+</html>

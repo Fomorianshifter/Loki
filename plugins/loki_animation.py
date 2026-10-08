@@ -148,6 +148,7 @@ class LokiAnimationPlugin(Plugin):
         self._stop_flag = False
         self._lock = threading.Lock()
         self._frame_index = 0
+        self._last_image = None
 
     # ------------------------------------------------------------------
     # Plugin lifecycle
@@ -261,6 +262,18 @@ class LokiAnimationPlugin(Plugin):
                 "interactions": self._state.interactions,
             }
 
+    def latest_frame_png(self) -> bytes | None:
+        """Return the most recently rendered frame as PNG bytes (for the web UI)."""
+        with self._lock:
+            img = self._last_image
+        if img is None or not hasattr(img, "save"):
+            return None
+        import io
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
     # ------------------------------------------------------------------
     # Render loop (background thread)
     # ------------------------------------------------------------------
@@ -276,6 +289,8 @@ class LokiAnimationPlugin(Plugin):
 
                 if state is not None and self._animator is not None:
                     img = self._animator.render(state, frame)
+                    with self._lock:
+                        self._last_image = img
                     # LokiDisplay.fb is None when the framebuffer could not be
                     # opened (headless mode).  We use getattr() with a default
                     # here because DisplayFallback (main.py) does not expose fb,
