@@ -19,12 +19,6 @@
 *.dSYM/
 *.dll
 *.dwo
-<<<<<<< HEAD
-
-# Build output directories
-build/
-
-=======
 *.dylib
 *.elf
 *.exe
@@ -67,5 +61,6 @@ loki.gif
 loki_preview.png
 modules.order
 venv/
+
+# Build output directories
 build/
->>>>>>> origin/main

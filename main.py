@@ -27,11 +27,6 @@ def get_config_path():
     return Path(os.environ.get("LOKI_CONFIG_PATH", str(Path(__file__).with_name("config.toml"))))
 
 def discover_plugins(custom_dir=None):
-    # (Your existing code that sets up the standard plugin paths will be here)
-    # Add this block to check if a custom directory was provided
-    if custom_dir:
-        # Code to add your custom_dir to the list of places it looks for plugins
-        pass
     """
     Discover plugin modules in the plugins package by listing files.
     Returns dict name -> module instance (module object).
@@ -63,10 +58,10 @@ def instantiate_plugins(modules, config=None):
     else:
         # fallback: build (name, module) pairs for a list of modules
         iterable = []
-    for m in modules:
+        for m in modules or []:
             name = getattr(m, "PLUGIN_NAME", None) or getattr(m, "__name__", None)
-    if not name:
-            name = getattr(m, "__file__", "unknown").split("/")[-1].split(".")[0]
+            if not name:
+                name = getattr(m, "__file__", "unknown").split("/")[-1].split(".")[0]
             iterable.append((name, m))
 
     for name, module in iterable:
@@ -80,7 +75,7 @@ def instantiate_plugins(modules, config=None):
             logger.info("Plugin %s disabled in config; skipping", name)
             continue
         if name == "loki_animation":
-            cfg = {"plugin": cfg, "dragon": (config or {}).get("dragon", {})}
+            cfg = {"plugin": cfg, "dragon": (config or {}).get("dragon", {}), "plugins": plugin_configs}
         try:
             instances[name] = plugin_class(cfg)
         except Exception:
@@ -141,8 +136,6 @@ def init_display(config):
         return DisplayFallback()
 def main():
     import tomllib
-    import threading
-    from web_ui import ConfigWebUI  # <-- CHANGE THIS LINE
 
     config_file = get_config_path()
     with config_file.open("rb") as config_stream:
@@ -157,7 +150,7 @@ def main():
             web_ui = ConfigWebUI(
                 config_file,
                 shared_state=shared_state,
-                host=web_config.get("host", "0.0.0.0"),
+                host=web_config.get("host", "10.0.0.2"),
                 port=web_config.get("port", 8080),
             )
             if hasattr(web_ui, "start"):
@@ -166,12 +159,6 @@ def main():
         except Exception:
             logger.exception("Failed to start Web UI")
 
-    # Discover and import plugin modules
-    try:
-        modules = discover_plugins()
-    except Exception:
-        logger.exception("Failed to discover plugins")
-        modules = []
     # --- CUSTOM LOKI PATHS ---
     custom_plugins_dir = config.get("main", {}).get("custom_plugins", "/opt/loki/custom_plugins")
     wordlist_path = config.get("main", {}).get("wordlist", "/opt/loki/wordlist.txt")
@@ -180,23 +167,14 @@ def main():
     logger.info("Using wordlist for checks: %s", wordlist_path)
 
     # Discover and import plugin modules
-    modules = discover_plugins(custom_dir=custom_plugins_dir)
-    # Discover and import plugin modules
     try:
-        modules = discover_plugins()
+        modules = discover_plugins(custom_dir=custom_plugins_dir)
     except Exception:
         logger.exception("Failed to discover plugins")
-        modules = []
-    # make the plugin registry available to external scripts
-    # (place this after the loader populates the plugins dict/list)
-    # if the loader uses a dict called 'plugins' or 'plugin_registry', expose it
-    try:
-        plugin_registry = globals().get("plugin_registry") or globals().get("plugins") or {}
-    except Exception:
-        plugin_registry = {}
+        modules = {}
 
     logger.info("Discovered plugin modules: %s", list(modules.keys()))
-    # open main.py in your editor (or use sed/awk to insert)
+
     # Instantiate plugin objects with per-plugin config
     plugins = instantiate_plugins(modules, config)
 
@@ -208,8 +186,9 @@ def main():
         logger.info("Starting plugin %s", name)
         safe_call("on_start", name, plugin, None)
 
-    # Main loop: aggregate plugin states and call on_tick
-    shared_state = {}
+    # Main loop: aggregate plugin states and call on_tick.
+    # Reuse the same shared_state dict the web UI holds a reference to so
+    # /api/status always sees live data.
     try:
         logger.info("Entering main loop (60 FPS)")
         while True:
