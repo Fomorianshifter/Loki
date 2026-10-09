@@ -34,6 +34,19 @@ class DragonAnimatorTests(unittest.TestCase):
         img = animator.render(state, frame=0)
         self.assertEqual(img.mode, "RGB")
 
+    def test_all_growth_stages_render_and_frames_animate(self):
+        animator = DragonAnimator({"width": 128, "height": 96, "fps": 5})
+
+        for xp in (0, 5, 25, 75):
+            with self.subTest(xp=xp):
+                state = DragonState(xp=xp)
+                first = animator.render(state, frame=4)
+                later = animator.render(state, frame=12)
+
+                self.assertEqual(first.size, (128, 96))
+                self.assertEqual(first.mode, "RGB")
+                self.assertNotEqual(first.tobytes(), later.tobytes())
+
 
 if __name__ == "__main__":
     unittest.main()
