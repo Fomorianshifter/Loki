@@ -232,12 +232,11 @@ class LokiAnimationPlugin(Plugin):
                 logger.warning("[LokiAnimation] interact called before on_start")
                 return None
             result = self._state.interact(kind)
-
-        if self._store:
-            try:
-                self._store.save(self._state)
-            except Exception:
-                logger.exception("[LokiAnimation] failed to save state after interact")
+            if self._store:
+                try:
+                    self._store.save(self._state)
+                except Exception:
+                    logger.exception("[LokiAnimation] failed to save state after interact")
 
         logger.debug("[LokiAnimation] interact=%s result=%s", kind, result)
         return result

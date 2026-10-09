@@ -1,8 +1,10 @@
+import json
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from dragon.state import DragonConfig, DragonStateStore
+from dragon.state import DragonConfig, DragonState, DragonStateStore
 
 
 class DragonStateStoreTests(unittest.TestCase):
@@ -31,6 +33,19 @@ class DragonStateStoreTests(unittest.TestCase):
             store.save(state)
 
             self.assertFalse(state_path.exists())
+
+    def test_concurrent_saves_are_atomic(self):
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "dragon_state.json"
+            store = DragonStateStore(state_path, persist=True)
+            states = [DragonState(xp=xp) for xp in range(20)]
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                list(executor.map(store.save, states))
+
+            saved = json.loads(state_path.read_text())
+            self.assertIn(saved["xp"], range(20))
+            self.assertEqual(list(Path(td).glob(".dragon_state.json.*.tmp")), [])
 
 
 if __name__ == "__main__":

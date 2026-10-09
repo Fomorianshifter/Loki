@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -274,6 +276,7 @@ class DragonStateStore:
     def __init__(self, path: str | Path, persist: bool = True):
         self.path = Path(path).expanduser()
         self.persist = persist
+        self._save_lock = threading.Lock()
 
     def load(self, cfg: DragonConfig | None = None) -> DragonState:
         """Load state from disk, apply config thresholds, then time-decay."""
@@ -300,7 +303,16 @@ class DragonStateStore:
         """Atomically write state to disk.  No-op when ``persist=False``."""
         if not self.persist:
             return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(state.to_dict(), indent=2) + "\n")
-        tmp.replace(self.path)
+        with self._save_lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            fd, temporary_path = tempfile.mkstemp(
+                dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp"
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as temporary:
+                    temporary.write(json.dumps(state.to_dict(), indent=2) + "\n")
+                os.replace(temporary_path, self.path)
+            except Exception:
+                if os.path.exists(temporary_path):
+                    os.unlink(temporary_path)
+                raise
