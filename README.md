@@ -271,8 +271,11 @@ Use `make test` to run the Python test suite.
 
 ## Local configuration UI
 
-Loki uses the same USB-network addresses as a typical Pwnagotchi setup:
-Loki is `10.0.0.2` and the connected computer is `10.0.0.1`. Install the
+By default the configuration UI serves on loopback (`http://127.0.0.1:8082`),
+which works on a fresh install with no extra network setup. To reach it from
+another machine over USB, Loki uses the same USB-network addresses as a typical
+Pwnagotchi setup: Loki is `10.0.0.2` and the connected computer is `10.0.0.1`.
+Set `address = "10.0.0.2"` under `[ui.web]` in `config.toml`, install the
 included systemd-networkd profile on Loki once, then restart networking:
 
 ```bash

@@ -187,7 +187,7 @@ def main():
             web_ui = ConfigWebUI(
                 config_file,
                 shared_state=shared_state,
-                host=web_config.get("address", "10.0.0.2"),
+                host=web_config.get("address", "127.0.0.1"),
                 port=web_config.get("port", 8080),
             )
             if hasattr(web_ui, "start"):
