@@ -108,6 +108,39 @@ class PluginLoaderTests(unittest.TestCase):
 
         self.assertEqual(store.snapshots, [1, 2])
 
+    def test_loki_animation_plugin_starts_renders_and_stops_headlessly(self):
+        rendered = threading.Event()
+        plugin = LokiAnimationPlugin(
+            {
+                "plugin": {"enabled": True},
+                "dragon": {
+                    "enabled": True,
+                    "persist": False,
+                    "animation": {"width": 96, "height": 64, "fps": 30},
+                },
+            }
+        )
+
+        with (
+            mock.patch("plugins.loki_animation._get_display", return_value=None),
+            mock.patch(
+                "dragon.animation.DragonAnimator.render",
+                side_effect=lambda *_args: rendered.set(),
+            ),
+        ):
+            plugin.on_start(None)
+            try:
+                self.assertTrue(rendered.wait(timeout=2))
+                self.assertEqual(plugin.state["stage"], "egg")
+                self.assertIsNotNone(plugin.interact("talk"))
+                self.assertEqual(plugin.state["interactions"], 1)
+            finally:
+                thread = plugin._thread
+                plugin.on_stop()
+
+        self.assertIsNotNone(thread)
+        self.assertFalse(thread.is_alive())
+
 
 if __name__ == "__main__":
     unittest.main()
