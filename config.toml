@@ -85,7 +85,7 @@ fps = 0.0
 
 [ui.web]
 enabled = true
-address = "10.0.0.2"
+address = "127.0.0.1"
 auth = false
 username = "loki"
 password = "change-me"
