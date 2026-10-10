@@ -82,6 +82,24 @@ class PluginLoaderTests(unittest.TestCase):
 
         self.assertEqual(web_ui_class.call_args.kwargs["host"], "10.0.0.3")
 
+    def test_web_server_empty_address_uses_loopback_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "config.toml"
+            config_path.write_text(
+                '[ui.web]\nenabled = true\naddress = ""\nport = 9000\n'
+            )
+            fake_ui = mock.Mock()
+            with (
+                mock.patch.object(main, "get_config_path", return_value=config_path),
+                mock.patch("web_ui.ConfigWebUI", return_value=fake_ui) as web_ui_class,
+                mock.patch.object(main, "discover_plugins", return_value={}),
+                mock.patch.object(main, "init_display", return_value=mock.Mock()),
+                mock.patch.object(main.time, "sleep", side_effect=KeyboardInterrupt),
+            ):
+                main.main()
+
+        self.assertEqual(web_ui_class.call_args.kwargs["host"], "127.0.0.1")
+
     def test_interaction_saves_in_mutation_order(self):
         class BlockingStore:
             def __init__(self):

@@ -187,12 +187,12 @@ def main():
             web_ui = ConfigWebUI(
                 config_file,
                 shared_state=shared_state,
-                host=web_config.get("address", "127.0.0.1"),
+                host=web_config.get("address") or "127.0.0.1",
                 port=web_config.get("port", 8080),
             )
             if hasattr(web_ui, "start"):
                 web_ui.start()
-            logger.info("Web UI started on port %d", web_config.get("port", 8080))
+            logger.info("Web UI started on http://%s:%d", web_ui.host, web_ui.port)
         except Exception:
             logger.exception("Failed to start Web UI")
 
