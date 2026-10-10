@@ -102,6 +102,10 @@ class ConfigWebUI:
 
     def __init__(self, config_path: str | Path, host: str = "127.0.0.1", port: int = 8080, shared_state: dict | None = None):
         self.config_path = Path(config_path)
+        if not host or not host.strip():
+            # Empty address in config.toml means "use the loopback default"
+            # rather than failing web UI startup outright.
+            host = "127.0.0.1"
         self.host = host
         self.port = port
         self.shared_state = shared_state if shared_state is not None else {}

@@ -18,6 +18,11 @@ class TestConfigWebUI(unittest.TestCase):
         with self.assertRaises(ValueError):
             ConfigWebUI("config.toml", host="0.0.0.0")
 
+    def test_empty_host_falls_back_to_loopback_default(self):
+        ui = ConfigWebUI("config.toml", host="")
+        self.assertEqual(ui.host, "127.0.0.1")
+        self.assertEqual(str(ui.client_network), "127.0.0.0/8")
+
     def test_allows_pwnagotchi_style_usb_host(self):
         ui = ConfigWebUI("config.toml", host="10.0.0.2")
         self.assertEqual(str(ui.client_network), "10.0.0.0/24")
