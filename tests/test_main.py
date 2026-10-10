@@ -51,6 +51,19 @@ class PluginLoaderTests(unittest.TestCase):
         self.assertIn("custom_named_plugin", modules)
         self.assertTrue(hasattr(modules["custom_named_plugin"], "Plugin"))
 
+    def test_discover_plugins_handles_hyphenated_filenames(self):
+        with tempfile.TemporaryDirectory() as directory:
+            plugin_path = Path(directory) / "display-password.py"
+            plugin_path.write_text(
+                "class Plugin:\n"
+                "    pass\n"
+            )
+            with mock.patch.object(main, "PLUGINS_DIR", directory):
+                modules = main.discover_plugins()
+
+        self.assertIn("display-password", modules)
+        self.assertTrue(hasattr(modules["display-password"], "Plugin"))
+
     def test_web_server_uses_configured_address(self):
         with tempfile.TemporaryDirectory() as directory:
             config_path = Path(directory) / "config.toml"

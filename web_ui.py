@@ -6,6 +6,7 @@ import ast
 import html
 import ipaddress
 import json
+import logging
 import os
 import secrets
 import tempfile
@@ -21,6 +22,8 @@ except ModuleNotFoundError:  # pragma: no cover - _load reports the Python 3.11 
     tomllib = None  # type: ignore[assignment]
 
 _SECRET_NAMES = {"api_key", "password", "secret", "token"}
+
+_logger = logging.getLogger(__name__)
 
 
 def _is_secret(path: tuple[str, ...]) -> bool:
@@ -277,7 +280,22 @@ class ConfigWebUI:
 
     def start(self) -> None:
         ThreadingHTTPServer.allow_reuse_address = True
-        self.server = ThreadingHTTPServer((self.host, self.port), self._handler())
+        try:
+            self.server = ThreadingHTTPServer((self.host, self.port), self._handler())
+        except OSError:
+            if self.host == "127.0.0.1":
+                raise
+            # The configured USB-network address is not assigned to any local
+            # interface (usb0 down or not configured yet).  Fall back to
+            # loopback so the UI is still reachable on the device itself.
+            self.client_network = ipaddress.ip_network("127.0.0.0/8")
+            _logger.warning(
+                "Web UI address %s unavailable; falling back to 127.0.0.1:%d",
+                self.host,
+                self.port,
+            )
+            self.host = "127.0.0.1"
+            self.server = ThreadingHTTPServer((self.host, self.port), self._handler())
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 

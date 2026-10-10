@@ -157,6 +157,23 @@ class TestConfigWebUI(unittest.TestCase):
             finally:
                 ui.stop()
 
+    def test_start_falls_back_to_loopback_when_address_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "config.toml"
+            config_path.write_text("enabled = true\n")
+            # 10.0.0.2 is not assigned to any interface in the test
+            # environment, so binding it would raise OSError (Errno 99).
+            ui = ConfigWebUI(config_path, host="10.0.0.2", port=0)
+            try:
+                ui.start()
+                self.assertEqual(ui.host, "127.0.0.1")
+                self.assertEqual(str(ui.client_network), "127.0.0.0/8")
+                port = ui.server.server_address[1]
+                with urlopen(f"http://127.0.0.1:{port}/api/status") as response:
+                    self.assertEqual(response.status, HTTPStatus.OK)
+            finally:
+                ui.stop()
+
 
 if __name__ == "__main__":
     unittest.main()
