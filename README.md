@@ -291,7 +291,10 @@ sudo ip link set <usb-interface> up
 ```
 
 The UI accepts connections only from that USB subnet. Edit values, save them,
-then restart Loki for the updated configuration to take effect. Configure the
+then restart Loki for the updated configuration to take effect. If the
+configured USB address is not assigned to a local interface yet (for example
+`usb0` is down), Loki logs a warning and serves the UI on loopback
+(`127.0.0.1`) instead of failing to start. Configure the
 WPA-SEC plugin key outside the repository:
 
 ```bash

@@ -28,6 +28,25 @@ MAIN_LOOP_SLEEP = 0.0167  # seconds (60 FPS = ~16.67ms per frame for responsive 
 def get_config_path():
     return Path(os.environ.get("LOKI_CONFIG_PATH", str(Path(__file__).with_name("config.toml"))))
 
+def _load_plugin_from_path(py, module_name, display_name=None):
+    """
+    Load a plugin module from a file path. Returns the module object.
+    Loading by path (rather than dotted import) tolerates file names that are
+    not valid Python identifiers, e.g. ``display-password.py``.
+    """
+    spec = importlib.util.spec_from_file_location(module_name, py)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load plugin from {py}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
+    return mod
+
+
 def discover_plugins(custom_dir=None):
     """
     Discover built-in and configured custom plugin modules by listing files.
@@ -41,7 +60,7 @@ def discover_plugins(custom_dir=None):
             if name.startswith("_"):
                 continue
             try:
-                mod = importlib.import_module(f"{PLUGINS_DIR}.{name}")
+                mod = _load_plugin_from_path(py, f"{PLUGINS_DIR}.{name}")
                 plugins[name] = mod
             except Exception:
                 logger.error("Failed to import plugin module %s:\n%s", name, traceback.format_exc())
@@ -56,15 +75,9 @@ def discover_plugins(custom_dir=None):
                 continue
             module_name = f"_loki_custom_{name}"
             try:
-                spec = importlib.util.spec_from_file_location(module_name, py)
-                if spec is None or spec.loader is None:
-                    raise ImportError(f"Could not load custom plugin from {py}")
-                mod = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = mod
-                spec.loader.exec_module(mod)
+                mod = _load_plugin_from_path(py, module_name)
                 plugins[getattr(mod, "PLUGIN_NAME", name)] = mod
             except Exception:
-                sys.modules.pop(module_name, None)
                 logger.error("Failed to import custom plugin module %s:\n%s", name, traceback.format_exc())
     return plugins
 
