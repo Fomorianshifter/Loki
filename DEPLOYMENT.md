@@ -792,6 +792,32 @@ make DEBUG=0
 make install
 ```
 
+### Updating Loki itself
+
+Because Loki runs as a persistent systemd service, `git pull` alone does not
+update the running application — the service keeps executing the code it loaded
+at startup. Use the included `update.sh` helper, which pulls the latest code in
+the deployed directory, refreshes Python dependencies if `requirements.txt`
+changed, and restarts the service:
+
+```bash
+# On the device, where the service actually runs (default: /opt/loki)
+cd /opt/loki
+./update.sh
+
+# If you deployed somewhere else:
+LOKI_DIR=/home/pi/Loki ./update.sh
+```
+
+To do the same thing manually:
+
+```bash
+cd /opt/loki
+sudo git pull
+sudo systemctl restart loki.service
+sudo journalctl -u loki.service -f   # confirm the new version started
+```
+
 ---
 
 ## Final Verification Checklist
